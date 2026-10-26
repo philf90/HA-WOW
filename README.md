@@ -1,7 +1,7 @@
 # WoW Charakter
 
 Home-Assistant-Integration für World-of-Warcraft-Charaktere. Liest die Profildaten
-über die offizielle Battle.net API. Version 0.2.1.
+über die offizielle Battle.net API. Version 0.3.0.
 
 ## Aufbau
 
@@ -15,16 +15,54 @@ anderen laufen weiter.
 
 ## Funktionsumfang
 
-| Sensor | Retail | WoW Forever | Quelle (Feld der API) |
-|---|---|---|---|
-| Level | ja | ja | `level` |
-| Itemlevel | ja | ja, falls die API ihn liefert | `equipped_item_level` |
-| Erfolgspunkte | ja | ja, falls die API sie liefert | `achievement_points` |
-| Letzter Login | ja | ja | `last_login_timestamp` (ms) |
-| Mythic+-Wertung | ja | – (Sensor wird nicht angelegt) | `current_mythic_rating.rating` |
+### Je Charakter
 
-Klasse, Spezialisierung, Volk, Fraktion, Gilde und Realm stehen als Attribute am
-Level-Sensor.
+| Wert | Typ | Takt | Endpunkt, Feld |
+|---|---|---|---|
+| Level | Sensor | 15 min | Profil, `level` |
+| Itemlevel (angelegt, Durchschnitt) | Sensoren | 15 min | Profil, `equipped_item_level`, `average_item_level` |
+| Erfahrungspunkte | Sensor | 15 min | Profil, `experience` |
+| Erfolgspunkte | Sensor | 15 min | Profil, `achievement_points` |
+| Letzter Login | Zeitstempel | 15 min | Profil, `last_login_timestamp` |
+| Mythic+-Wertung, Farbe als Attribut | Sensor | 15 min | Mythic+-Profil, `current_mythic_rating` |
+| Raid-Fortschritt LFR, Normal, Heroisch, Mythisch | Sensoren | 1 h | `encounters/raids`, neueste Erweiterung |
+| Boss besiegt | Ereignis | 1 h | `encounters/raids`, `last_kill_timestamp` |
+| Höchster Mythic+-Schlüssel, Läufe in Zeit | Sensoren | 1 h | `mythic-keystone-profile/season/{aktuelle Season}` |
+| Ehrenstufe, ehrenhafte Siege | Sensoren | 1 h | `pvp-summary` |
+| Leben, Primärwert, Krit, Tempo, Meisterschaft, Vielseitigkeit | Sensoren, **standardmäßig deaktiviert** | 1 h | `statistics` |
+| Neuer Erfolg | Ereignis | 1 h | `achievements`, `recent_events` |
+| Beruf (je Beruf) | Sensor | 6 h | `professions`, Skill der neuesten Stufe |
+| Reittiere, Haustiere, Spielzeuge | Sensoren | 6 h | `collections/*`, Anzahl |
+| Avatar, Ganzkörperbild | Bilder | 6 h | `character-media` |
+
+Klasse, Spezialisierung, Volk, Fraktion, Gilde, Realm und aktiver Titel stehen als
+Attribute am Level-Sensor. Mythic+-Werte gibt es nur für Retail.
+
+Ein Endpunkt wird nur abgefragt, wenn mindestens eine seiner Entitäten aktiviert ist.
+Ereignisse lösen nur für Einträge aus, die nach dem Start von Home Assistant dazukommen.
+Berufs-Sensoren entstehen aus der ersten Antwort; ein neu gelernter Beruf erscheint
+nach dem nächsten Neuladen der Integration.
+
+### Spielwelt (je Region, eigenes Gerät „WoW-Spielwelt EU“)
+
+| Wert | Typ | Takt | Endpunkt, Feld |
+|---|---|---|---|
+| WoW-Marke | Sensor (Gold) | 1 h | `token/index`, `price` ÷ 10.000 |
+| Wöchentlicher Reset | Zeitstempel | 1 h | `mythic-keystone/period/{aktuell}`, `end_timestamp` + 1 s |
+| Server je Realm | Ein/Aus | 15 min | `connected-realm/{id}`, `status.type` |
+| Warteschlange je Realm | Ein/Aus | 15 min | `connected-realm/{id}`, `has_queue` |
+| Bevölkerung je Realm | Sensor | 15 min | `connected-realm/{id}`, `population.name` |
+
+### WoW Forever
+
+Für Forever-Charaktere legt die Integration nur Entitäten an, deren Endpunkt beim
+Start Daten liefert.
+
+### Diagnose
+
+Einstellungen → Geräte & Dienste → WoW Charakter → ⋮ → **Diagnose herunterladen**
+liefert die API-Antworten ohne Client-ID und Secret. Damit lassen sich Feldnamen
+prüfen, wenn ein Wert fehlt.
 
 ## Installation
 
@@ -63,6 +101,10 @@ lesen; ein Zurückgehen geht nur über das Backup.
   „Charakter hinzufügen“ angelegt; die Werte beider Charaktere stimmen mit dem Arsenal
   überein, auch ein Charakter ohne Mythic+-Wertung. Erneutes Anmelden und der Ausfall
   einzelner Charaktere sind nur automatisch getestet.
+- 0.3.0: 29 automatische Tests gegen Home Assistant 2026.2.3. Die neuen Werte sind
+  live noch nicht geprüft. Feldnamen stammen aus den Typdefinitionen von
+  `@blizzard-api/wow` und dem Code von homeassistant-wow-blizzard; ungeprüft sind
+  Erfahrungspunkte, das Format des Titels und die Farbe der Mythic+-Wertung.
 - 0.1.x: am 26.10.2026 mit einem Retail-Charakter unter Home Assistant 2026.10.4 live
   geprüft: Realm-Liste, Profil, Mythic+-Profil und die Abfrage alle 15 Minuten.
 - WoW Forever ist ungetestet.

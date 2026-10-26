@@ -103,7 +103,119 @@
       },
       "mythic_rating": {
         "name": "Mythic+ rating"
+      },
+      "item_level_average": {
+        "name": "Item level (average)"
+      },
+      "experience": {
+        "name": "Experience"
+      },
+      "raid_lfr": {
+        "name": "Raid progress LFR"
+      },
+      "raid_normal": {
+        "name": "Raid progress normal"
+      },
+      "raid_heroic": {
+        "name": "Raid progress heroic"
+      },
+      "raid_mythic": {
+        "name": "Raid progress mythic"
+      },
+      "mythic_best_key": {
+        "name": "Highest Mythic+ key"
+      },
+      "mythic_runs_timed": {
+        "name": "Mythic+ runs in time"
+      },
+      "honor_level": {
+        "name": "Honor level"
+      },
+      "honorable_kills": {
+        "name": "Honorable kills"
+      },
+      "stat_health": {
+        "name": "Health"
+      },
+      "stat_primary": {
+        "name": "Primary stat"
+      },
+      "stat_crit": {
+        "name": "Critical strike"
+      },
+      "stat_haste": {
+        "name": "Haste"
+      },
+      "stat_mastery": {
+        "name": "Mastery"
+      },
+      "stat_versatility": {
+        "name": "Versatility"
+      },
+      "mounts": {
+        "name": "Mounts"
+      },
+      "pets": {
+        "name": "Pets"
+      },
+      "toys": {
+        "name": "Toys"
+      },
+      "profession": {
+        "name": "Profession {profession}"
+      },
+      "token": {
+        "name": "WoW Token"
+      },
+      "weekly_reset": {
+        "name": "Weekly reset"
+      },
+      "realm_population": {
+        "name": "Population {realm}"
       }
+    },
+    "binary_sensor": {
+      "realm_status": {
+        "name": "Server {realm}"
+      },
+      "realm_queue": {
+        "name": "Queue {realm}"
+      }
+    },
+    "image": {
+      "avatar": {
+        "name": "Avatar"
+      },
+      "full_body": {
+        "name": "Full body"
+      }
+    },
+    "event": {
+      "boss_killed": {
+        "name": "Boss killed",
+        "state_attributes": {
+          "event_type": {
+            "state": {
+              "boss_killed": "Boss killed"
+            }
+          }
+        }
+      },
+      "new_achievement": {
+        "name": "New achievement",
+        "state_attributes": {
+          "event_type": {
+            "state": {
+              "achievement": "New achievement"
+            }
+          }
+        }
+      }
+    }
+  },
+  "device": {
+    "world": {
+      "name": "WoW world {region}{version}"
     }
   }
 }

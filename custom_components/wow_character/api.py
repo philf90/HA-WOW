@@ -139,3 +139,21 @@ class BattleNetClient:
             f"{self._character_path(realm, character)}/mythic-keystone-profile",
             self.namespace("profile", suffix, region),
         )
+
+    async def get_character_resource(
+        self, region: str, realm: str, character: str, suffix: str, resource: str
+    ) -> dict[str, Any]:
+        """Unterseite eines Charakters, z. B. "encounters/raids" oder "statistics"."""
+        return await self._get(
+            region,
+            f"{self._character_path(realm, character)}/{resource}",
+            self.namespace("profile", suffix, region),
+        )
+
+    async def get_game_data(
+        self, region: str, suffix: str, path: str
+    ) -> dict[str, Any]:
+        """Spieldaten im dynamic-Namespace, z. B. "token/index"."""
+        return await self._get(
+            region, f"/data/wow/{path}", self.namespace("dynamic", suffix, region)
+        )

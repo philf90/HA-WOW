@@ -24,6 +24,25 @@ TOKEN_URL = "https://oauth.battle.net/token"
 # Profildaten aktualisiert Blizzard erst nach dem Ausloggen; haeufiger
 # abzufragen bringt nichts.
 UPDATE_INTERVAL = timedelta(minutes=15)
+# Takt fuer Detail-Endpunkte je Charakter und fuer die Spielwelt.
+DETAIL_INTERVAL = timedelta(minutes=60)
+WORLD_INTERVAL = timedelta(minutes=15)
+
+# Detail-Endpunkte je Charakter: Unterseite und Mindestabstand in Minuten.
+# Ein Endpunkt wird nur abgefragt, wenn mindestens eine seiner Entitaeten
+# aktiviert ist (oder noch gar nicht angelegt wurde).
+DETAIL_ENDPOINTS: dict[str, tuple[str, int]] = {
+    "raids": ("encounters/raids", 60),
+    "mythic_season": ("mythic-keystone-profile/season/{season}", 60),
+    "pvp": ("pvp-summary", 60),
+    "statistics": ("statistics", 60),
+    "achievements": ("achievements", 60),
+    "professions": ("professions", 360),
+    "mounts": ("collections/mounts", 360),
+    "pets": ("collections/pets", 360),
+    "toys": ("collections/toys", 360),
+    "media": ("character-media", 360),
+}
 REQUEST_TIMEOUT = 15
 
 REGIONS = {

@@ -103,7 +103,119 @@
       },
       "mythic_rating": {
         "name": "Mythic+-Wertung"
+      },
+      "item_level_average": {
+        "name": "Itemlevel (Durchschnitt)"
+      },
+      "experience": {
+        "name": "Erfahrungspunkte"
+      },
+      "raid_lfr": {
+        "name": "Raid-Fortschritt LFR"
+      },
+      "raid_normal": {
+        "name": "Raid-Fortschritt Normal"
+      },
+      "raid_heroic": {
+        "name": "Raid-Fortschritt Heroisch"
+      },
+      "raid_mythic": {
+        "name": "Raid-Fortschritt Mythisch"
+      },
+      "mythic_best_key": {
+        "name": "Höchster Mythic+-Schlüssel"
+      },
+      "mythic_runs_timed": {
+        "name": "Mythic+-Läufe in Zeit"
+      },
+      "honor_level": {
+        "name": "Ehrenstufe"
+      },
+      "honorable_kills": {
+        "name": "Ehrenhafte Siege"
+      },
+      "stat_health": {
+        "name": "Leben"
+      },
+      "stat_primary": {
+        "name": "Primärwert"
+      },
+      "stat_crit": {
+        "name": "Kritische Trefferchance"
+      },
+      "stat_haste": {
+        "name": "Tempo"
+      },
+      "stat_mastery": {
+        "name": "Meisterschaft"
+      },
+      "stat_versatility": {
+        "name": "Vielseitigkeit"
+      },
+      "mounts": {
+        "name": "Reittiere"
+      },
+      "pets": {
+        "name": "Haustiere"
+      },
+      "toys": {
+        "name": "Spielzeuge"
+      },
+      "profession": {
+        "name": "Beruf {profession}"
+      },
+      "token": {
+        "name": "WoW-Marke"
+      },
+      "weekly_reset": {
+        "name": "Wöchentlicher Reset"
+      },
+      "realm_population": {
+        "name": "Bevölkerung {realm}"
       }
+    },
+    "binary_sensor": {
+      "realm_status": {
+        "name": "Server {realm}"
+      },
+      "realm_queue": {
+        "name": "Warteschlange {realm}"
+      }
+    },
+    "image": {
+      "avatar": {
+        "name": "Avatar"
+      },
+      "full_body": {
+        "name": "Ganzkörperbild"
+      }
+    },
+    "event": {
+      "boss_killed": {
+        "name": "Boss besiegt",
+        "state_attributes": {
+          "event_type": {
+            "state": {
+              "boss_killed": "Boss besiegt"
+            }
+          }
+        }
+      },
+      "new_achievement": {
+        "name": "Neuer Erfolg",
+        "state_attributes": {
+          "event_type": {
+            "state": {
+              "achievement": "Neuer Erfolg"
+            }
+          }
+        }
+      }
+    }
+  },
+  "device": {
+    "world": {
+      "name": "WoW-Spielwelt {region}{version}"
     }
   }
 }

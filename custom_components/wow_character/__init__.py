@@ -38,11 +38,17 @@ from .const import (
     MAIN_TITLE,
     SUBENTRY_CHARACTER,
 )
-from .coordinator import WowConfigEntry, WowCoordinator, WowRuntimeData
+from .coordinator import (
+    WowConfigEntry,
+    WowCoordinator,
+    WowDetailCoordinator,
+    WowRuntimeData,
+    WowWorldCoordinator,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
-PLATFORMS = [Platform.SENSOR]
+PLATFORMS = [Platform.BINARY_SENSOR, Platform.EVENT, Platform.IMAGE, Platform.SENSOR]
 CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
 
 
@@ -58,14 +64,37 @@ async def async_setup_entry(hass: HomeAssistant, entry: WowConfigEntry) -> bool:
         entry.data[CONF_CLIENT_SECRET],
     )
     runtime = WowRuntimeData(client=client)
-    for subentry_id, subentry in entry.subentries.items():
-        if subentry.subentry_type != SUBENTRY_CHARACTER:
-            continue
+    characters = {
+        subentry_id: subentry
+        for subentry_id, subentry in entry.subentries.items()
+        if subentry.subentry_type == SUBENTRY_CHARACTER
+    }
+
+    # Spielwelt je Region und Spielversion, mit den Realms ihrer Charaktere.
+    realms: dict[tuple[str, str], set[str]] = {}
+    for subentry in characters.values():
+        key = (subentry.data[CONF_REGION], subentry.data[CONF_NAMESPACE_SUFFIX])
+        realms.setdefault(key, set()).add(subentry.data[CONF_REALM])
+    for (region, suffix), slugs in realms.items():
+        mythic_plus = suffix == ""
+        world = WowWorldCoordinator(
+            hass, entry, client, region, suffix, slugs, mythic_plus
+        )
+        await world.async_refresh()
+        runtime.worlds[(region, suffix)] = world
+
+    # Bewusst kein async_config_entry_first_refresh: Scheitert ein Charakter,
+    # sind nur seine Sensoren nicht verfuegbar, die anderen laufen.
+    for subentry_id, subentry in characters.items():
         coordinator = WowCoordinator(hass, entry, client, subentry)
-        # Bewusst kein async_config_entry_first_refresh: Scheitert ein
-        # Charakter, sind nur seine Sensoren nicht verfuegbar, die anderen laufen.
         await coordinator.async_refresh()
         runtime.coordinators[subentry_id] = coordinator
+        world = runtime.worlds.get(
+            (subentry.data[CONF_REGION], subentry.data[CONF_NAMESPACE_SUFFIX])
+        )
+        detail = WowDetailCoordinator(hass, entry, client, subentry, coordinator, world)
+        await detail.async_refresh()
+        runtime.details[subentry_id] = detail
     entry.runtime_data = runtime
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)

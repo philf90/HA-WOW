@@ -26,9 +26,19 @@ PROFILE = {
     "faction": {"name": "Allianz"},
     "guild": {"name": "Testgilde"},
     "realm": {"name": "Die Aldor"},
+    "average_item_level": 703,
+    "experience": 1500,
+    "active_title": {"name": "Champion", "display_string": "{name} der Champion"},
 }
 PROFILE2 = {**PROFILE, "name": "Zweitchar", "level": 80, "realm": {"name": "Aegwynn"}}
-MYTHIC = {"current_mythic_rating": {"rating": 2512.345}}
+MYTHIC = {
+    "current_mythic_rating": {
+        "rating": 2512.345,
+        "color": {"r": 255, "g": 128, "b": 0, "a": 1.0},
+    },
+    # Hoechste Season des Charakters (15) weicht von der aktuellen (14) ab.
+    "seasons": [{"id": 13}, {"id": 15}],
+}
 
 # Aufbau wie im Blizzard-Forum gezeigt: "realms" mit "name" und "slug".
 REALMS = {
@@ -87,3 +97,167 @@ def mock_token(aioclient_mock: AiohttpClientMocker, status: int = 200) -> None:
         status=status,
         json={"access_token": "tok", "token_type": "bearer", "expires_in": 86399},
     )
+
+
+GAME = "https://eu.api.blizzard.com/data/wow"
+
+# Detail-Antworten mit den Feldern, die parsers.py liest; Werte erfunden.
+RAIDS = {
+    "expansions": [
+        {
+            "expansion": {"id": 503, "name": "Alte Erweiterung"},
+            "instances": [
+                {
+                    "instance": {"name": "Alter Raid"},
+                    "modes": [
+                        {
+                            "difficulty": {"type": "HEROIC", "name": "Heroisch"},
+                            "progress": {"completed_count": 9, "total_count": 9},
+                        }
+                    ],
+                }
+            ],
+        },
+        {
+            "expansion": {"id": 514, "name": "Neue Erweiterung"},
+            "instances": [
+                {
+                    "instance": {"name": "Neuer Raid"},
+                    "modes": [
+                        {
+                            "difficulty": {"type": "HEROIC", "name": "Heroisch"},
+                            "progress": {
+                                "completed_count": 6,
+                                "total_count": 8,
+                                "encounters": [
+                                    {
+                                        "encounter": {"name": "Erster Boss"},
+                                        "completed_count": 3,
+                                        "last_kill_timestamp": 1761000000000,
+                                    }
+                                ],
+                            },
+                        },
+                        {
+                            "difficulty": {"type": "MYTHIC", "name": "Mythisch"},
+                            "progress": {"completed_count": 1, "total_count": 8},
+                        },
+                    ],
+                }
+            ],
+        },
+    ]
+}
+MYTHIC_SEASON = {
+    "best_runs": [
+        {
+            "dungeon": {"name": "Dungeon A"},
+            "keystone_level": 12,
+            "is_completed_within_time": True,
+        },
+        {
+            "dungeon": {"name": "Dungeon B"},
+            "keystone_level": 10,
+            "is_completed_within_time": True,
+        },
+        {
+            "dungeon": {"name": "Dungeon C"},
+            "keystone_level": 11,
+            "is_completed_within_time": False,
+        },
+    ]
+}
+PVP = {"honor_level": 50, "honorable_kills": 1234}
+STATS = {
+    "health": 500000,
+    "strength": {"effective": 1000},
+    "intellect": {"effective": 9000},
+    "melee_crit": {"value": 10.5},
+    "spell_crit": {"value": 25.123},
+    "mastery": {"value": 40.0},
+    "spell_haste": {"value": 20.0},
+    "versatility_damage_done_bonus": 5.555,
+}
+ACHIEVEMENTS = {
+    "total_points": 12345,
+    "recent_events": [
+        {"achievement": {"name": "Alter Erfolg"}, "timestamp": 1761000000000}
+    ],
+}
+PROFESSIONS = {
+    "primaries": [
+        {
+            "profession": {"id": 164, "name": "Schmiedekunst"},
+            "tiers": [
+                {
+                    "tier": {"id": 2822, "name": "Alte Schmiedekunst"},
+                    "skill_points": 100,
+                    "max_skill_points": 100,
+                },
+                {
+                    "tier": {"id": 2872, "name": "Neue Schmiedekunst"},
+                    "skill_points": 42,
+                    "max_skill_points": 100,
+                },
+            ],
+        }
+    ]
+}
+MEDIA = {
+    "assets": [
+        {"key": "avatar", "value": "https://render.example/avatar.jpg"},
+        {"key": "main-raw", "value": "https://render.example/main-raw.png"},
+    ]
+}
+
+
+def mock_api(
+    aioclient_mock: AiohttpClientMocker,
+    override: dict | None = None,
+    base: str = API,
+) -> None:
+    """Alle Antworten fuer einen Retail-Charakter und die Spielwelt EU nachstellen.
+
+    override: volle URL -> Antwort (dict) oder HTTP-Status (int).
+    """
+    override = override or {}
+    responses = {
+        "": PROFILE,
+        "/mythic-keystone-profile": MYTHIC,
+        "/encounters/raids": RAIDS,
+        "/mythic-keystone-profile/season/14": MYTHIC_SEASON,
+        "/pvp-summary": PVP,
+        "/statistics": STATS,
+        "/achievements": ACHIEVEMENTS,
+        "/professions": PROFESSIONS,
+        "/collections/mounts": {"mounts": [{}, {}, {}]},
+        "/collections/pets": {"pets": [{}, {}]},
+        "/collections/toys": {"toys": [{}]},
+        "/character-media": MEDIA,
+    }
+    world = {
+        "/token/index": {"price": 3456789},
+        "/mythic-keystone/period/index": {"current_period": {"id": 1001}},
+        "/mythic-keystone/period/1001": {"end_timestamp": 1761634799000},
+        "/mythic-keystone/season/index": {"current_season": {"id": 14}},
+        "/realm/die-aldor": {
+            "name": "Die Aldor",
+            "connected_realm": {
+                "href": "https://eu.api.blizzard.com/data/wow/connected-realm/1234?namespace=dynamic-eu"
+            },
+        },
+        "/connected-realm/1234": {
+            "status": {"type": "UP"},
+            "population": {"name": "Hoch", "type": "HIGH"},
+            "has_queue": False,
+        },
+    }
+    for path, body in {
+        **{base + k: v for k, v in responses.items()},
+        **{GAME + k: v for k, v in world.items()},
+    }.items():
+        body = override.get(path, body)
+        if isinstance(body, int):
+            aioclient_mock.get(path, status=body)
+        else:
+            aioclient_mock.get(path, json=body)

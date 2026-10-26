@@ -41,3 +41,29 @@ def test_flow_keys_translated(path: str) -> None:
     assert main_aborts - BUILTIN_ABORTS <= set(main["abort"])
     assert sub_errors <= set(sub["error"]), f"{path}: {sub_errors - set(sub['error'])}"
     assert sub_aborts <= set(sub["abort"]), f"{path}: {sub_aborts - set(sub['abort'])}"
+
+
+def test_entity_keys_translated() -> None:
+    from custom_components.wow_character import sensor
+
+    keys = {
+        "sensor": {
+            d.translation_key for d in (*sensor.PROFILE_SENSORS, *sensor.DETAIL_SENSORS)
+        },
+        "binary_sensor": {"realm_status", "realm_queue"},
+        "event": {"boss_killed", "new_achievement"},
+        "image": {"avatar", "full_body"},
+    }
+    # Sensoren mit eigener Klasse
+    keys["sensor"] |= set(
+        re.findall(r'_attr_translation_key = "(\w+)"', (BASE / "sensor.py").read_text())
+    )
+    assert re.findall(
+        r'_attr_translation_key = "(\w+)"', (BASE / "binary_sensor.py").read_text()
+    ) == ["realm_status", "realm_queue"]
+    for path in FILES:
+        entity = json.loads((BASE / path).read_text())["entity"]
+        for platform, wanted in keys.items():
+            missing = wanted - set(entity.get(platform, {}))
+            assert not missing, f"{path} {platform}: {missing}"
+        assert "world" in json.loads((BASE / path).read_text())["device"]
