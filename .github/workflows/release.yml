@@ -1,10 +1,13 @@
-# Legt bei jedem Tag "v*" ein GitHub-Release an; HACS zeigt dessen Version an.
+# Legt ein GitHub-Release an; HACS zeigt dessen Version an.
+# Start: Tag "v*" pushen oder den Workflow von Hand starten. Beim Start von Hand
+# wird der Tag aus der Version in manifest.json gebildet und mit angelegt.
 # Die Versionshinweise stehen in .github/release-notes/<tag>.md.
 name: Release
 
 on:
   push:
     tags: ["v*"]
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -15,19 +18,24 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Version mit manifest.json abgleichen
+      - name: Tag aus manifest.json bestimmen
+        id: version
         run: |
           version=$(python3 -c "import json; print(json.load(open('custom_components/wow_character/manifest.json'))['version'])")
-          if [ "v$version" != "$GITHUB_REF_NAME" ]; then
+          tag="v$version"
+          if [ "$GITHUB_REF_TYPE" = "tag" ] && [ "$tag" != "$GITHUB_REF_NAME" ]; then
             echo "manifest.json nennt $version, der Tag ist $GITHUB_REF_NAME"
             exit 1
           fi
+          test -f ".github/release-notes/$tag.md" || { echo "Versionshinweise .github/release-notes/$tag.md fehlen"; exit 1; }
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
 
       - name: Release anlegen
         env:
           GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.version.outputs.tag }}
         run: |
-          gh release create "$GITHUB_REF_NAME" \
-            --title "WoW Charakter $GITHUB_REF_NAME" \
-            --notes-file ".github/release-notes/$GITHUB_REF_NAME.md" \
-            --verify-tag
+          gh release create "$TAG" \
+            --title "WoW Charakter $TAG" \
+            --notes-file ".github/release-notes/$TAG.md" \
+            --target "$GITHUB_SHA"
