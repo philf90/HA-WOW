@@ -1,0 +1,68 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "World-of-Warcraft-Charakter",
+        "description": "Lege auf develop.battle.net einen kostenlosen API-Client an und trage Client-ID und Secret ein.",
+        "data": {
+          "client_id": "Client-ID",
+          "client_secret": "Client-Secret",
+          "region": "Region",
+          "game_version": "Spielversion"
+        }
+      },
+      "character": {
+        "title": "Charakter wählen",
+        "description": "Realm aus der Liste wählen und Charakternamen eingeben.",
+        "data": {
+          "realm": "Realm",
+          "character": "Charakter"
+        }
+      }
+    },
+    "error": {
+      "invalid_auth": "Client-ID oder Secret ist ungültig.",
+      "character_not_found": "Charakter auf diesem Realm nicht gefunden. Namen prüfen; der Charakter muss sich einmal ausgeloggt haben.",
+      "cannot_connect": "Battle.net API nicht erreichbar.",
+      "realms_not_found": "Keine Realm-Liste für diese Region und Spielversion gefunden. Bei WoW Forever ist der API-Namespace eventuell noch nicht bekannt."
+    },
+    "abort": {
+      "already_configured": "Dieser Charakter ist bereits eingerichtet."
+    }
+  },
+  "selector": {
+    "region": {
+      "options": {
+        "eu": "Europa",
+        "us": "Amerika",
+        "kr": "Korea",
+        "tw": "Taiwan"
+      }
+    },
+    "game_version": {
+      "options": {
+        "retail": "Retail",
+        "forever": "WoW Forever"
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "level": {
+        "name": "Level"
+      },
+      "item_level": {
+        "name": "Itemlevel"
+      },
+      "achievement_points": {
+        "name": "Erfolgspunkte"
+      },
+      "last_login": {
+        "name": "Letzter Login"
+      },
+      "mythic_rating": {
+        "name": "Mythic+-Wertung"
+      }
+    }
+  }
+}
