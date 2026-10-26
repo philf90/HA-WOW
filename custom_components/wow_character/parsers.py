@@ -521,10 +521,17 @@ def item_sets(items: dict[str, dict[str, Any]]) -> list[dict[str, Any]]:
     return sorted(sets.values(), key=lambda s: -s["equipped"])
 
 
-def achievement_categories(data: dict[str, Any] | None) -> list[dict[str, Any]]:
-    """Anzahl und Punkte der Erfolge je Kategorie, in der Reihenfolge der API."""
-    return [
-        {
+def achievement_categories(
+    data: dict[str, Any] | None, roots: dict[int, str] | None = None
+) -> list[dict[str, Any]]:
+    """Anzahl und Punkte der Erfolge je Kategorie.
+
+    roots: Hauptkategorien (ID -> Name) aus den statischen Spieldaten. Mit
+    ihnen bleiben nur die Hauptkategorien, in deren Reihenfolge und mit deren
+    Namen; ohne sie alle Kategorien der Antwort.
+    """
+    entries = {
+        (c.get("category") or {}).get("id"): {
             "category": name_of(c.get("category")),
             "id": (c.get("category") or {}).get("id"),
             "quantity": c.get("quantity"),
@@ -532,6 +539,13 @@ def achievement_categories(data: dict[str, Any] | None) -> list[dict[str, Any]]:
         }
         for c in (data or {}).get("category_progress") or []
         if isinstance(c, dict)
+    }
+    if not roots:
+        return list(entries.values())
+    return [
+        {**entries[root_id], "category": name}
+        for root_id, name in roots.items()
+        if root_id in entries
     ]
 
 

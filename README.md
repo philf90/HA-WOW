@@ -4,7 +4,7 @@
 [![KI-generiert](https://img.shields.io/badge/Code%20%26%20Doku-KI--generiert-6A2BB0)](#ki-hinweis)
 
 Home-Assistant-Integration für World-of-Warcraft-Charaktere. Liest die Profildaten
-über die offizielle Battle.net API. Version 0.6.0.
+über die offizielle Battle.net API. Version 0.6.1.
 
 > **KI-Hinweis:** Dieses Projekt ist mit Claude Code entstanden. Code, Tests und
 > Dokumentation wurden von der KI geschrieben und mit automatischen Tests sowie in
@@ -84,8 +84,12 @@ Auswertungen der Ausrüstung (seit 0.6.0), ohne zusätzliche Abfrage:
 
 Weitere Werte seit 0.6.0:
 
-- **Erfolge:** Anzahl der Erfolge; `total_points` und `categories` (je Kategorie
-  `category`, `id`, `quantity`, `points`). Dieselbe Abfrage wie „Neuer Erfolg“.
+- **Erfolge:** Anzahl der Erfolge; `total_points` und `categories` (je
+  Hauptkategorie `category`, `id`, `quantity`, `points`). Dieselbe Abfrage wie
+  „Neuer Erfolg“. Die Antwort mischt Haupt- und Unterkategorien und nennt sie
+  auf Englisch; die Integration schlägt deshalb einmalig die Hauptkategorien
+  in den statischen Spieldaten nach (`achievement-category/index`) und nimmt
+  deren Namen. Klappt das nicht, stehen alle Kategorien der Antwort drin.
 - **Spezialisierung:** Name der aktiven Spezialisierung; `id`, `hero_talents`
   (aktiver Heldentalentbaum), `loadout_code` (Talent-Code des aktiven Loadouts zum
   Importieren im Spiel) und `specializations` (alle der Klasse).
@@ -179,7 +183,14 @@ lesen; ein Zurückgehen geht nur über das Backup.
   Mythic+-Wertung ist ohne Lauf in der aktuellen Season „unbekannt“, die Diagnose
   schrumpfte von 119 KB auf 64 KB. 0.3.2 (nur README) über HACS ohne Fehler
   installiert; Avatar und Ganzkörperbild werden in Home Assistant angezeigt.
-- 0.6.x: 50 automatische Tests gegen Home Assistant 2026.2.3. Live noch ungeprüft.
+- 0.6.x: 52 automatische Tests gegen Home Assistant 2026.2.3. 0.6.0 am 26.10.2026
+  über HACS installiert und live mit einem Retail-Charakter geprüft: keine Fehler,
+  alle neuen Entitäten angelegt. Leere Sockel (3), Verzauberungen (2) und Set
+  (3/5, ein Bonus aktiv) stimmen mit dem Arsenal überein; Spezialisierung mit
+  Heldentalentbaum und Talent-Code, 55 Titel, 276 Statistik-Werte auf Deutsch,
+  Berufsstufen auf Deutsch. Gefunden: Die Erfolgskategorien kamen gemischt und
+  auf Englisch, behoben in 0.6.1. Die Laufdetails (`runs`) sind ungeprüft, weil
+  der Charakter in der aktuellen Season keinen Lauf hat.
 - 0.5.x: 40 automatische Tests gegen Home Assistant 2026.2.3. 0.5.0 am 26.10.2026
   über HACS installiert und live geprüft: Die Tooltip-Felder kommen an und stimmen
   mit dem Tooltip im Spiel überein.

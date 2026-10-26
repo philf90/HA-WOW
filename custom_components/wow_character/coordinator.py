@@ -208,6 +208,8 @@ class WowDetailCoordinator(_CharacterMixin, DataUpdateCoordinator[dict[str, Any]
         self._tier_names: dict[int, str] = {}
         # Medien-ID eines Items -> URL des Symbols; Symbole aendern sich nicht.
         self._item_icons: dict[int, str] = {}
+        # Hauptkategorien der Erfolge: ID -> Name in der Sprache der Region.
+        self._achievement_roots: dict[int, str] = {}
 
     def needed_endpoints(self) -> set[str]:
         """Endpunkte mit mindestens einer aktiven oder noch nicht angelegten Entitaet."""
@@ -278,7 +280,35 @@ class WowDetailCoordinator(_CharacterMixin, DataUpdateCoordinator[dict[str, Any]
         data["tier_names"] = dict(self._tier_names)
         await self._lookup_item_icons(data.get("equipment"))
         data["item_icons"] = dict(self._item_icons)
+        if data.get("achievements") is not None:
+            await self._lookup_achievement_roots()
+        data["achievement_roots"] = dict(self._achievement_roots)
         return data
+
+    async def _lookup_achievement_roots(self) -> None:
+        """Hauptkategorien der Erfolge einmalig nachschlagen.
+
+        Die Erfolge-Seite mischt Haupt- und Unterkategorien und nennt sie auf
+        Englisch. Faellt das Nachschlagen aus, bleiben alle Kategorien.
+        """
+        if self._achievement_roots:
+            return
+        try:
+            index = await self.client.get_static_data(
+                self.region, self.suffix, "achievement-category/index"
+            )
+        except BattleNetAuthError as err:
+            raise ConfigEntryAuthFailed(str(err)) from err
+        except BattleNetError as err:
+            _LOGGER.debug("Erfolgskategorien nicht nachgeschlagen: %s", err)
+            return
+        for root in index.get("root_categories") or []:
+            if (
+                isinstance(root, dict)
+                and isinstance(root.get("id"), int)
+                and isinstance(name := root.get("name"), str)
+            ):
+                self._achievement_roots[root["id"]] = name
 
     async def _lookup_item_icons(self, equipment: dict[str, Any] | None) -> None:
         """Symbole der angelegten Items nachschlagen, jedes nur einmal.

@@ -7,7 +7,15 @@ from custom_components.wow_character.diagnostics import (
     async_get_config_entry_diagnostics,
 )
 
-from .conftest import API, EQUIPMENT, UID1, character_subentry, mock_api, mock_token
+from .conftest import (
+    API,
+    EQUIPMENT,
+    GAME,
+    UID1,
+    character_subentry,
+    mock_api,
+    mock_token,
+)
 from .test_details import _eid, _setup, _state
 
 
@@ -103,9 +111,16 @@ async def test_achievements_specialization_titles(
     ach = _state(hass, "sensor", "achievements")
     assert ach.state == "1500"
     assert ach.attributes["total_points"] == 12345
+    # Nur Hauptkategorien, Namen aus den statischen Spieldaten; Heldentaten
+    # fehlen in der Antwort des Charakters und bleiben weg.
     assert ach.attributes["categories"] == [
         {"category": "Quests", "id": 96, "quantity": 200, "points": 2000},
-        {"category": "Dungeons", "id": 168, "quantity": 300, "points": 3500},
+        {
+            "category": "Dungeons & Schlachtzüge",
+            "id": 168,
+            "quantity": 300,
+            "points": 3500,
+        },
     ]
 
     spec = _state(hass, "sensor", "specialization")
@@ -214,3 +229,28 @@ def test_run_seconds() -> None:
     assert _run_seconds(1835) == 1835
     assert _run_seconds(None) is None
     assert _run_seconds(0) is None
+
+
+async def test_achievement_categories_without_index(
+    hass: HomeAssistant, aioclient_mock
+) -> None:
+    """Ohne Hauptkategorien bleiben alle Kategorien der Antwort."""
+    mock_token(aioclient_mock)
+    mock_api(aioclient_mock, {f"{GAME}/achievement-category/index": 404})
+    await _setup(hass, character_subentry())
+    cats = _state(hass, "sensor", "achievements").attributes["categories"]
+    assert [c["id"] for c in cats] == [96, 168, 14922]
+    assert cats[1]["category"] == "Dungeons"
+
+
+async def test_achievement_index_once(hass: HomeAssistant, aioclient_mock) -> None:
+    mock_token(aioclient_mock)
+    mock_api(aioclient_mock)
+    entry = await _setup(hass, character_subentry())
+    aioclient_mock.mock_calls.clear()
+    detail = entry.runtime_data.details[next(iter(entry.subentries))]
+    detail._fetched.clear()
+    await detail.async_refresh()
+    urls = [str(call[1]) for call in aioclient_mock.mock_calls]
+    assert any("/achievements" in u for u in urls)
+    assert not any("achievement-category" in u for u in urls)

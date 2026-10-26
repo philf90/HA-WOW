@@ -317,7 +317,9 @@ DETAIL_SENSORS: tuple[WowSensorDescription, ...] = (
         value_fn=_achievements_value,
         attrs_fn=lambda d: {
             "total_points": (d.get("achievements") or {}).get("total_points"),
-            "categories": p.achievement_categories(d.get("achievements")),
+            "categories": p.achievement_categories(
+                d.get("achievements"), d.get("achievement_roots")
+            ),
         },
     ),
     WowSensorDescription(

@@ -198,6 +198,12 @@ ACHIEVEMENTS = {
     "category_progress": [
         {"category": {"name": "Quests", "id": 96}, "quantity": 200, "points": 2000},
         {"category": {"name": "Dungeons", "id": 168}, "quantity": 300, "points": 3500},
+        # Unterkategorie: faellt mit den Hauptkategorien weg
+        {
+            "category": {"name": "Lich King Raid", "id": 14922},
+            "quantity": 9,
+            "points": 90,
+        },
     ],
     "recent_events": [
         {"achievement": {"name": "Alter Erfolg"}, "timestamp": 1761000000000}
@@ -445,6 +451,14 @@ def mock_api(
             "id": 164,
             "name": "Schmiedekunst",
             "skill_tiers": [{"id": 2872, "name": "Neue Schmiedekunst (deutsch)"}],
+        },
+        # Hauptkategorien der Erfolge in der Sprache der Region
+        "/achievement-category/index": {
+            "root_categories": [
+                {"id": 96, "name": "Quests"},
+                {"id": 168, "name": "Dungeons & Schlachtzüge"},
+                {"id": 81, "name": "Heldentaten"},
+            ]
         },
         # Symbole der Items; fuer 6002 liefert die API nichts.
         "/media/item/6001": {
