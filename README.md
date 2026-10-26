@@ -30,8 +30,9 @@ Level-Sensor.
 
 Automatisch getestet gegen Home Assistant 2026.2.3 (9 Tests). Am 26.10.2026 mit einem
 Retail-Charakter unter Home Assistant 2026.10.4 eingerichtet: Realm-Liste, Profil und
-Mythic+-Profil kamen von der echten API, ohne Fehler im Protokoll. Noch nicht nachgewiesen:
-die regelmäßige Aktualisierung alle 15 Minuten. WoW Forever ist ungetestet.
+Mythic+-Profil kamen von der echten API, ohne Fehler im Protokoll. Die regelmäßige
+Abfrage lief laut Debug-Protokoll 30 Minuten nach der Einrichtung erfolgreich
+(0,42 Sekunden), passend zum 15-Minuten-Takt. WoW Forever ist ungetestet.
 
 ## WoW Forever
 
