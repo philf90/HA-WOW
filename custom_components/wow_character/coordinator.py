@@ -62,6 +62,13 @@ DETAIL_KEYS: dict[str, str] = {
     "avatar": "media",
     "full_body": "media",
     "reputation": "reputations",
+    "empty_sockets": "equipment",
+    "enchantments": "equipment",
+    "item_set": "equipment",
+    "achievements": "achievements",
+    "specialization": "specializations",
+    "titles": "titles",
+    "game_statistics": "game_statistics",
 }
 PROFESSION_PREFIX = "profession-"
 # Ein Sensor je Ausruestungsplatz, z. B. "equipment_head".
@@ -197,6 +204,8 @@ class WowDetailCoordinator(_CharacterMixin, DataUpdateCoordinator[dict[str, Any]
         self._fetched: dict[str, float] = {}
         # Beruf-ID -> Name aus den statischen Spieldaten (Sprache der Region).
         self._profession_names: dict[int, str] = {}
+        # Stufen-ID -> Name, aus derselben Abfrage wie die Berufsnamen.
+        self._tier_names: dict[int, str] = {}
         # Medien-ID eines Items -> URL des Symbols; Symbole aendern sich nicht.
         self._item_icons: dict[int, str] = {}
 
@@ -266,6 +275,7 @@ class WowDetailCoordinator(_CharacterMixin, DataUpdateCoordinator[dict[str, Any]
             raise UpdateFailed("Alle Detail-Abfragen fehlgeschlagen")
         await self._lookup_profession_names(data.get("professions"))
         data["profession_names"] = dict(self._profession_names)
+        data["tier_names"] = dict(self._tier_names)
         await self._lookup_item_icons(data.get("equipment"))
         data["item_icons"] = dict(self._item_icons)
         return data
@@ -295,7 +305,7 @@ class WowDetailCoordinator(_CharacterMixin, DataUpdateCoordinator[dict[str, Any]
     async def _lookup_profession_names(
         self, professions: dict[str, Any] | None
     ) -> None:
-        """Namen der Berufe einmalig nachschlagen.
+        """Namen der Berufe und ihrer Stufen einmalig nachschlagen.
 
         Die Berufe-Seite eines Charakters liefert Namen auf Englisch, auch mit
         locale=de_DE. Faellt das Nachschlagen aus, bleibt der englische Name.
@@ -314,6 +324,14 @@ class WowDetailCoordinator(_CharacterMixin, DataUpdateCoordinator[dict[str, Any]
                     continue
                 if isinstance(name := static.get("name"), str) and name:
                     self._profession_names[prof_id] = name
+                for tier in static.get("skill_tiers") or []:
+                    if (
+                        isinstance(tier, dict)
+                        and isinstance(tier.get("id"), int)
+                        and isinstance(tier_name := tier.get("name"), str)
+                        and tier_name
+                    ):
+                        self._tier_names[tier["id"]] = tier_name
 
 
 class WowWorldCoordinator(DataUpdateCoordinator[dict[str, Any]]):

@@ -229,6 +229,27 @@
       },
       "reputation": {
         "name": "Reputation"
+      },
+      "empty_sockets": {
+        "name": "Empty sockets"
+      },
+      "enchantments": {
+        "name": "Enchantments"
+      },
+      "item_set": {
+        "name": "Set progress"
+      },
+      "achievements": {
+        "name": "Achievements"
+      },
+      "specialization": {
+        "name": "Specialization"
+      },
+      "titles": {
+        "name": "Titles"
+      },
+      "game_statistics": {
+        "name": "Game statistics"
       }
     },
     "binary_sensor": {

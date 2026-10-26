@@ -44,6 +44,10 @@ DETAIL_ENDPOINTS: dict[str, tuple[str, int]] = {
     "media": ("character-media", 360),
     "equipment": ("equipment", 60),
     "reputations": ("reputations", 360),
+    "specializations": ("specializations", 60),
+    "titles": ("titles", 360),
+    # Statistik-Fenster des Spiels; grosse Antwort, deshalb selten.
+    "game_statistics": ("achievements/statistics", 360),
 }
 
 # Ausruestungsplaetze in der Reihenfolge des Arsenals (links, rechts, Waffen).

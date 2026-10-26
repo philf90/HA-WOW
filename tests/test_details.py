@@ -73,7 +73,8 @@ async def test_retail_values(hass: HomeAssistant, aioclient_mock) -> None:
     # Beruf: Skill der neuesten Stufe
     prof = _state(hass, "sensor", "profession-164")
     assert prof.state == "42"
-    assert prof.attributes["tier"] == "Neue Schmiedekunst"
+    # Stufen- und Berufsname aus den statischen Spieldaten
+    assert prof.attributes["tier"] == "Neue Schmiedekunst (deutsch)"
     # Name aus den statischen Spieldaten statt des englischen der Berufe-Seite
     assert prof.name.endswith("Profession Schmiedekunst")
 
@@ -310,6 +311,7 @@ async def test_profession_name_fallback(hass: HomeAssistant, aioclient_mock) -> 
     prof = _state(hass, "sensor", "profession-164")
     assert prof.state == "42"
     assert prof.name.endswith("Profession Blacksmithing")
+    assert prof.attributes["tier"] == "Neue Schmiedekunst"
 
 
 async def test_mythic_rating_only_for_current_season(
@@ -465,7 +467,7 @@ async def test_equipment_tooltip(hass: HomeAssistant, aioclient_mock) -> None:
                 {"name": "Testhelm", "equipped": True},
                 {"name": "Testhose", "equipped": False},
             ],
-            "effects": [{"text": "Set: +5 Testwert", "active": False}],
+            "effects": [{"text": "Set: +5 Testwert", "active": False, "required": 2}],
         },
         "durability": "Haltbarkeit 96 / 100",
         "requirements": ["Klassen: Magier", "Benötigt Stufe 90"],

@@ -229,6 +229,27 @@
       },
       "reputation": {
         "name": "Ruf"
+      },
+      "empty_sockets": {
+        "name": "Leere Sockel"
+      },
+      "enchantments": {
+        "name": "Verzauberungen"
+      },
+      "item_set": {
+        "name": "Set-Fortschritt"
+      },
+      "achievements": {
+        "name": "Erfolge"
+      },
+      "specialization": {
+        "name": "Spezialisierung"
+      },
+      "titles": {
+        "name": "Titel"
+      },
+      "game_statistics": {
+        "name": "Spielstatistik"
       }
     },
     "binary_sensor": {

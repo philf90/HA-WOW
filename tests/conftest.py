@@ -151,9 +151,23 @@ RAIDS = {
 MYTHIC_SEASON = {
     "best_runs": [
         {
-            "dungeon": {"name": "Dungeon A"},
+            "dungeon": {"name": "Dungeon A", "id": 501},
             "keystone_level": 12,
             "is_completed_within_time": True,
+            "duration": 1834567,
+            "completed_timestamp": 1761000000000,
+            "mythic_rating": {
+                "rating": 301.456,
+                "color": {"r": 255, "g": 128, "b": 0, "a": 1.0},
+            },
+            "keystone_affixes": [{"name": "Tyrannisch"}, {"name": "Xal'ataths Pakt"}],
+            "members": [
+                {
+                    "character": {"name": "Testchar", "realm": {"name": "Die Aldor"}},
+                    "specialization": {"name": "Frost"},
+                    "equipped_item_level": 701,
+                }
+            ],
         },
         {
             "dungeon": {"name": "Dungeon B"},
@@ -180,6 +194,11 @@ STATS = {
 }
 ACHIEVEMENTS = {
     "total_points": 12345,
+    "total_quantity": 1500,
+    "category_progress": [
+        {"category": {"name": "Quests", "id": 96}, "quantity": 200, "points": 2000},
+        {"category": {"name": "Dungeons", "id": 168}, "quantity": 300, "points": 3500},
+    ],
     "recent_events": [
         {"achievement": {"name": "Alter Erfolg"}, "timestamp": 1761000000000}
     ],
@@ -199,6 +218,55 @@ PROFESSIONS = {
                     "skill_points": 42,
                     "max_skill_points": 100,
                 },
+            ],
+        }
+    ]
+}
+# Felder wie in den Typdefinitionen von @blizzard-api/wow; Werte erfunden.
+SPECIALIZATIONS = {
+    "active_specialization": {"name": "Frost", "id": 64},
+    "active_hero_talent_tree": {"name": "Frostfeuer", "id": 39},
+    "specializations": [
+        {
+            "specialization": {"name": "Arkan", "id": 62},
+            "loadouts": [{"is_active": True, "talent_loadout_code": "ARKAN"}],
+        },
+        {
+            "specialization": {"name": "Frost", "id": 64},
+            "loadouts": [
+                {"is_active": False, "talent_loadout_code": "ALT"},
+                {
+                    "is_active": True,
+                    "talent_loadout_code": "CODE123",
+                    "selected_class_talents": [{"id": 1, "rank": 1}],
+                },
+            ],
+        },
+    ],
+}
+TITLES = {
+    "active_title": {
+        "name": "Champion",
+        "id": 1,
+        "display_string": "{name} der Champion",
+    },
+    "titles": [{"name": "Champion", "id": 1}, {"name": "Entdecker", "id": 2}],
+}
+GAME_STATISTICS = {
+    "categories": [
+        {
+            "id": 130,
+            "name": "Charakter",
+            "statistics": [{"id": 60, "name": "Tode insgesamt", "quantity": 42}],
+            "sub_categories": [
+                {
+                    "id": 140,
+                    "name": "Reichtum",
+                    "statistics": [
+                        {"id": 328, "name": "Gesamtes Gold erhalten", "quantity": 1e7},
+                        {"name": "ohne ID"},
+                    ],
+                }
             ],
         }
     ]
@@ -291,6 +359,8 @@ EQUIPMENT = {
             "media": {"id": 6002},
             "level": {"value": 259},
             "is_subclass_hidden": True,
+            # Gefuellter Sockel: zaehlt nicht als leer.
+            "sockets": [{"socket_type": {"type": "META"}, "item": {"name": "Meta"}}],
             "item_subclass": {"name": "Stab"},
             "weapon": {
                 "damage": {"display_string": "100 - 200 Schaden"},
@@ -355,6 +425,9 @@ def mock_api(
         "/character-media": MEDIA,
         "/equipment": EQUIPMENT,
         "/reputations": REPUTATIONS,
+        "/specializations": SPECIALIZATIONS,
+        "/titles": TITLES,
+        "/achievements/statistics": GAME_STATISTICS,
     }
     world = {
         "/token/index": {"price": 3456789},
@@ -368,7 +441,11 @@ def mock_api(
             },
         },
         # Statische Spieldaten: deutscher Berufsname (Berufe-Seite liefert Englisch).
-        "/profession/164": {"id": 164, "name": "Schmiedekunst"},
+        "/profession/164": {
+            "id": 164,
+            "name": "Schmiedekunst",
+            "skill_tiers": [{"id": 2872, "name": "Neue Schmiedekunst (deutsch)"}],
+        },
         # Symbole der Items; fuer 6002 liefert die API nichts.
         "/media/item/6001": {
             "assets": [{"key": "icon", "value": "https://render.example/helm.jpg"}]

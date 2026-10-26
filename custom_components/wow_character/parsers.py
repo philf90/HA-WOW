@@ -138,6 +138,54 @@ def mythic_season(season: dict[str, Any] | None) -> dict[str, Any]:
             )
             for r in runs
         },
+        "runs": [_mythic_run(r) for r in runs],
+    }
+
+
+def _run_seconds(duration: Any) -> int | None:
+    """Dauer eines Laufs in Sekunden.
+
+    Die Einheit der API ist nicht belegt. Ein Lauf dauert zwischen etwa
+    10 Minuten und wenigen Stunden: in Sekunden unter 100.000, in
+    Millisekunden darueber. Beide Faelle werden so erkannt.
+    """
+    if not isinstance(duration, (int, float)) or duration <= 0:
+        return None
+    return round(duration / 1000) if duration > 100_000 else round(duration)
+
+
+def _mythic_run(run: dict[str, Any]) -> dict[str, Any]:
+    """Ein bester Lauf mit Dauer, Affixen, Wertung und Gruppe."""
+    duration = run.get("duration")
+    rating = run.get("mythic_rating") or {}
+    return {
+        "dungeon": name_of(run.get("dungeon")),
+        "dungeon_id": (run.get("dungeon") or {}).get("id"),
+        "level": run.get("keystone_level"),
+        "timed": bool(run.get("is_completed_within_time")),
+        "duration": _run_seconds(duration),
+        "completed": (
+            ts.isoformat()
+            if (ts := timestamp(run.get("completed_timestamp")))
+            else None
+        ),
+        "rating": round(rating["rating"], 1)
+        if isinstance(rating.get("rating"), (int, float))
+        else None,
+        "color": color_hex(rating.get("color")),
+        "affixes": [
+            name for a in run.get("keystone_affixes") or [] if (name := name_of(a))
+        ],
+        "members": [
+            {
+                "name": name_of(m.get("character")),
+                "realm": name_of((m.get("character") or {}).get("realm")),
+                "spec": name_of(m.get("specialization")),
+                "item_level": m.get("equipped_item_level"),
+            }
+            for m in run.get("members") or []
+            if isinstance(m, dict)
+        ],
     }
 
 
@@ -179,11 +227,14 @@ def stat(stats: dict[str, Any] | None, key: str) -> float | int | None:
 
 
 def professions(
-    data: dict[str, Any] | None, names: dict[int, str] | None = None
+    data: dict[str, Any] | None,
+    names: dict[int, str] | None = None,
+    tier_names: dict[int, str] | None = None,
 ) -> dict[int, dict[str, Any]]:
     """Beruf-ID -> Name, Skill und Stufe der neuesten Erweiterungsstufe.
 
-    names: nachgeschlagene Namen, die den englischen Namen der Antwort ersetzen.
+    names, tier_names: nachgeschlagene Namen von Berufen und Stufen, die die
+    englischen Namen der Antwort ersetzen.
     """
     result: dict[int, dict[str, Any]] = {}
     for group in ("primaries", "secondaries"):
@@ -201,7 +252,8 @@ def professions(
                 "max_skill": newest.get(
                     "max_skill_points", entry.get("max_skill_points")
                 ),
-                "tier": name_of(newest.get("tier")),
+                "tier": (tier_names or {}).get((newest.get("tier") or {}).get("id"))
+                or name_of(newest.get("tier")),
             }
     return result
 
@@ -252,6 +304,7 @@ def equipment(data: dict[str, Any] | None) -> dict[str, dict[str, Any]]:
         quality = item.get("quality") or {}
         result[slot] = {
             "name": item.get("name"),
+            "slot_name": name_of(item.get("slot")),
             "item_id": (item.get("item") or {}).get("id"),
             "media_id": (item.get("media") or {}).get("id"),
             "level": (item.get("level") or {}).get("value"),
@@ -377,6 +430,8 @@ def tooltip(item: dict[str, Any]) -> dict[str, Any]:
                 {
                     "text": clean_text(e.get("display_string")),
                     "active": bool(e.get("is_active")),
+                    # Anzahl Teile fuer den Bonus; der Text nennt sie nicht immer.
+                    "required": e.get("required_count"),
                 }
                 for e in item_set.get("effects") or []
                 if isinstance(e, dict)
@@ -418,4 +473,120 @@ def reputations(data: dict[str, Any] | None) -> list[dict[str, Any]]:
                 "max": paragon.get("max"),
             }
         result.append(entry)
+    return result
+
+
+def empty_sockets(items: dict[str, dict[str, Any]]) -> list[dict[str, Any]]:
+    """Sockel ohne Edelstein, je Sockel ein Eintrag."""
+    return [
+        {"slot": slot, "slot_name": item.get("slot_name"), "type": socket["type"]}
+        for slot, item in items.items()
+        for socket in item.get("sockets") or []
+        if not socket.get("gem")
+    ]
+
+
+def enchanted_slots(items: dict[str, dict[str, Any]]) -> list[dict[str, Any]]:
+    """Verzauberte Plaetze. Welche Plaetze verzauberbar sind, sagt die API nicht."""
+    return [
+        {
+            "slot": slot,
+            "slot_name": item.get("slot_name"),
+            "enchantments": item["enchantments"],
+        }
+        for slot, item in items.items()
+        if item.get("enchantments")
+    ]
+
+
+def item_sets(items: dict[str, dict[str, Any]]) -> list[dict[str, Any]]:
+    """Angelegte Sets, das vollstaendigste zuerst.
+
+    Jedes Item eines Sets traegt die ganze Set-Angabe; doppelte fallen weg.
+    """
+    sets: dict[str, dict[str, Any]] = {}
+    for item in items.values():
+        info = (item.get("tooltip") or {}).get("set")
+        name = item.get("set")
+        if not info or not name or name in sets:
+            continue
+        parts = info.get("items") or []
+        sets[name] = {
+            "name": name,
+            "equipped": sum(1 for i in parts if i.get("equipped")),
+            "total": len(parts),
+            "items": parts,
+            "effects": info.get("effects") or [],
+        }
+    return sorted(sets.values(), key=lambda s: -s["equipped"])
+
+
+def achievement_categories(data: dict[str, Any] | None) -> list[dict[str, Any]]:
+    """Anzahl und Punkte der Erfolge je Kategorie, in der Reihenfolge der API."""
+    return [
+        {
+            "category": name_of(c.get("category")),
+            "id": (c.get("category") or {}).get("id"),
+            "quantity": c.get("quantity"),
+            "points": c.get("points"),
+        }
+        for c in (data or {}).get("category_progress") or []
+        if isinstance(c, dict)
+    ]
+
+
+def specialization(data: dict[str, Any] | None) -> dict[str, Any]:
+    """Aktive Spezialisierung mit Heldentalenten und Talent-Code."""
+    data = data or {}
+    active = data.get("active_specialization") or {}
+    loadout: dict[str, Any] = {}
+    for spec in data.get("specializations") or []:
+        if not isinstance(spec, dict):
+            continue
+        if (spec.get("specialization") or {}).get("id") != active.get("id"):
+            continue
+        loadouts = [lo for lo in spec.get("loadouts") or [] if isinstance(lo, dict)]
+        loadout = next((lo for lo in loadouts if lo.get("is_active")), {})
+    return {
+        "name": name_of(active),
+        "id": active.get("id"),
+        "hero_talents": name_of(data.get("active_hero_talent_tree"))
+        or name_of(loadout.get("selected_hero_talent_tree")),
+        # Code zum Importieren im Talentfenster des Spiels.
+        "loadout_code": loadout.get("talent_loadout_code"),
+        "specializations": [
+            name
+            for spec in data.get("specializations") or []
+            if isinstance(spec, dict) and (name := name_of(spec.get("specialization")))
+        ],
+    }
+
+
+def titles(data: dict[str, Any] | None) -> list[str]:
+    return [name for t in (data or {}).get("titles") or [] if (name := name_of(t))]
+
+
+def game_statistics(data: dict[str, Any] | None) -> list[dict[str, Any]]:
+    """Werte des Statistik-Fensters, flach mit Kategorie und Unterkategorie."""
+    result = []
+
+    def add(stats: Any, category: str | None) -> None:
+        for stat in stats or []:
+            if isinstance(stat, dict) and isinstance(stat.get("id"), int):
+                result.append(
+                    {
+                        "id": stat["id"],
+                        "name": stat.get("name"),
+                        "category": category,
+                        "quantity": stat.get("quantity"),
+                    }
+                )
+
+    for cat in (data or {}).get("categories") or []:
+        if not isinstance(cat, dict):
+            continue
+        add(cat.get("statistics"), cat.get("name"))
+        for sub in cat.get("sub_categories") or []:
+            if isinstance(sub, dict):
+                add(sub.get("statistics"), f"{cat.get('name')} / {sub.get('name')}")
     return result

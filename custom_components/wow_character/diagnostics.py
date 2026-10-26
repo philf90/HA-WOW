@@ -22,6 +22,48 @@ def _shrink(endpoint: str, data: Any) -> Any:
             "total_points": data.get("total_points"),
             "total_quantity": data.get("total_quantity"),
             "recent_events": (data.get("recent_events") or [])[:5],
+            "category_progress": data.get("category_progress"),
+        }
+    if endpoint == "game_statistics":
+        categories = [c for c in data.get("categories") or [] if isinstance(c, dict)]
+        return {
+            "categories": [
+                {
+                    "id": c.get("id"),
+                    "name": c.get("name"),
+                    "statistics": len(c.get("statistics") or []),
+                    "sub_categories": len(c.get("sub_categories") or []),
+                }
+                for c in categories
+            ],
+            "first": categories[:1],
+        }
+    if endpoint == "specializations":
+        # Talentlisten mit Tooltips sind lang; Anzahl reicht zur Pruefung.
+        return {
+            **{k: v for k, v in data.items() if k != "specializations"},
+            "specializations": [
+                {
+                    **{k: v for k, v in spec.items() if k != "loadouts"},
+                    "loadouts": [
+                        {
+                            k: (len(v) if k.endswith("_talents") else v)
+                            for k, v in loadout.items()
+                        }
+                        for loadout in spec.get("loadouts") or []
+                        if isinstance(loadout, dict)
+                    ],
+                }
+                for spec in data.get("specializations") or []
+                if isinstance(spec, dict)
+            ],
+        }
+    if endpoint == "titles":
+        items = data.get("titles") or []
+        return {
+            "active_title": data.get("active_title"),
+            "count": len(items),
+            "first": items[:3],
         }
     if endpoint == "professions":
         # Rezeptlisten machen die Diagnose sehr gross und helfen nicht.

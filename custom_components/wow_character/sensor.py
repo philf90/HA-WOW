@@ -172,6 +172,52 @@ def _stat_sensor(key: str, unit: str | None = None) -> WowSensorDescription:
     )
 
 
+def _items(d: dict[str, Any]) -> dict[str, dict[str, Any]] | None:
+    """Angelegte Items; None, solange die Ausruestung nicht abgefragt ist."""
+    equipment = d.get("equipment")
+    return p.equipment(equipment) if equipment is not None else None
+
+
+def _count(items: list[Any] | None) -> int | None:
+    return len(items) if items is not None else None
+
+
+def _set_value(d: dict[str, Any]) -> int | None:
+    if (items := _items(d)) is None:
+        return None
+    sets = p.item_sets(items)
+    return sets[0]["equipped"] if sets else 0
+
+
+def _set_attrs(d: dict[str, Any]) -> dict[str, Any]:
+    sets = p.item_sets(_items(d) or {})
+    main = sets[0] if sets else {}
+    return {
+        "name": main.get("name"),
+        "total": main.get("total"),
+        "items": main.get("items", []),
+        "effects": main.get("effects", []),
+        # Weitere Sets, falls Teile mehrerer Sets angelegt sind.
+        "other_sets": [
+            {"name": s["name"], "equipped": s["equipped"], "total": s["total"]}
+            for s in sets[1:]
+        ],
+    }
+
+
+def _achievements_value(d: dict[str, Any]) -> int | None:
+    return (d.get("achievements") or {}).get("total_quantity")
+
+
+def _titles_attrs(d: dict[str, Any]) -> dict[str, Any]:
+    data = d.get("titles") or {}
+    active = data.get("active_title")
+    return {
+        "active": p.name_of(active) if isinstance(active, dict) else None,
+        "titles": p.titles(data),
+    }
+
+
 DETAIL_SENSORS: tuple[WowSensorDescription, ...] = (
     *(_raid_sensor(k) for k in p.RAID_DIFFICULTIES),
     WowSensorDescription(
@@ -181,7 +227,8 @@ DETAIL_SENSORS: tuple[WowSensorDescription, ...] = (
         state_class=SensorStateClass.MEASUREMENT,
         value_fn=lambda d: p.mythic_season(d.get("mythic_season"))["best_key"],
         attrs_fn=lambda d: {
-            "best_runs": p.mythic_season(d.get("mythic_season"))["best_runs"]
+            key: p.mythic_season(d.get("mythic_season"))[key]
+            for key in ("best_runs", "runs")
         },
         mythic_plus_only=True,
     ),
@@ -233,6 +280,79 @@ DETAIL_SENSORS: tuple[WowSensorDescription, ...] = (
         icon="mdi:teddy-bear",
         state_class=SensorStateClass.MEASUREMENT,
         value_fn=lambda d: p.collection_count(d.get("toys"), "toys"),
+    ),
+    WowSensorDescription(
+        key="empty_sockets",
+        translation_key="empty_sockets",
+        icon="mdi:diamond-outline",
+        state_class=SensorStateClass.MEASUREMENT,
+        value_fn=lambda d: _count(
+            p.empty_sockets(items) if (items := _items(d)) is not None else None
+        ),
+        attrs_fn=lambda d: {"sockets": p.empty_sockets(_items(d) or {})},
+    ),
+    WowSensorDescription(
+        key="enchantments",
+        translation_key="enchantments",
+        icon="mdi:auto-fix",
+        state_class=SensorStateClass.MEASUREMENT,
+        value_fn=lambda d: _count(
+            p.enchanted_slots(items) if (items := _items(d)) is not None else None
+        ),
+        attrs_fn=lambda d: {"slots": p.enchanted_slots(_items(d) or {})},
+    ),
+    WowSensorDescription(
+        key="item_set",
+        translation_key="item_set",
+        icon="mdi:tshirt-crew-outline",
+        state_class=SensorStateClass.MEASUREMENT,
+        value_fn=_set_value,
+        attrs_fn=_set_attrs,
+    ),
+    WowSensorDescription(
+        key="achievements",
+        translation_key="achievements",
+        icon="mdi:trophy-variant",
+        state_class=SensorStateClass.MEASUREMENT,
+        value_fn=_achievements_value,
+        attrs_fn=lambda d: {
+            "total_points": (d.get("achievements") or {}).get("total_points"),
+            "categories": p.achievement_categories(d.get("achievements")),
+        },
+    ),
+    WowSensorDescription(
+        key="specialization",
+        translation_key="specialization",
+        icon="mdi:account-star",
+        value_fn=lambda d: p.specialization(d.get("specializations"))["name"],
+        attrs_fn=lambda d: {
+            k: v
+            for k, v in p.specialization(d.get("specializations")).items()
+            if k != "name"
+        },
+    ),
+    WowSensorDescription(
+        key="titles",
+        translation_key="titles",
+        icon="mdi:card-account-details-star",
+        state_class=SensorStateClass.MEASUREMENT,
+        value_fn=lambda d: _count(
+            p.titles(d["titles"]) if d.get("titles") is not None else None
+        ),
+        attrs_fn=_titles_attrs,
+    ),
+    WowSensorDescription(
+        key="game_statistics",
+        translation_key="game_statistics",
+        icon="mdi:counter",
+        # Grosse Antwort mit mehreren hundert Werten: angelegt, aber aus.
+        entity_registry_enabled_default=False,
+        value_fn=lambda d: _count(
+            p.game_statistics(d["game_statistics"])
+            if d.get("game_statistics") is not None
+            else None
+        ),
+        attrs_fn=lambda d: {"statistics": p.game_statistics(d.get("game_statistics"))},
     ),
 )
 
@@ -298,6 +418,9 @@ class WowSensor(WowCharacterEntity, SensorEntity):
     """Sensor aus dem Profil- oder Detail-Coordinator eines Charakters."""
 
     entity_description: WowSensorDescription
+    # Lange Listen fuer Karten (M+-Laeufe, Titel, Statistik-Fenster); nur
+    # die Sensoren mit diesen Attributen sind betroffen.
+    _unrecorded_attributes = frozenset({"runs", "titles", "statistics"})
 
     def __init__(
         self,
@@ -323,7 +446,9 @@ class WowSensor(WowCharacterEntity, SensorEntity):
 
 def _professions(detail: WowDetailCoordinator) -> dict[int, dict[str, Any]]:
     data = detail.data or {}
-    return p.professions(data.get("professions"), data.get("profession_names"))
+    return p.professions(
+        data.get("professions"), data.get("profession_names"), data.get("tier_names")
+    )
 
 
 class WowProfessionSensor(WowCharacterEntity, SensorEntity):

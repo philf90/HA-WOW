@@ -4,7 +4,7 @@
 [![KI-generiert](https://img.shields.io/badge/Code%20%26%20Doku-KI--generiert-6A2BB0)](#ki-hinweis)
 
 Home-Assistant-Integration für World-of-Warcraft-Charaktere. Liest die Profildaten
-über die offizielle Battle.net API. Version 0.5.0.
+über die offizielle Battle.net API. Version 0.6.0.
 
 > **KI-Hinweis:** Dieses Projekt ist mit Claude Code entstanden. Code, Tests und
 > Dokumentation wurden von der KI geschrieben und mit automatischen Tests sowie in
@@ -44,6 +44,11 @@ anderen laufen weiter.
 | Avatar, Ganzkörperbild | Bilder | 6 h | `character-media` |
 | Ausrüstung, 18 Plätze (Kopf bis Schildhand) | Sensoren, Itemlevel; Symbol als Bild | 1 h | `equipment`; Symbol aus `media/item/{id}` |
 | Ruf: Anzahl der Fraktionen, je Fraktion Stufe und Fortschritt als Attribut | Sensor | 6 h | `reputations` |
+| Leere Sockel, Verzauberungen, Set-Fortschritt | Sensoren | 1 h | `equipment`, ausgewertet |
+| Erfolge: Anzahl, Punkte je Kategorie als Attribut | Sensor | 1 h | `achievements`, `total_quantity`, `category_progress` |
+| Spezialisierung mit Heldentalenten und Talent-Code | Sensor | 1 h | `specializations` |
+| Titel: Anzahl, Liste als Attribut | Sensor | 6 h | `titles` |
+| Spielstatistik: Werte des Statistik-Fensters | Sensor, **standardmäßig deaktiviert** | 6 h | `achievements/statistics` |
 
 Klasse, Spezialisierung, Volk, Fraktion, Gilde, Realm und aktiver Titel stehen als
 Attribute am Level-Sensor. Mythic+-Werte gibt es nur für Retail. Hat der Charakter in
@@ -66,10 +71,42 @@ der API, ohne Gruppierung nach Erweiterung. Jeder Eintrag hat `faction`, `factio
 weil Namen nicht eindeutig sind: Die API liefert z. B. zwei Fraktionen
 „Bilgewasserkartell“.
 
+Auswertungen der Ausrüstung (seit 0.6.0), ohne zusätzliche Abfrage:
+
+- **Leere Sockel:** Anzahl der Sockel ohne Edelstein; `sockets` nennt je Sockel
+  Platz (`slot`, `slot_name`) und Sockelart (`type`).
+- **Verzauberungen:** Anzahl der verzauberten Plätze; `slots` nennt je Platz die
+  Verzauberungen. Welche Plätze verzauberbar sind, liefert die API nicht; eine
+  fehlende Verzauberung lässt sich daraus also nicht ableiten.
+- **Set-Fortschritt:** angelegte Teile des vollständigsten Sets; `name`, `total`,
+  `items` (mit `equipped`) und `effects` (mit `active` und `required`, der Anzahl
+  Teile). Ohne Set ist der Wert 0; weitere Sets stehen in `other_sets`.
+
+Weitere Werte seit 0.6.0:
+
+- **Erfolge:** Anzahl der Erfolge; `total_points` und `categories` (je Kategorie
+  `category`, `id`, `quantity`, `points`). Dieselbe Abfrage wie „Neuer Erfolg“.
+- **Spezialisierung:** Name der aktiven Spezialisierung; `id`, `hero_talents`
+  (aktiver Heldentalentbaum), `loadout_code` (Talent-Code des aktiven Loadouts zum
+  Importieren im Spiel) und `specializations` (alle der Klasse).
+- **Titel:** Anzahl; `active` und `titles` (Namen).
+- **Spielstatistik:** Anzahl der Werte; `statistics` mit `id`, `name`, `category`
+  (bei Unterkategorien „Kategorie / Unterkategorie“) und `quantity`. Die Antwort
+  ist groß, deshalb ist der Sensor zunächst aus und wird alle 6 Stunden abgefragt.
+  Einzelne Werte lassen sich in Karten oder Templates über die `id` auswählen.
+- **Mythic+-Läufe:** Der Sensor „Höchster Mythic+-Schlüssel“ hat zusätzlich `runs`:
+  je Lauf `dungeon`, `dungeon_id`, `level`, `timed`, `duration` (Sekunden),
+  `completed`, `rating`, `color`, `affixes` und `members` (Name, Realm,
+  Spezialisierung, Itemlevel). Die Einheit von `duration` in der API ist nicht
+  belegt; die Integration erkennt Sekunden und Millisekunden an der Größe.
+
+`runs`, `titles` und `statistics` werden nicht in der Datenbank gespeichert.
+
 Die Berufe-Seite eines Charakters liefert Namen auf Englisch, auch mit deutscher
 Spracheinstellung. Die Integration schlägt die Namen deshalb einmalig in den
-statischen Spieldaten nach; klappt das nicht, bleibt der englische Name. Raidnamen
-kommen ebenfalls auf Englisch.
+statischen Spieldaten nach (`profession/{id}`); klappt das nicht, bleibt der
+englische Name. Seit 0.6.0 kommt aus derselben Antwort auch der Name der Stufe
+(Attribut `tier`). Raidnamen kommen weiterhin auf Englisch.
 
 Ein Endpunkt wird nur abgefragt, wenn mindestens eine seiner Entitäten aktiviert ist.
 Ereignisse lösen nur für Einträge aus, die nach dem Start von Home Assistant dazukommen.
@@ -142,8 +179,10 @@ lesen; ein Zurückgehen geht nur über das Backup.
   Mythic+-Wertung ist ohne Lauf in der aktuellen Season „unbekannt“, die Diagnose
   schrumpfte von 119 KB auf 64 KB. 0.3.2 (nur README) über HACS ohne Fehler
   installiert; Avatar und Ganzkörperbild werden in Home Assistant angezeigt.
-- 0.5.x: 40 automatische Tests gegen Home Assistant 2026.2.3. Die Inhalte der
-  Tooltip-Felder sind live noch ungeprüft.
+- 0.6.x: 50 automatische Tests gegen Home Assistant 2026.2.3. Live noch ungeprüft.
+- 0.5.x: 40 automatische Tests gegen Home Assistant 2026.2.3. 0.5.0 am 26.10.2026
+  über HACS installiert und live geprüft: Die Tooltip-Felder kommen an und stimmen
+  mit dem Tooltip im Spiel überein.
 - 0.4.x: 38 automatische Tests gegen Home Assistant 2026.2.3. 0.4.0 am 26.10.2026
   über HACS installiert und live mit zwei Retail-Charakteren geprüft: keine Fehler,
   je Charakter 18 Ausrüstungs-Sensoren und ein Ruf-Sensor (75 bzw. 74 Fraktionen).
