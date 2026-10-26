@@ -249,7 +249,7 @@ EQUIPMENT = {
 REPUTATIONS = {
     "reputations": [
         {
-            "faction": {"name": "Testfraktion"},
+            "faction": {"name": "Testfraktion", "id": 1091},
             "standing": {
                 "raw": 42000,
                 "value": 0,
@@ -260,7 +260,7 @@ REPUTATIONS = {
             "paragon": {"raw": 3000, "value": 3000, "max": 10000},
         },
         {
-            "faction": {"name": "Neue Fraktion"},
+            "faction": {"name": "Neue Fraktion", "id": 2600},
             "standing": {
                 "raw": 500,
                 "value": 500,

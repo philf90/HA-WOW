@@ -416,6 +416,7 @@ async def test_reputation(hass: HomeAssistant, aioclient_mock) -> None:
     assert rep.attributes["factions"] == [
         {
             "faction": "Testfraktion",
+            "faction_id": 1091,
             "standing": "Ehrfürchtig",
             "value": 0,
             "max": 0,
@@ -423,6 +424,7 @@ async def test_reputation(hass: HomeAssistant, aioclient_mock) -> None:
         },
         {
             "faction": "Neue Fraktion",
+            "faction_id": 2600,
             "standing": "Renommee 4",
             "value": 500,
             "max": 2500,

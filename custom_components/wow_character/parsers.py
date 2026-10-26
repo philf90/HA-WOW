@@ -293,6 +293,8 @@ def reputations(data: dict[str, Any] | None) -> list[dict[str, Any]]:
         standing = rep.get("standing") or {}
         entry = {
             "faction": name_of(rep.get("faction")),
+            # Namen sind nicht eindeutig (z. B. zwei Fraktionen gleichen Namens).
+            "faction_id": (rep.get("faction") or {}).get("id"),
             "standing": standing.get("name"),
             "value": standing.get("value"),
             "max": standing.get("max"),

@@ -4,7 +4,7 @@
 [![KI-generiert](https://img.shields.io/badge/Code%20%26%20Doku-KI--generiert-6A2BB0)](#ki-hinweis)
 
 Home-Assistant-Integration für World-of-Warcraft-Charaktere. Liest die Profildaten
-über die offizielle Battle.net API. Version 0.4.0.
+über die offizielle Battle.net API. Version 0.4.1.
 
 > **KI-Hinweis:** Dieses Projekt ist mit Claude Code entstanden. Code, Tests und
 > Dokumentation wurden von der KI geschrieben und mit automatischen Tests sowie in
@@ -56,7 +56,10 @@ Entitäten haben. Attribute: `name`, `item_id`, `quality` (z. B. `EPIC`),
 `quality_name`, `enchantments`, `sockets` und `set`. Das Symbol schlägt die
 Integration einmal je Item nach. Die Fraktionsliste des Ruf-Sensors kann sehr lang
 sein und wird deshalb nicht in der Datenbank gespeichert; sie folgt der Reihenfolge
-der API, ohne Gruppierung nach Erweiterung.
+der API, ohne Gruppierung nach Erweiterung. Jeder Eintrag hat `faction`, `faction_id`,
+`standing`, `value` und `max`, bei Bedarf `renown` und `paragon`. Die ID braucht es,
+weil Namen nicht eindeutig sind: Die API liefert z. B. zwei Fraktionen
+„Bilgewasserkartell“.
 
 Die Berufe-Seite eines Charakters liefert Namen auf Englisch, auch mit deutscher
 Spracheinstellung. Die Integration schlägt die Namen deshalb einmalig in den
@@ -134,10 +137,14 @@ lesen; ein Zurückgehen geht nur über das Backup.
   Mythic+-Wertung ist ohne Lauf in der aktuellen Season „unbekannt“, die Diagnose
   schrumpfte von 119 KB auf 64 KB. 0.3.2 (nur README) über HACS ohne Fehler
   installiert; Avatar und Ganzkörperbild werden in Home Assistant angezeigt.
-- 0.4.x: 38 automatische Tests gegen Home Assistant 2026.2.3. Die Feldnamen von
-  Ausrüstung und Ruf stammen aus den Typdefinitionen von `@blizzard-api/wow` 4.1.4,
-  die Platz-Bezeichner aus dem Arsenal-Import von SimulationCraft; live noch
-  ungeprüft.
+- 0.4.x: 38 automatische Tests gegen Home Assistant 2026.2.3. 0.4.0 am 26.10.2026
+  über HACS installiert und live mit zwei Retail-Charakteren geprüft: keine Fehler,
+  je Charakter 18 Ausrüstungs-Sensoren und ein Ruf-Sensor (75 bzw. 74 Fraktionen).
+  Feldnamen und Platz-Bezeichner stimmen mit den echten Antworten überein. Name,
+  Itemlevel, Verzauberung und Sockel der 12 im Arsenal lesbaren Plätze stimmen
+  überein, ebenso der Wert 170 aus `api_rating`. Die API liefert Verzauberungstexte
+  mit Steuerzeichen wie `|A:…|a`; die Integration entfernt sie. Item-Symbole,
+  Set-Namen, Renommee und Paragon kommen an.
 - 0.1.x: am 26.10.2026 mit einem Retail-Charakter unter Home Assistant 2026.10.4 live
   geprüft: Realm-Liste, Profil, Mythic+-Profil und die Abfrage alle 15 Minuten.
 - WoW Forever ist ungetestet.
