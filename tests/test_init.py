@@ -1,11 +1,14 @@
 """Tests fuer Start, Sensoren, Fehlertoleranz und den Umbau von Version 1."""
 
+from unittest.mock import MagicMock, patch
+
 from homeassistant import config_entries
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers import entity_registry as er
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
+import custom_components.wow_character as wow
 from custom_components.wow_character.const import DOMAIN
 
 from .conftest import (
@@ -202,3 +205,19 @@ async def test_migrate_merges_entries_of_same_client(
     device = dr.async_get(hass).async_get_device(identifiers={(DOMAIN, UID2)})
     assert device.id == second_device
     assert set(device.config_entries) == {first.entry_id}
+
+
+async def test_move_device_uses_new_api_when_available(hass: HomeAssistant) -> None:
+    """Neuere Home-Assistant-Versionen: Geraet mit new_config_entry_id verschieben.
+
+    Die Testumgebung (2026.2.3) kennt die neue Funktion noch nicht; geprueft wird
+    daher nur, dass der Aufruf so aussieht, wie Home Assistant 2026.10 ihn erwartet.
+    """
+    entry = MockConfigEntry(domain=DOMAIN)
+    parent = MockConfigEntry(domain=DOMAIN)
+    dev_reg = MagicMock()
+    with patch.object(wow, "_DEVICE_MOVE_SUPPORTED", True):
+        wow._move_device(dev_reg, "geraet", entry, parent, "sub")
+    dev_reg.async_update_device.assert_called_once_with(
+        "geraet", new_config_entry_id=parent.entry_id, new_config_subentry_id="sub"
+    )

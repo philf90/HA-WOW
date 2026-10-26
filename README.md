@@ -1,7 +1,7 @@
 # WoW Charakter
 
 Home-Assistant-Integration für World-of-Warcraft-Charaktere. Liest die Profildaten
-über die offizielle Battle.net API. Version 0.2.0.
+über die offizielle Battle.net API. Version 0.2.1.
 
 ## Aufbau
 
@@ -56,8 +56,10 @@ lesen; ein Zurückgehen geht nur über das Backup.
 
 ## Teststand
 
-- 0.2.0: 19 automatische Tests gegen Home Assistant 2026.2.3, darunter die Übernahme
-  von 0.1.x-Einträgen. Live noch nicht geprüft.
+- 0.2.x: 20 automatische Tests gegen Home Assistant 2026.2.3, darunter die Übernahme
+  von 0.1.x-Einträgen. Am 26.10.2026 live unter Home Assistant 2026.10.4 geprüft: Ein
+  0.1.x-Eintrag wurde übernommen, Gerät, Entitäts-IDs und Werte blieben erhalten, der
+  globale Token-Endpunkt liefert Daten.
 - 0.1.x: am 26.10.2026 mit einem Retail-Charakter unter Home Assistant 2026.10.4 live
   geprüft: Realm-Liste, Profil, Mythic+-Profil und die Abfrage alle 15 Minuten.
 - WoW Forever ist ungetestet.

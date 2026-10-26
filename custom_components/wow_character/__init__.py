@@ -6,10 +6,11 @@ Untereintrag mit eigenem Geraet und eigenen Sensoren.
 
 from __future__ import annotations
 
+import inspect
 import logging
 from types import MappingProxyType
 
-from homeassistant.config_entries import ConfigSubentry
+from homeassistant.config_entries import ConfigEntry, ConfigSubentry
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import (
@@ -88,6 +89,45 @@ async def async_migrate_entry(hass: HomeAssistant, entry: WowConfigEntry) -> boo
     return False
 
 
+# Neuere Home-Assistant-Versionen ordnen ein Geraet genau einem Eintrag und
+# Untereintrag zu und verschieben es mit new_config_entry_id/new_config_subentry_id.
+# add_/remove_config_entry_id gelten dort als veraltet (entfallen in 2027.8).
+_DEVICE_MOVE_SUPPORTED = (
+    "new_config_entry_id"
+    in inspect.signature(dr.DeviceRegistry.async_update_device).parameters
+)
+
+
+def _move_device(
+    dev_reg: dr.DeviceRegistry,
+    device_id: str,
+    entry: ConfigEntry,
+    parent: ConfigEntry,
+    subentry_id: str,
+) -> None:
+    """Geraet eines alten Eintrags an den Untereintrag des Haupteintrags haengen."""
+    if _DEVICE_MOVE_SUPPORTED:
+        dev_reg.async_update_device(
+            device_id,
+            new_config_entry_id=parent.entry_id,
+            new_config_subentry_id=subentry_id,
+        )
+        return
+    dev_reg.async_update_device(
+        device_id,
+        add_config_entry_id=parent.entry_id,
+        add_config_subentry_id=subentry_id,
+    )
+    if parent is entry:
+        dev_reg.async_update_device(
+            device_id,
+            remove_config_entry_id=entry.entry_id,
+            remove_config_subentry_id=None,
+        )
+    else:
+        dev_reg.async_update_device(device_id, remove_config_entry_id=entry.entry_id)
+
+
 async def async_migrate_integration(hass: HomeAssistant) -> None:
     """Version 1 (ein Eintrag je Charakter) in Version 2 umbauen.
 
@@ -140,21 +180,7 @@ async def async_migrate_integration(hass: HomeAssistant) -> None:
                 config_subentry_id=subentry.subentry_id,
             )
         for device in dr.async_entries_for_config_entry(dev_reg, entry.entry_id):
-            dev_reg.async_update_device(
-                device.id,
-                add_config_entry_id=parent.entry_id,
-                add_config_subentry_id=subentry.subentry_id,
-            )
-            if parent is entry:
-                dev_reg.async_update_device(
-                    device.id,
-                    remove_config_entry_id=entry.entry_id,
-                    remove_config_subentry_id=None,
-                )
-            else:
-                dev_reg.async_update_device(
-                    device.id, remove_config_entry_id=entry.entry_id
-                )
+            _move_device(dev_reg, device.id, entry, parent, subentry.subentry_id)
 
         if parent is entry:
             hass.config_entries.async_update_entry(
