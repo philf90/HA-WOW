@@ -59,7 +59,10 @@ lesen; ein Zurückgehen geht nur über das Backup.
 - 0.2.x: 20 automatische Tests gegen Home Assistant 2026.2.3, darunter die Übernahme
   von 0.1.x-Einträgen. Am 26.10.2026 live unter Home Assistant 2026.10.4 geprüft: Ein
   0.1.x-Eintrag wurde übernommen, Gerät, Entitäts-IDs und Werte blieben erhalten, der
-  globale Token-Endpunkt liefert Daten.
+  globale Token-Endpunkt liefert Daten. Ein zweiter Retail-Charakter wurde über
+  „Charakter hinzufügen“ angelegt; die Werte beider Charaktere stimmen mit dem Arsenal
+  überein, auch ein Charakter ohne Mythic+-Wertung. Erneutes Anmelden und der Ausfall
+  einzelner Charaktere sind nur automatisch getestet.
 - 0.1.x: am 26.10.2026 mit einem Retail-Charakter unter Home Assistant 2026.10.4 live
   geprüft: Realm-Liste, Profil, Mythic+-Profil und die Abfrage alle 15 Minuten.
 - WoW Forever ist ungetestet.
