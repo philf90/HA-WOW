@@ -3,75 +3,168 @@
 [![Erstellt mit Claude Code](https://img.shields.io/badge/erstellt%20mit-Claude%20Code-D97757?logo=claude&logoColor=white)](https://claude.com/claude-code)
 [![KI-generiert](https://img.shields.io/badge/Code%20%26%20Doku-KI--generiert-6A2BB0)](#ki-hinweis)
 
-Home-Assistant-Integration für World-of-Warcraft-Charaktere. Liest die Profildaten
-über die offizielle Battle.net API. Version 0.6.1.
+Home-Assistant-Integration für World-of-Warcraft-Charaktere: Level, Itemlevel,
+Ausrüstung, Raid- und Mythic+-Fortschritt, Berufe, Ruf, Erfolge und mehr als
+Sensoren, dazu WoW-Marke, wöchentlicher Reset und Serverstatus. Die Daten kommen
+aus der offiziellen Battle.net API. Version 0.6.1.
 
 > **KI-Hinweis:** Dieses Projekt ist mit Claude Code entstanden. Code, Tests und
 > Dokumentation wurden von der KI geschrieben und mit automatischen Tests sowie in
 > einer echten Home-Assistant-Instanz geprüft; Details im Abschnitt
 > [KI-Hinweis](#ki-hinweis).
 
+## Voraussetzungen
+
+- **Home Assistant 2026.2.3 oder neuer** (live geprüft mit 2026.10.4)
+- **[HACS](https://hacs.xyz)** für die Installation per Klick (ohne HACS geht es
+  auch, siehe unten)
+- **Battle.net-API-Client** (kostenlos): Client-ID und Secret, angelegt mit einem
+  Blizzard-Konto auf <https://develop.battle.net>
+- Charaktere in den Regionen **EU, US, KR oder TW** (China wird nicht unterstützt)
+
+## Installation
+
+[![In HACS öffnen](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=philf90&repository=HA-WOW&category=integration)
+[![Integration hinzufügen](https://my.home-assistant.io/badges/config_flow_start.svg)](https://my.home-assistant.io/redirect/config_flow_start/?domain=wow_character)
+
+1. **API-Client anlegen:** auf <https://develop.battle.net> anmelden, einen Client
+   erstellen, Client-ID und Secret notieren.
+2. **Integration herunterladen:** Erste Schaltfläche oben → HACS fragt, ob das
+   Repository hinzugefügt werden soll → **Hinzufügen** → **Herunterladen**.
+   Von Hand: HACS → ⋮ → **Benutzerdefinierte Repositories** →
+   `https://github.com/philf90/HA-WOW`, Typ „Integration“ → „WoW Charakter“
+   herunterladen.
+   Ohne HACS: Ordner `custom_components/wow_character` nach
+   `config/custom_components/` kopieren.
+3. **Home Assistant neu starten.**
+4. **Einrichten:** Zweite Schaltfläche oben, oder Einstellungen → Geräte & Dienste
+   → Integration hinzufügen → „WoW Charakter“. Client-ID und Secret eingeben.
+5. **Charakter hinzufügen:** Am neuen Eintrag „Battle.net API“ →
+   **Charakter hinzufügen**: zuerst Region und Spielversion, dann Realm aus der
+   Liste wählen und Charakternamen eingeben. Für weitere Charaktere diesen Schritt
+   wiederholen.
+
+Danach ist jeder Charakter ein eigenes Gerät mit seinen Sensoren; die Werte für
+Region und Realm stehen im Gerät „WoW-Spielwelt EU“ (bzw. US, KR, TW).
+
+**Gut zu wissen:**
+
+- Blizzard aktualisiert die Profildaten erst, wenn sich der Charakter im Spiel
+  ausloggt.
+- Einige Sensoren sind zunächst ausgeschaltet (Charakterwerte, Spielstatistik).
+  Einschalten unter Einstellungen → Geräte & Dienste → WoW Charakter → Charakter
+  → Entitäten.
+- Passende Dashboard-Karten: siehe [Dashboard-Karten](#dashboard-karten).
+
+## Inhalt
+
+- [Aktualisieren](#aktualisieren)
+- [Aufbau](#aufbau)
+- [Entitäten je Charakter](#entitäten-je-charakter)
+- [Entitäten der Spielwelt](#entitäten-der-spielwelt)
+- [Attribute im Detail](#attribute-im-detail)
+- [Abfragen und Takte](#abfragen-und-takte)
+- [Dashboard-Karten](#dashboard-karten)
+- [Zugangsdaten ändern und Diagnose](#zugangsdaten-ändern-und-diagnose)
+- [WoW Forever](#wow-forever)
+- [Grenzen](#grenzen)
+- [Teststand](#teststand)
+- [Tests](#tests)
+- [KI-Hinweis](#ki-hinweis)
+- [Lizenz](#lizenz)
+
+## Aktualisieren
+
+HACS zeigt neue Versionen als Update an. Nach dem Herunterladen Home Assistant
+neu starten. Was sich je Version ändert, steht in den
+[Release-Notes](https://github.com/philf90/HA-WOW/releases).
+
+**Update von 0.1.x:** Beim ersten Start übernimmt die Integration (ab 0.2.0) die
+bisherigen Einträge (einer je Charakter) automatisch: Einträge mit derselben
+Client-ID werden zu einem Eintrag „Battle.net API“ zusammengefasst, jeder Charakter
+wird ein Untereintrag. Geräte, Entitäts-IDs, eigene Anpassungen und Verlauf bleiben
+erhalten. **Vorher ein Backup anlegen:** Nach dem Umbau kann 0.1.x die Einträge
+nicht mehr lesen; zurück geht es nur über das Backup.
+
 ## Aufbau
 
-- **Haupteintrag „Battle.net API“**: Client-ID und Secret eines API-Clients, einmalig.
-- **Untereintrag je Charakter**: Region, Spielversion, Realm und Name. Jeder Charakter
-  ist ein eigenes Gerät mit eigenen Sensoren. Beliebig viele Charaktere je API-Client,
-  auch aus verschiedenen Regionen und Spielversionen.
+- **Haupteintrag „Battle.net API“:** Client-ID und Secret eines API-Clients,
+  einmalig.
+- **Untereintrag je Charakter:** Region, Spielversion, Realm und Name. Jeder
+  Charakter ist ein eigenes Gerät mit eigenen Entitäten. Beliebig viele Charaktere
+  je API-Client, auch aus verschiedenen Regionen und Spielversionen.
+- **Gerät „WoW-Spielwelt“ je Region:** WoW-Marke, Reset und Server der Realms, auf
+  denen Charaktere angelegt sind.
 
-Fällt die Abfrage eines Charakters aus, sind nur seine Sensoren nicht verfügbar; die
-anderen laufen weiter.
+Fällt die Abfrage eines Charakters aus, sind nur seine Entitäten nicht verfügbar;
+die anderen laufen weiter.
 
-## Funktionsumfang
+## Entitäten je Charakter
 
-### Je Charakter
-
-| Wert | Typ | Takt | Endpunkt, Feld |
+| Wert | Typ | Takt | Quelle (Endpunkt, Feld) |
 |---|---|---|---|
-| Level | Sensor | 15 min | Profil, `level` |
+| **Profil** | | | |
+| Level (Klasse, Spezialisierung, Volk, Fraktion, Gilde, Realm, Titel als Attribute) | Sensor | 15 min | Profil, `level` |
 | Itemlevel (angelegt, Durchschnitt) | Sensoren | 15 min | Profil, `equipped_item_level`, `average_item_level` |
 | Erfahrungspunkte | Sensor | 15 min | Profil, `experience` |
 | Erfolgspunkte | Sensor | 15 min | Profil, `achievement_points` |
 | Letzter Login | Zeitstempel | 15 min | Profil, `last_login_timestamp` |
-| Mythic+-Wertung der aktuellen Season, Farbe und Season als Attribut | Sensor | 15 min | Mythic+-Profil, `current_mythic_rating` |
+| Avatar, Ganzkörperbild | Bilder | 6 h | `character-media` |
+| Spezialisierung mit Heldentalenten und Talent-Code | Sensor | 1 h | `specializations` |
+| Titel (Anzahl, Liste als Attribut) | Sensor | 6 h | `titles` |
+| **Ausrüstung** | | | |
+| Ausrüstung, 18 Plätze (Kopf bis Schildhand) | Sensoren, Itemlevel; Symbol als Bild | 1 h | `equipment`; Symbol aus `media/item/{id}` |
+| Leere Sockel, Verzauberungen, Set-Fortschritt | Sensoren | 1 h | `equipment`, ausgewertet |
+| Leben, Primärwert, Krit, Tempo, Meisterschaft, Vielseitigkeit | Sensoren, **zunächst aus** | 1 h | `statistics` |
+| **Fortschritt** | | | |
 | Raid-Fortschritt LFR, Normal, Heroisch, Mythisch | Sensoren | 1 h | `encounters/raids`, neueste Erweiterung |
 | Boss besiegt | Ereignis | 1 h | `encounters/raids`, `last_kill_timestamp` |
-| Höchster Mythic+-Schlüssel, Läufe in Zeit | Sensoren | 1 h | `mythic-keystone-profile/season/{aktuelle Season}` |
+| Mythic+-Wertung der aktuellen Season (Farbe, Season, `api_rating` als Attribute) | Sensor | 15 min | Mythic+-Profil, `current_mythic_rating` |
+| Höchster Mythic+-Schlüssel (beste Läufe als Attribut), Läufe in Zeit | Sensoren | 1 h | `mythic-keystone-profile/season/{aktuelle Season}` |
 | Ehrenstufe, ehrenhafte Siege | Sensoren | 1 h | `pvp-summary` |
-| Leben, Primärwert, Krit, Tempo, Meisterschaft, Vielseitigkeit | Sensoren, **standardmäßig deaktiviert** | 1 h | `statistics` |
+| Beruf (je Beruf, Stufe als Attribut) | Sensor | 6 h | `professions`; Namen aus `profession/{id}` |
+| Ruf (Anzahl der Fraktionen, je Fraktion Stufe und Fortschritt als Attribut) | Sensor | 6 h | `reputations` |
+| **Erfolge und Sammlungen** | | | |
+| Erfolge (Anzahl, Punkte je Hauptkategorie als Attribut) | Sensor | 1 h | `achievements`; Kategorien aus `achievement-category/index` |
 | Neuer Erfolg | Ereignis | 1 h | `achievements`, `recent_events` |
-| Beruf (je Beruf) | Sensor | 6 h | `professions`, Skill der neuesten Stufe; Name aus `profession/{id}` |
 | Reittiere, Haustiere, Spielzeuge | Sensoren | 6 h | `collections/*`, Anzahl |
-| Avatar, Ganzkörperbild | Bilder | 6 h | `character-media` |
-| Ausrüstung, 18 Plätze (Kopf bis Schildhand) | Sensoren, Itemlevel; Symbol als Bild | 1 h | `equipment`; Symbol aus `media/item/{id}` |
-| Ruf: Anzahl der Fraktionen, je Fraktion Stufe und Fortschritt als Attribut | Sensor | 6 h | `reputations` |
-| Leere Sockel, Verzauberungen, Set-Fortschritt | Sensoren | 1 h | `equipment`, ausgewertet |
-| Erfolge: Anzahl, Punkte je Kategorie als Attribut | Sensor | 1 h | `achievements`, `total_quantity`, `category_progress` |
-| Spezialisierung mit Heldentalenten und Talent-Code | Sensor | 1 h | `specializations` |
-| Titel: Anzahl, Liste als Attribut | Sensor | 6 h | `titles` |
-| Spielstatistik: Werte des Statistik-Fensters | Sensor, **standardmäßig deaktiviert** | 6 h | `achievements/statistics` |
+| Spielstatistik (Werte des Statistik-Fensters) | Sensor, **zunächst aus** | 6 h | `achievements/statistics` |
 
-Klasse, Spezialisierung, Volk, Fraktion, Gilde, Realm und aktiver Titel stehen als
-Attribute am Level-Sensor. Mythic+-Werte gibt es nur für Retail. Hat der Charakter in
-der aktuellen Season noch nicht gespielt, ist die Mythic+-Wertung „unbekannt“. Das
-Attribut `api_rating` enthält den Wert der API ohne diese Prüfung; diesen Wert zeigt
-auch das Arsenal im Kopf der Charakterseite.
+Mythic+-Werte gibt es nur für Retail. Hat der Charakter in der aktuellen Season
+noch nicht gespielt, ist die Mythic+-Wertung „unbekannt“; das Attribut
+`api_rating` enthält den Wert der API ohne diese Prüfung, wie ihn das Arsenal im
+Kopf der Charakterseite zeigt.
+
+## Entitäten der Spielwelt
+
+Je Region ein Gerät „WoW-Spielwelt EU“ (bzw. US, KR, TW):
+
+| Wert | Typ | Takt | Quelle (Endpunkt, Feld) |
+|---|---|---|---|
+| WoW-Marke | Sensor (Gold) | 1 h | `token/index`, `price` ÷ 10.000 |
+| Wöchentlicher Reset | Zeitstempel | 1 h | `mythic-keystone/period/{aktuell}`, `end_timestamp` + 1 s |
+| Server je Realm | Ein/Aus | 15 min | `connected-realm/{id}`, `status.type` |
+| Warteschlange je Realm | Ein/Aus | 15 min | `connected-realm/{id}`, `has_queue` |
+| Bevölkerung je Realm | Sensor | 15 min | `connected-realm/{id}`, `population.name` |
+
+## Attribute im Detail
+
+### Ausrüstung
 
 Die Ausrüstungs-Sensoren gibt es für alle Plätze, auch leere, damit Karten feste
 Entitäten haben. Attribute: `name`, `item_id`, `quality` (z. B. `EPIC`),
-`quality_name`, `enchantments`, `sockets`, `set` und `tooltip`. Das Symbol
-schlägt die Integration einmal je Item nach. `tooltip` enthält die Zeilen des
-Item-Tooltips im Spiel, fertig übersetzt: Stufe, Bindung, Platz und Art,
-Rüstung bzw. Waffenschaden, Werte (`stats` mit `text`, `color` und `bonus` für
-Zweitwerte), Verzauberungen, Sockel, Effekte, Set mit Teilen und Boni,
-Haltbarkeit, Anforderungen und Verkaufspreis. Leere Angaben fehlen. Wie die
-Fraktionsliste wird `tooltip` nicht in der Datenbank gespeichert. Die Fraktionsliste des Ruf-Sensors kann sehr lang
-sein und wird deshalb nicht in der Datenbank gespeichert; sie folgt der Reihenfolge
-der API, ohne Gruppierung nach Erweiterung. Jeder Eintrag hat `faction`, `faction_id`,
-`standing`, `value` und `max`, bei Bedarf `renown` und `paragon`. Die ID braucht es,
-weil Namen nicht eindeutig sind: Die API liefert z. B. zwei Fraktionen
-„Bilgewasserkartell“.
+`quality_name`, `enchantments`, `sockets` (je Sockel `type` und `gem`, leer ohne
+Edelstein), `set` und `tooltip`. Das Symbol schlägt die Integration einmal je Item
+nach.
 
-Auswertungen der Ausrüstung (seit 0.6.0), ohne zusätzliche Abfrage:
+`tooltip` enthält die Zeilen des Item-Tooltips im Spiel, fertig übersetzt: Stufe,
+Bindung, Platz und Art, Rüstung bzw. Waffenschaden, Werte (`stats` mit `text`,
+`color` und `bonus` für Zweitwerte), Verzauberungen, Sockel, Effekte, Set mit
+Teilen und Boni (je Bonus `active` und `required`), Haltbarkeit, Anforderungen und
+Verkaufspreis. Leere Angaben fehlen. Steuerzeichen des Spiels (z. B. `|A:…|a`)
+entfernt die Integration.
+
+Auswertungen der Ausrüstung, ohne zusätzliche Abfrage:
 
 - **Leere Sockel:** Anzahl der Sockel ohne Edelstein; `sockets` nennt je Sockel
   Platz (`slot`, `slot_name`) und Sockelart (`type`).
@@ -82,133 +175,81 @@ Auswertungen der Ausrüstung (seit 0.6.0), ohne zusätzliche Abfrage:
   `items` (mit `equipped`) und `effects` (mit `active` und `required`, der Anzahl
   Teile). Ohne Set ist der Wert 0; weitere Sets stehen in `other_sets`.
 
-Weitere Werte seit 0.6.0:
+### Ruf
 
-- **Erfolge:** Anzahl der Erfolge; `total_points` und `categories` (je
-  Hauptkategorie `category`, `id`, `quantity`, `points`). Dieselbe Abfrage wie
-  „Neuer Erfolg“. Die Antwort mischt Haupt- und Unterkategorien und nennt sie
-  auf Englisch; die Integration schlägt deshalb einmalig die Hauptkategorien
-  in den statischen Spieldaten nach (`achievement-category/index`) und nimmt
-  deren Namen. Klappt das nicht, stehen alle Kategorien der Antwort drin.
-- **Spezialisierung:** Name der aktiven Spezialisierung; `id`, `hero_talents`
-  (aktiver Heldentalentbaum), `loadout_code` (Talent-Code des aktiven Loadouts zum
-  Importieren im Spiel) und `specializations` (alle der Klasse).
-- **Titel:** Anzahl; `active` und `titles` (Namen).
-- **Spielstatistik:** Anzahl der Werte; `statistics` mit `id`, `name`, `category`
-  (bei Unterkategorien „Kategorie / Unterkategorie“) und `quantity`. Die Antwort
-  ist groß, deshalb ist der Sensor zunächst aus und wird alle 6 Stunden abgefragt.
-  Einzelne Werte lassen sich in Karten oder Templates über die `id` auswählen.
-- **Mythic+-Läufe:** Der Sensor „Höchster Mythic+-Schlüssel“ hat zusätzlich `runs`:
-  je Lauf `dungeon`, `dungeon_id`, `level`, `timed`, `duration` (Sekunden),
-  `completed`, `rating`, `color`, `affixes` und `members` (Name, Realm,
-  Spezialisierung, Itemlevel). Die Einheit von `duration` in der API ist nicht
-  belegt; die Integration erkennt Sekunden und Millisekunden an der Größe.
+`factions` folgt der Reihenfolge der API, ohne Gruppierung nach Erweiterung. Jeder
+Eintrag hat `faction`, `faction_id`, `standing`, `value` und `max`, bei Bedarf
+`renown` und `paragon`. Die ID braucht es, weil Namen nicht eindeutig sind: Die API
+liefert z. B. zwei Fraktionen „Bilgewasserkartell“.
 
-`runs`, `titles` und `statistics` werden nicht in der Datenbank gespeichert.
+### Erfolge, Titel, Spielstatistik
 
-Die Berufe-Seite eines Charakters liefert Namen auf Englisch, auch mit deutscher
-Spracheinstellung. Die Integration schlägt die Namen deshalb einmalig in den
-statischen Spieldaten nach (`profession/{id}`); klappt das nicht, bleibt der
-englische Name. Seit 0.6.0 kommt aus derselben Antwort auch der Name der Stufe
-(Attribut `tier`). Raidnamen kommen weiterhin auf Englisch.
+- **Erfolge:** `total_points` und `categories` (je Hauptkategorie `category`,
+  `id`, `quantity`, `points`). Die Antwort der API mischt Haupt- und
+  Unterkategorien und nennt sie auf Englisch; die Integration schlägt deshalb
+  einmalig die Hauptkategorien in den statischen Spieldaten nach und nimmt deren
+  Namen. Klappt das nicht, stehen alle Kategorien der Antwort drin.
+- **Titel:** `active` und `titles` (Namen).
+- **Spielstatistik:** `statistics` mit `id`, `name`, `category` (bei
+  Unterkategorien „Kategorie / Unterkategorie“) und `quantity`. Einzelne Werte
+  lassen sich in Karten oder Templates über die `id` auswählen, z. B. 98 (Quests
+  abgeschlossen) oder 60 (Tode insgesamt).
 
-Ein Endpunkt wird nur abgefragt, wenn mindestens eine seiner Entitäten aktiviert ist.
-Ereignisse lösen nur für Einträge aus, die nach dem Start von Home Assistant dazukommen.
-Berufs-Sensoren entstehen aus der ersten Antwort; ein neu gelernter Beruf erscheint
-nach dem nächsten Neuladen der Integration.
+### Spezialisierung und Mythic+
 
-### Spielwelt (je Region, eigenes Gerät „WoW-Spielwelt EU“)
+- **Spezialisierung:** Zustand ist die aktive Spezialisierung; `id`,
+  `hero_talents` (aktiver Heldentalentbaum), `loadout_code` (Talent-Code des
+  aktiven Loadouts zum Importieren im Spiel) und `specializations` (alle der
+  Klasse).
+- **Mythic+-Läufe:** Der Sensor „Höchster Mythic+-Schlüssel“ hat `best_runs`
+  (Kurzform je Dungeon) und `runs`: je Lauf `dungeon`, `dungeon_id`, `level`,
+  `timed`, `duration` (Sekunden), `completed`, `rating`, `color`, `affixes` und
+  `members` (Name, Realm, Spezialisierung, Itemlevel). Die Einheit von `duration`
+  in der API ist nicht belegt; die Integration erkennt Sekunden und Millisekunden
+  an der Größe.
 
-| Wert | Typ | Takt | Endpunkt, Feld |
-|---|---|---|---|
-| WoW-Marke | Sensor (Gold) | 1 h | `token/index`, `price` ÷ 10.000 |
-| Wöchentlicher Reset | Zeitstempel | 1 h | `mythic-keystone/period/{aktuell}`, `end_timestamp` + 1 s |
-| Server je Realm | Ein/Aus | 15 min | `connected-realm/{id}`, `status.type` |
-| Warteschlange je Realm | Ein/Aus | 15 min | `connected-realm/{id}`, `has_queue` |
-| Bevölkerung je Realm | Sensor | 15 min | `connected-realm/{id}`, `population.name` |
+### Sprache
 
-### WoW Forever
+Texte kommen in der Sprache der Region (EU: Deutsch). Ausnahmen: Die Berufe-Seite
+und die Erfolge-Seite eines Charakters liefern Namen auf Englisch, auch mit
+deutscher Spracheinstellung. Die Integration schlägt Berufe, Berufsstufen und
+Erfolgskategorien deshalb einmalig in den statischen Spieldaten nach; klappt das
+nicht, bleibt der englische Name. Raidnamen kommen weiterhin auf Englisch.
 
-Für Forever-Charaktere legt die Integration nur Entitäten an, deren Endpunkt beim
-Start Daten liefert.
+### Nicht in der Datenbank
 
-### Diagnose
+Lange Attribute speichert Home Assistant nicht im Verlauf: `tooltip`, `factions`,
+`runs`, `titles` und `statistics`. Die Werte stehen trotzdem im aktuellen Zustand.
 
-Einstellungen → Geräte & Dienste → WoW Charakter → ⋮ → **Diagnose herunterladen**
-liefert die API-Antworten ohne Client-ID und Secret. Damit lassen sich Feldnamen
-prüfen, wenn ein Wert fehlt.
+## Abfragen und Takte
 
-## Installation
+- Ein Endpunkt wird nur abgefragt, wenn mindestens eine seiner Entitäten
+  aktiviert ist.
+- Ereignisse lösen nur für Einträge aus, die nach dem Start von Home Assistant
+  dazukommen.
+- Berufs-Sensoren entstehen aus der ersten Antwort; ein neu gelernter Beruf
+  erscheint nach dem nächsten Neuladen der Integration.
+- Das Token holt die Integration über den globalen Endpunkt
+  `https://oauth.battle.net/token` (seit 0.2.0), wie die Bibliotheken
+  `@blizzard-api/core` und `blizzard.js`.
 
-1. Kostenlosen API-Client auf <https://develop.battle.net> anlegen, Client-ID und
-   Secret notieren.
-2. Über HACS: ⋮ → Benutzerdefinierte Repositories → `https://github.com/philf90/HA-WOW`,
-   Typ „Integration“, dann „WoW Charakter“ herunterladen. Ohne HACS: Ordner
-   `custom_components/wow_character` nach `config/custom_components/` kopieren.
-   Danach Home Assistant neu starten.
-3. Einstellungen → Geräte & Dienste → Integration hinzufügen → „WoW Charakter“:
-   Client-ID und Secret eingeben.
-4. Am Eintrag „Battle.net API“ **Charakter hinzufügen**:
-   - Schritt 1: Region und Spielversion. Dabei wird die Realm-Liste geladen
-     (`/data/wow/realm/index`).
-   - Schritt 2: Realm aus der Liste wählen, Charakternamen eingeben.
+## Dashboard-Karten
 
-Neues Secret: am Eintrag „Battle.net API“ ⋮ → **Neu konfigurieren**. Lehnt Blizzard
-die Zugangsdaten ab, fragt Home Assistant von selbst nach neuen.
+Karten im Owlet-Stil für diese Integration liegen im Repository
+[philf90/home-assistant](https://github.com/philf90/home-assistant) unter
+`dashboard/sonstiges/`: die Arsenal-Karte (`wow-arsenal-karte.yaml` mit
+`wow-templates.yaml`) und acht einzeln nutzbare Karten (`wow-*-karte.yaml`) für
+Charaktere, Spielwelt, Raids, Mythic+, Berufe, Ruf, Sammlungen und Werte.
+Alle brauchen `custom:button-card`; weitere Voraussetzungen (z. B. browser_mod
+für das Arsenal-Popup) stehen im Kopf jeder Datei.
 
-## Update von 0.1.x
+## Zugangsdaten ändern und Diagnose
 
-Beim ersten Start übernimmt 0.2.0 die bisherigen Einträge (einer je Charakter)
-automatisch: Einträge mit derselben Client-ID werden zu einem Eintrag „Battle.net API“
-zusammengefasst, jeder Charakter wird ein Untereintrag. Geräte, Entitäts-IDs, eigene
-Anpassungen und Verlauf bleiben erhalten.
-
-**Vorher ein Backup anlegen.** Nach dem Umbau kann 0.1.x die Einträge nicht mehr
-lesen; ein Zurückgehen geht nur über das Backup.
-
-## Teststand
-
-- 0.2.x: 20 automatische Tests gegen Home Assistant 2026.2.3, darunter die Übernahme
-  von 0.1.x-Einträgen. Am 26.10.2026 live unter Home Assistant 2026.10.4 geprüft: Ein
-  0.1.x-Eintrag wurde übernommen, Gerät, Entitäts-IDs und Werte blieben erhalten, der
-  globale Token-Endpunkt liefert Daten. Ein zweiter Retail-Charakter wurde über
-  „Charakter hinzufügen“ angelegt; die Werte beider Charaktere stimmen mit dem Arsenal
-  überein, auch ein Charakter ohne Mythic+-Wertung. Erneutes Anmelden und der Ausfall
-  einzelner Charaktere sind nur automatisch getestet.
-- 0.3.x: 32 automatische Tests gegen Home Assistant 2026.2.3. 0.3.0 am 26.10.2026
-  live mit zwei Retail-Charakteren geprüft: alle Entitäten angelegt, keine Fehler,
-  Titel und Mythic+-Farbe an echten Antworten bestätigt. Erfahrungspunkte waren bei
-  beiden 0 (Höchststufe beim letzten Login); das Verhalten beim Leveln ist ungeprüft.
-  0.3.1 live geprüft: Die statischen Spieldaten liefern deutsche Berufsnamen, die
-  Mythic+-Wertung ist ohne Lauf in der aktuellen Season „unbekannt“, die Diagnose
-  schrumpfte von 119 KB auf 64 KB. 0.3.2 (nur README) über HACS ohne Fehler
-  installiert; Avatar und Ganzkörperbild werden in Home Assistant angezeigt.
-- 0.6.x: 52 automatische Tests gegen Home Assistant 2026.2.3. 0.6.0 am 26.10.2026
-  über HACS installiert und live mit einem Retail-Charakter geprüft: keine Fehler,
-  alle neuen Entitäten angelegt. Leere Sockel (3), Verzauberungen (2) und Set
-  (3/5, ein Bonus aktiv) stimmen mit dem Arsenal überein; Spezialisierung mit
-  Heldentalentbaum und Talent-Code, 55 Titel, 276 Statistik-Werte auf Deutsch,
-  Berufsstufen auf Deutsch. Gefunden: Die Erfolgskategorien kamen gemischt und
-  auf Englisch, behoben in 0.6.1. Die Laufdetails (`runs`) sind ungeprüft, weil
-  der Charakter in der aktuellen Season keinen Lauf hat.
-- 0.5.x: 40 automatische Tests gegen Home Assistant 2026.2.3. 0.5.0 am 26.10.2026
-  über HACS installiert und live geprüft: Die Tooltip-Felder kommen an und stimmen
-  mit dem Tooltip im Spiel überein.
-- 0.4.x: 38 automatische Tests gegen Home Assistant 2026.2.3. 0.4.0 am 26.10.2026
-  über HACS installiert und live mit zwei Retail-Charakteren geprüft: keine Fehler,
-  je Charakter 18 Ausrüstungs-Sensoren und ein Ruf-Sensor (75 bzw. 74 Fraktionen).
-  Feldnamen und Platz-Bezeichner stimmen mit den echten Antworten überein. Name,
-  Itemlevel, Verzauberung und Sockel der 12 im Arsenal lesbaren Plätze stimmen
-  überein, ebenso der Wert 170 aus `api_rating`. Die API liefert Verzauberungstexte
-  mit Steuerzeichen wie `|A:…|a`; die Integration entfernt sie. Item-Symbole,
-  Set-Namen, Renommee und Paragon kommen an.
-- 0.1.x: am 26.10.2026 mit einem Retail-Charakter unter Home Assistant 2026.10.4 live
-  geprüft: Realm-Liste, Profil, Mythic+-Profil und die Abfrage alle 15 Minuten.
-- WoW Forever ist ungetestet.
-
-Seit 0.2.0 holt die Integration das Token über den globalen Endpunkt
-`https://oauth.battle.net/token` statt über einen Endpunkt je Region, wie die
-Bibliotheken `@blizzard-api/core` und `blizzard.js`.
+- **Neues Secret:** am Eintrag „Battle.net API“ ⋮ → **Neu konfigurieren**. Lehnt
+  Blizzard die Zugangsdaten ab, fragt Home Assistant von selbst nach neuen.
+- **Diagnose:** Einstellungen → Geräte & Dienste → WoW Charakter → ⋮ →
+  **Diagnose herunterladen** liefert die API-Antworten ohne Client-ID und Secret.
+  Damit lassen sich Feldnamen prüfen, wenn ein Wert fehlt.
 
 ## WoW Forever
 
@@ -216,14 +257,62 @@ Blizzard hat den API-Namespace für Forever noch nicht dokumentiert (Start
 04.11.2026). Beim Hinzufügen eines Forever-Charakters probiert die Integration die
 Kandidaten aus `const.py` (`GAME_VERSIONS["forever"]["namespaces"]`) der Reihe nach:
 Der erste, unter dem die API eine Realm-Liste liefert, wird gespeichert. Die
-Kandidaten sind **unbestätigt**. Sobald Blizzard den Namespace nennt, dort eintragen;
-schlägt das Hinzufügen fehl, ist das die wahrscheinlichste Ursache.
+Kandidaten sind **unbestätigt**. Sobald Blizzard den Namespace nennt, dort
+eintragen; schlägt das Hinzufügen fehl, ist das die wahrscheinlichste Ursache.
+
+Für Forever-Charaktere legt die Integration nur Entitäten an, deren Endpunkt beim
+Start Daten liefert.
 
 ## Grenzen
 
 - Profildaten aktualisiert Blizzard erst, wenn sich der Charakter ausloggt.
-  Abfrage alle 15 Minuten.
 - Die Region China wird nicht unterstützt.
+- Gold, Position und Account-Daten liefert die API nur mit einer Anmeldung des
+  Spielers (Authorization Code Flow, Scope `wow.profile`). Die Integration nutzt
+  nur Client-ID und Secret und kann sie deshalb nicht abfragen.
+- Große Schatzkammer und Affixe der aktuellen Woche liefert die API nicht: Sie
+  kennt je Season nur den besten Lauf je Dungeon, und die Woche hat nur Start und
+  Ende.
+- WoW Forever ist ungetestet.
+
+## Teststand
+
+Automatische Tests laufen gegen Home Assistant 2026.2.3; live geprüft wurde unter
+Home Assistant 2026.10.4 mit Retail-Charakteren der Region EU.
+
+- **0.6.x:** 52 automatische Tests. 0.6.0 am 26.10.2026 über HACS installiert und
+  live geprüft: keine Fehler, alle neuen Entitäten angelegt. Leere Sockel (3),
+  Verzauberungen (2) und Set (3/5, ein Bonus aktiv) stimmen mit dem Arsenal
+  überein; Spezialisierung mit Heldentalentbaum und Talent-Code, 55 Titel,
+  276 Statistik-Werte und Berufsstufen auf Deutsch. Gefunden: Die
+  Erfolgskategorien kamen gemischt und auf Englisch. 0.6.1 behebt das, live
+  geprüft: 15 Hauptkategorien mit deutschen Namen bei zwei Charakteren; beim
+  ersten ergeben ihre Summen genau die Erfolgspunkte des Profils (16.045) und die
+  Anzahl der Erfolge (1.753). Ungeprüft sind die Laufdetails (`runs`), weil kein Charakter in
+  der aktuellen Season einen Lauf hat.
+- **0.5.x:** 40 automatische Tests. 0.5.0 live geprüft: Die Tooltip-Felder kommen
+  an und stimmen mit dem Tooltip im Spiel überein.
+- **0.4.x:** 38 automatische Tests. 0.4.0 live geprüft: keine Fehler, je
+  Charakter 18 Ausrüstungs-Sensoren und ein Ruf-Sensor (75 bzw. 74 Fraktionen).
+  Feldnamen und Platz-Bezeichner stimmen mit den echten Antworten überein. Name,
+  Itemlevel, Verzauberung und Sockel der 12 im Arsenal lesbaren Plätze stimmen
+  überein, ebenso der Wert 170 aus `api_rating`. Item-Symbole, Set-Namen,
+  Renommee und Paragon kommen an.
+- **0.3.x:** 32 automatische Tests. 0.3.0 live geprüft: alle Entitäten angelegt,
+  keine Fehler, Titel und Mythic+-Farbe an echten Antworten bestätigt.
+  Erfahrungspunkte waren bei beiden 0 (Höchststufe beim letzten Login); das
+  Verhalten beim Leveln ist ungeprüft. 0.3.1: Die statischen Spieldaten liefern
+  deutsche Berufsnamen, die Mythic+-Wertung ist ohne Lauf in der aktuellen Season
+  „unbekannt“. Avatar und Ganzkörperbild werden in Home Assistant angezeigt.
+- **0.2.x:** 20 automatische Tests, darunter die Übernahme von 0.1.x-Einträgen.
+  Live: Ein 0.1.x-Eintrag wurde übernommen, Gerät, Entitäts-IDs und Werte blieben
+  erhalten, der globale Token-Endpunkt liefert Daten; ein zweiter Charakter wurde
+  über „Charakter hinzufügen“ angelegt, die Werte beider Charaktere stimmen mit
+  dem Arsenal überein. Erneutes Anmelden und der Ausfall einzelner Charaktere sind
+  nur automatisch getestet.
+- **0.1.x:** live geprüft: Realm-Liste, Profil, Mythic+-Profil und die Abfrage
+  alle 15 Minuten.
+- **WoW Forever** ist ungetestet.
 
 ## Tests
 
