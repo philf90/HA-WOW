@@ -1,0 +1,33 @@
+# Legt bei jedem Tag "v*" ein GitHub-Release an; HACS zeigt dessen Version an.
+# Die Versionshinweise stehen in .github/release-notes/<tag>.md.
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Version mit manifest.json abgleichen
+        run: |
+          version=$(python3 -c "import json; print(json.load(open('custom_components/wow_character/manifest.json'))['version'])")
+          if [ "v$version" != "$GITHUB_REF_NAME" ]; then
+            echo "manifest.json nennt $version, der Tag ist $GITHUB_REF_NAME"
+            exit 1
+          fi
+
+      - name: Release anlegen
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" \
+            --title "WoW Charakter $GITHUB_REF_NAME" \
+            --notes-file ".github/release-notes/$GITHUB_REF_NAME.md" \
+            --verify-tag
