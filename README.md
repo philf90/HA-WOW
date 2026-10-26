@@ -4,7 +4,7 @@
 [![KI-generiert](https://img.shields.io/badge/Code%20%26%20Doku-KI--generiert-6A2BB0)](#ki-hinweis)
 
 Home-Assistant-Integration für World-of-Warcraft-Charaktere. Liest die Profildaten
-über die offizielle Battle.net API. Version 0.4.1.
+über die offizielle Battle.net API. Version 0.5.0.
 
 > **KI-Hinweis:** Dieses Projekt ist mit Claude Code entstanden. Code, Tests und
 > Dokumentation wurden von der KI geschrieben und mit automatischen Tests sowie in
@@ -53,8 +53,13 @@ auch das Arsenal im Kopf der Charakterseite.
 
 Die Ausrüstungs-Sensoren gibt es für alle Plätze, auch leere, damit Karten feste
 Entitäten haben. Attribute: `name`, `item_id`, `quality` (z. B. `EPIC`),
-`quality_name`, `enchantments`, `sockets` und `set`. Das Symbol schlägt die
-Integration einmal je Item nach. Die Fraktionsliste des Ruf-Sensors kann sehr lang
+`quality_name`, `enchantments`, `sockets`, `set` und `tooltip`. Das Symbol
+schlägt die Integration einmal je Item nach. `tooltip` enthält die Zeilen des
+Item-Tooltips im Spiel, fertig übersetzt: Stufe, Bindung, Platz und Art,
+Rüstung bzw. Waffenschaden, Werte (`stats` mit `text`, `color` und `bonus` für
+Zweitwerte), Verzauberungen, Sockel, Effekte, Set mit Teilen und Boni,
+Haltbarkeit, Anforderungen und Verkaufspreis. Leere Angaben fehlen. Wie die
+Fraktionsliste wird `tooltip` nicht in der Datenbank gespeichert. Die Fraktionsliste des Ruf-Sensors kann sehr lang
 sein und wird deshalb nicht in der Datenbank gespeichert; sie folgt der Reihenfolge
 der API, ohne Gruppierung nach Erweiterung. Jeder Eintrag hat `faction`, `faction_id`,
 `standing`, `value` und `max`, bei Bedarf `renown` und `paragon`. Die ID braucht es,
@@ -137,6 +142,8 @@ lesen; ein Zurückgehen geht nur über das Backup.
   Mythic+-Wertung ist ohne Lauf in der aktuellen Season „unbekannt“, die Diagnose
   schrumpfte von 119 KB auf 64 KB. 0.3.2 (nur README) über HACS ohne Fehler
   installiert; Avatar und Ganzkörperbild werden in Home Assistant angezeigt.
+- 0.5.x: 40 automatische Tests gegen Home Assistant 2026.2.3. Die Inhalte der
+  Tooltip-Felder sind live noch ungeprüft.
 - 0.4.x: 38 automatische Tests gegen Home Assistant 2026.2.3. 0.4.0 am 26.10.2026
   über HACS installiert und live mit zwei Retail-Charakteren geprüft: keine Fehler,
   je Charakter 18 Ausrüstungs-Sensoren und ein Ruf-Sensor (75 bzw. 74 Fraktionen).

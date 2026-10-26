@@ -433,6 +433,69 @@ async def test_reputation(hass: HomeAssistant, aioclient_mock) -> None:
     ]
 
 
+async def test_equipment_tooltip(hass: HomeAssistant, aioclient_mock) -> None:
+    mock_token(aioclient_mock)
+    mock_api(aioclient_mock)
+    await _setup(hass, character_subentry())
+
+    tip = _state(hass, "sensor", "equipment_head").attributes["tooltip"]
+    assert tip == {
+        "name": "Testhelm",
+        "quality": "EPIC",
+        "quality_name": "Episch",
+        "level": "Gegenstandsstufe 253",
+        "binding": "Wird beim Aufheben gebunden",
+        "slot": "Kopf",
+        "subclass": "Stoff",
+        "armor": "30 Rüstung",
+        "stats": [
+            {
+                "text": "+91 Intelligenz",
+                "color": "#ffffff",
+                "bonus": False,
+                "negated": False,
+            },
+            {"text": "+92 Tempo", "color": "#1eff00", "bonus": True, "negated": False},
+        ],
+        "enchantments": ["Verzaubert: +16 Intelligenz"],
+        "sockets": ["Testedelstein", "Prismatischer Sockel"],
+        "set": {
+            "name": "Testset (1/2)",
+            "items": [
+                {"name": "Testhelm", "equipped": True},
+                {"name": "Testhose", "equipped": False},
+            ],
+            "effects": [{"text": "Set: +5 Testwert", "active": False}],
+        },
+        "durability": "Haltbarkeit 96 / 100",
+        "requirements": ["Klassen: Magier", "Benötigt Stufe 90"],
+        "sell_price": {
+            "header": "Verkaufspreis:",
+            "gold": "42",
+            "silver": "90",
+            "copper": "73",
+        },
+    }
+
+    # Waffe: Schaden, Tempo, DPS, Effekt; versteckte Unterklasse fehlt
+    tip = _state(hass, "sensor", "equipment_main_hand").attributes["tooltip"]
+    assert tip["damage"] == "100 - 200 Schaden"
+    assert tip["speed"] == "Tempo 3,60"
+    assert tip["dps"] == "(41,7 Schaden pro Sekunde)"
+    assert tip["spells"] == ["Benutzen: Testeffekt stark"]
+    assert "subclass" not in tip
+    assert "set" not in tip
+
+    # Leerer Platz: kein Tooltip
+    assert _state(hass, "sensor", "equipment_shirt").attributes["tooltip"] is None
+
+
+def test_tooltip_not_recorded() -> None:
+    from custom_components.wow_character.sensor import WowEquipmentSensor
+
+    assert "tooltip" in WowEquipmentSensor._unrecorded_attributes
+
+
 def test_reputation_not_recorded() -> None:
     """Die lange Fraktionsliste kommt nicht in die Datenbank."""
     from custom_components.wow_character.sensor import WowReputationSensor
@@ -448,8 +511,9 @@ async def test_diagnostics_equipment(hass: HomeAssistant, aioclient_mock) -> Non
     details = diag["characters"]["Testchar – Die Aldor"]["details"]
     head = details["equipment"]["equipped_items"][0]
     assert head["slot"]["type"] == "HEAD"
-    assert "set" in head["fields"]
-    assert "set" not in head
+    # Volle Felder fuer die Pruefung, ohne Bonus-IDs
+    assert head["stats"][0]["display"]["display_string"] == "+91 Intelligenz"
+    assert "bonus_list" not in head
     assert details["reputations"]["count"] == 2
     assert details["item_icons"] == {6001: "https://render.example/helm.jpg"}
 

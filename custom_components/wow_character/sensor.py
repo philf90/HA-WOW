@@ -356,6 +356,9 @@ class WowEquipmentSensor(WowCharacterEntity, SensorEntity):
     """Item auf einem Ausruestungsplatz: Itemlevel, Symbol als Bild."""
 
     _attr_icon = "mdi:shield-outline"
+    # Tooltip-Zeilen fuer Karten; aendern sich nur mit dem Item und bleiben
+    # aus der Datenbank (18 Plaetze je Charakter).
+    _unrecorded_attributes = frozenset({"tooltip"})
 
     def __init__(self, coordinator: WowDetailCoordinator, slot: str) -> None:
         key = f"{EQUIPMENT_PREFIX}{slot.lower()}"
@@ -389,6 +392,7 @@ class WowEquipmentSensor(WowCharacterEntity, SensorEntity):
                 "enchantments",
                 "sockets",
                 "set",
+                "tooltip",
             )
         }
 

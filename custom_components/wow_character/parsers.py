@@ -271,8 +271,118 @@ def equipment(data: dict[str, Any] | None) -> dict[str, dict[str, Any]]:
                 if isinstance(s, dict)
             ],
             "set": name_of((item.get("set") or {}).get("item_set")),
+            "tooltip": tooltip(item),
         }
     return result
+
+
+def _text(obj: Any, *keys: str) -> str | None:
+    """display_string (bereinigt) aus einem verschachtelten Feld."""
+    for key in keys:
+        obj = obj.get(key) if isinstance(obj, dict) else None
+    return clean_text(obj)
+
+
+def tooltip(item: dict[str, Any]) -> dict[str, Any]:
+    """Zeilen des Item-Tooltips im Spiel, ohne leere Angaben.
+
+    Texte kommen fertig in der Sprache der Region (display_string); Farben,
+    die das Spiel einer Zeile gibt, als "#rrggbb".
+    """
+    quality = item.get("quality") or {}
+    subclass = (
+        None if item.get("is_subclass_hidden") else name_of(item.get("item_subclass"))
+    )
+    stats = []
+    for stat in item.get("stats") or []:
+        if not isinstance(stat, dict) or not (
+            text := _text(stat, "display", "display_string")
+        ):
+            continue
+        stats.append(
+            {
+                "text": text,
+                "color": color_hex((stat.get("display") or {}).get("color")),
+                # Zweitwerte (Tempo, Meisterschaft ...) stehen im Spiel gruen
+                "bonus": bool(stat.get("is_equip_bonus")),
+                "negated": bool(stat.get("is_negated")),
+            }
+        )
+    weapon = item.get("weapon") or {}
+    item_set = item.get("set") or {}
+    sell = (item.get("sell_price") or {}).get("display_strings") or {}
+    data: dict[str, Any] = {
+        "name": item.get("name"),
+        "quality": quality.get("type"),
+        "quality_name": quality.get("name"),
+        "name_description": _text(item, "name_description", "display_string"),
+        "level": _text(item, "level", "display_string"),
+        "binding": name_of(item.get("binding")),
+        "unique": clean_text(item.get("unique_equipped")),
+        "slot": name_of(item.get("inventory_type")),
+        "subclass": subclass,
+        "armor": _text(item, "armor", "display", "display_string"),
+        "damage": _text(weapon, "damage", "display_string"),
+        "speed": _text(weapon, "attack_speed", "display_string"),
+        "dps": _text(weapon, "dps", "display_string"),
+        "stats": stats,
+        "enchantments": [
+            text
+            for e in item.get("enchantments") or []
+            if isinstance(e, dict) and (text := clean_text(e.get("display_string")))
+        ],
+        # Edelstein-Wirkung, sonst sein Name, sonst die Sockelart (leer)
+        "sockets": [
+            text
+            for s in item.get("sockets") or []
+            if isinstance(s, dict)
+            and (
+                text := clean_text(s.get("display_string"))
+                or name_of(s.get("item"))
+                or name_of(s.get("socket_type"))
+            )
+        ],
+        "spells": [
+            text
+            for sp in item.get("spells") or []
+            if isinstance(sp, dict) and (text := clean_text(sp.get("description")))
+        ],
+        "set": None,
+        "description": clean_text(item.get("description")),
+        "durability": _text(item, "durability", "display_string"),
+        "requirements": [
+            text
+            for text in (
+                _text(item, "requirements", "playable_classes", "display_string"),
+                _text(item, "requirements", "level", "display_string"),
+            )
+            if text
+        ],
+        "sell_price": (
+            {k: sell.get(k) for k in ("header", "gold", "silver", "copper")}
+            if sell
+            else None
+        ),
+    }
+    if item_set:
+        data["set"] = {
+            "name": clean_text(item_set.get("display_string"))
+            or name_of(item_set.get("item_set")),
+            "items": [
+                {"name": name_of(i.get("item")), "equipped": bool(i.get("is_equipped"))}
+                for i in item_set.get("items") or []
+                if isinstance(i, dict)
+            ],
+            "effects": [
+                {
+                    "text": clean_text(e.get("display_string")),
+                    "active": bool(e.get("is_active")),
+                }
+                for e in item_set.get("effects") or []
+                if isinstance(e, dict)
+            ],
+        }
+    return {k: v for k, v in data.items() if v not in (None, [], "")}
 
 
 def icon_url(media: dict[str, Any] | None) -> str | None:

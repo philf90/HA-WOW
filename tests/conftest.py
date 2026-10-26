@@ -232,9 +232,56 @@ EQUIPMENT = {
                     "socket_type": {"type": "PRISMATIC"},
                     "item": {"name": "Testedelstein"},
                 },
-                {"socket_type": {"type": "PRISMATIC"}},
+                {"socket_type": {"type": "PRISMATIC", "name": "Prismatischer Sockel"}},
             ],
-            "set": {"item_set": {"name": "Testset"}},
+            "set": {
+                "item_set": {"name": "Testset"},
+                "display_string": "Testset (1/2)",
+                "items": [
+                    {"item": {"name": "Testhelm"}, "is_equipped": True},
+                    {"item": {"name": "Testhose"}},
+                ],
+                "effects": [
+                    {"display_string": "Set: +5 Testwert", "required_count": 2}
+                ],
+            },
+            "binding": {"type": "ON_ACQUIRE", "name": "Wird beim Aufheben gebunden"},
+            "inventory_type": {"type": "HEAD", "name": "Kopf"},
+            "item_subclass": {"name": "Stoff"},
+            "armor": {"value": 30, "display": {"display_string": "30 Rüstung"}},
+            "stats": [
+                {
+                    "type": {"type": "INTELLECT"},
+                    "value": 91,
+                    "display": {
+                        "display_string": "+91 Intelligenz",
+                        "color": {"r": 255, "g": 255, "b": 255, "a": 1},
+                    },
+                },
+                {
+                    "type": {"type": "HASTE_RATING"},
+                    "value": 92,
+                    "is_equip_bonus": True,
+                    "display": {
+                        "display_string": "+92 Tempo",
+                        "color": {"r": 30, "g": 255, "b": 0, "a": 1},
+                    },
+                },
+            ],
+            "durability": {"value": 96, "display_string": "Haltbarkeit 96 / 100"},
+            "requirements": {
+                "level": {"value": 90, "display_string": "Benötigt Stufe 90"},
+                "playable_classes": {"display_string": "Klassen: Magier"},
+            },
+            "sell_price": {
+                "value": 429073,
+                "display_strings": {
+                    "header": "Verkaufspreis:",
+                    "gold": "42",
+                    "silver": "90",
+                    "copper": "73",
+                },
+            },
         },
         {
             "item": {"id": 5002},
@@ -243,6 +290,16 @@ EQUIPMENT = {
             "name": "Teststab",
             "media": {"id": 6002},
             "level": {"value": 259},
+            "is_subclass_hidden": True,
+            "item_subclass": {"name": "Stab"},
+            "weapon": {
+                "damage": {"display_string": "100 - 200 Schaden"},
+                "attack_speed": {"display_string": "Tempo 3,60"},
+                "dps": {"display_string": "(41,7 Schaden pro Sekunde)"},
+            },
+            "spells": [
+                {"description": "Benutzen: Testeffekt |cnGREEN_FONT_COLOR:stark|r"}
+            ],
         },
     ]
 }

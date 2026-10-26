@@ -39,17 +39,12 @@ def _shrink(endpoint: str, data: Any) -> Any:
             for group in ("primaries", "secondaries")
         }
     if endpoint == "equipment":
-        # Werte, Zauber und Verkaufspreis weglassen; die Feldnamen je Item
-        # bleiben sichtbar, falls ein Wert fehlt.
-        keep = ("slot", "name", "item", "media", "level", "quality")
+        # Vollstaendig, weil der Tooltip fast alle Felder nutzt; nur Links,
+        # Bonus-IDs und Vorlage-IDs fallen weg.
+        drop = {"bonus_list", "context", "modified_appearance_id"}
         return {
             "equipped_items": [
-                {
-                    **{k: item.get(k) for k in keep},
-                    "enchantments": item.get("enchantments"),
-                    "sockets": item.get("sockets"),
-                    "fields": sorted(item),
-                }
+                {k: v for k, v in item.items() if k not in drop}
                 for item in data.get("equipped_items") or []
                 if isinstance(item, dict)
             ]
