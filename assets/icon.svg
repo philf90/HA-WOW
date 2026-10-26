@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <!-- Eigenes Motiv: Wappenschild mit Schwert, Epic-Lila mit Goldrand. Kein Blizzard-Logo. -->
+  <defs>
+    <linearGradient id="field" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#8a3fd6"/>
+      <stop offset="1" stop-color="#4a1785"/>
+    </linearGradient>
+    <linearGradient id="gold" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#ffe08a"/>
+      <stop offset="0.5" stop-color="#e3a826"/>
+      <stop offset="1" stop-color="#a86b0c"/>
+    </linearGradient>
+    <linearGradient id="steel" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#ffffff"/>
+      <stop offset="0.5" stop-color="#e9ecf3"/>
+      <stop offset="0.5" stop-color="#c3c9d6"/>
+      <stop offset="1" stop-color="#a9b0c0"/>
+    </linearGradient>
+  </defs>
+  <!-- Schild: Goldrand aussen, Feld innen -->
+  <path d="M256 6 L478 66 V226 C478 360 388 452 256 506 C124 452 34 360 34 226 V66 Z" fill="url(#gold)"/>
+  <path d="M256 40 L446 91 V228 C446 343 370 422 256 470 C142 422 66 343 66 228 V91 Z" fill="url(#field)"/>
+  <!-- Klinge -->
+  <path d="M256 92 L284 132 V336 L256 372 L228 336 V132 Z" fill="url(#steel)"/>
+  <!-- Parierstange -->
+  <rect x="166" y="330" width="180" height="30" rx="15" fill="url(#gold)"/>
+  <!-- Griff -->
+  <rect x="241" y="358" width="30" height="62" rx="8" fill="#3a1166"/>
+  <rect x="241" y="368" width="30" height="8" fill="#5b2a95"/>
+  <rect x="241" y="386" width="30" height="8" fill="#5b2a95"/>
+  <!-- Knauf -->
+  <circle cx="256" cy="430" r="20" fill="url(#gold)"/>
+</svg>
