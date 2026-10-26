@@ -10,7 +10,7 @@
 Home-Assistant-Integration für World-of-Warcraft-Charaktere: Level, Itemlevel,
 Ausrüstung, Raid- und Mythic+-Fortschritt, Berufe, Ruf, Erfolge und mehr als
 Sensoren, dazu WoW-Marke, wöchentlicher Reset und Serverstatus. Die Daten kommen
-aus der offiziellen Battle.net API. Version 0.6.1.
+aus der offiziellen Battle.net API. Version 0.6.2.
 
 > **KI-Hinweis:** Dieses Projekt ist mit Claude Code entstanden. Code, Tests und
 > Dokumentation wurden von der KI geschrieben und mit automatischen Tests sowie in
@@ -278,6 +278,11 @@ Start Daten liefert.
   kennt je Season nur den besten Lauf je Dungeon, und die Woche hat nur Start und
   Ende.
 - WoW Forever ist ungetestet.
+- Das Logo zeigt Home Assistant ab 2026.3 aus dem Ordner `brand/` der
+  Integration. In der HACS-Liste erscheint stattdessen ein Platzhalter: HACS 2.0.5
+  lädt Symbole nur von `brands.home-assistant.io`, und dort nimmt Home Assistant
+  keine neuen Custom-Integrationen mehr auf. Das betrifft jede neue
+  Custom-Integration und lässt sich in diesem Repo nicht beheben.
 
 ## Teststand
 
