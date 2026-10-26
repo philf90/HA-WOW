@@ -177,8 +177,13 @@ def stat(stats: dict[str, Any] | None, key: str) -> float | int | None:
     return None
 
 
-def professions(data: dict[str, Any] | None) -> dict[int, dict[str, Any]]:
-    """Beruf-ID -> Name, Skill und Stufe der neuesten Erweiterungsstufe."""
+def professions(
+    data: dict[str, Any] | None, names: dict[int, str] | None = None
+) -> dict[int, dict[str, Any]]:
+    """Beruf-ID -> Name, Skill und Stufe der neuesten Erweiterungsstufe.
+
+    names: nachgeschlagene Namen, die den englischen Namen der Antwort ersetzen.
+    """
     result: dict[int, dict[str, Any]] = {}
     for group in ("primaries", "secondaries"):
         for entry in (data or {}).get(group) or []:
@@ -190,7 +195,7 @@ def professions(data: dict[str, Any] | None) -> dict[int, dict[str, Any]]:
                 tiers, key=lambda t: (t.get("tier") or {}).get("id", 0), default={}
             )
             result[prof["id"]] = {
-                "name": prof.get("name"),
+                "name": (names or {}).get(prof["id"]) or prof.get("name"),
                 "skill": newest.get("skill_points", entry.get("skill_points")),
                 "max_skill": newest.get(
                     "max_skill_points", entry.get("max_skill_points")

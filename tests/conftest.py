@@ -37,7 +37,7 @@ MYTHIC = {
         "color": {"r": 255, "g": 128, "b": 0, "a": 1.0},
     },
     # Hoechste Season des Charakters (15) weicht von der aktuellen (14) ab.
-    "seasons": [{"id": 13}, {"id": 15}],
+    "seasons": [{"id": 13}, {"id": 14}, {"id": 15}],
 }
 
 # Aufbau wie im Blizzard-Forum gezeigt: "realms" mit "name" und "slug".
@@ -187,7 +187,7 @@ ACHIEVEMENTS = {
 PROFESSIONS = {
     "primaries": [
         {
-            "profession": {"id": 164, "name": "Schmiedekunst"},
+            "profession": {"id": 164, "name": "Blacksmithing"},
             "tiers": [
                 {
                     "tier": {"id": 2822, "name": "Alte Schmiedekunst"},
@@ -246,6 +246,8 @@ def mock_api(
                 "href": "https://eu.api.blizzard.com/data/wow/connected-realm/1234?namespace=dynamic-eu"
             },
         },
+        # Statische Spieldaten: deutscher Berufsname (Berufe-Seite liefert Englisch).
+        "/profession/164": {"id": 164, "name": "Schmiedekunst"},
         "/connected-realm/1234": {
             "status": {"type": "UP"},
             "population": {"name": "Hoch", "type": "HIGH"},

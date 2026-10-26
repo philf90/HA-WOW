@@ -74,6 +74,7 @@ async def test_retail_values(hass: HomeAssistant, aioclient_mock) -> None:
     prof = _state(hass, "sensor", "profession-164")
     assert prof.state == "42"
     assert prof.attributes["tier"] == "Neue Schmiedekunst"
+    # Name aus den statischen Spieldaten statt des englischen der Berufe-Seite
     assert prof.name.endswith("Profession Schmiedekunst")
 
     # Bilder
@@ -295,3 +296,59 @@ def test_color_formats() -> None:
     # Falls die API Anteile von 0 bis 1 liefert (ungeprueft), ebenfalls umrechnen.
     assert color_hex({"r": 1.0, "g": 0.5, "b": 0.0, "a": 1.0}) == "#ff8000"
     assert color_hex(None) is None
+
+
+async def test_profession_name_fallback(hass: HomeAssistant, aioclient_mock) -> None:
+    """Liefern die Spieldaten keinen Namen, bleibt der englische der Berufe-Seite."""
+    mock_token(aioclient_mock)
+    mock_api(aioclient_mock, {f"{GAME}/profession/164": 404})
+    await _setup(hass, character_subentry())
+    prof = _state(hass, "sensor", "profession-164")
+    assert prof.state == "42"
+    assert prof.name.endswith("Profession Blacksmithing")
+
+
+async def test_mythic_rating_only_for_current_season(
+    hass: HomeAssistant, aioclient_mock
+) -> None:
+    """Spielte der Charakter die aktuelle Season nicht, ist die Wertung unbekannt."""
+    mock_token(aioclient_mock)
+    old_season = {
+        "current_mythic_rating": {
+            "rating": 170,
+            "color": {"r": 255, "g": 255, "b": 255, "a": 0},
+        },
+        "seasons": [{"id": 13}],
+    }
+    mock_api(aioclient_mock, {f"{API}/mythic-keystone-profile": old_season})
+    await _setup(hass, character_subentry())
+    rating = _state(hass, "sensor", "mythic_rating")
+    assert rating.state == "unknown"
+    assert rating.attributes["season"] == 14
+    assert rating.attributes["color"] is None
+
+
+async def test_diagnostics_without_recipes(hass: HomeAssistant, aioclient_mock) -> None:
+    mock_token(aioclient_mock)
+    professions = {
+        "primaries": [
+            {
+                "profession": {"id": 164, "name": "Blacksmithing"},
+                "tiers": [
+                    {
+                        "tier": {"id": 1, "name": "Stufe"},
+                        "skill_points": 5,
+                        "known_recipes": [{"name": "Rezept"}],
+                    }
+                ],
+            }
+        ]
+    }
+    mock_api(aioclient_mock, {f"{API}/professions": professions})
+    entry = await _setup(hass, character_subentry())
+    diag = await async_get_config_entry_diagnostics(hass, entry)
+    details = diag["characters"]["Testchar – Die Aldor"]["details"]
+    tier = details["professions"]["primaries"][0]["tiers"][0]
+    assert "known_recipes" not in tier
+    assert tier["skill_points"] == 5
+    assert details["profession_names"] == {164: "Schmiedekunst"}

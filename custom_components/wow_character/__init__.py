@@ -86,12 +86,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: WowConfigEntry) -> bool:
     # Bewusst kein async_config_entry_first_refresh: Scheitert ein Charakter,
     # sind nur seine Sensoren nicht verfuegbar, die anderen laufen.
     for subentry_id, subentry in characters.items():
-        coordinator = WowCoordinator(hass, entry, client, subentry)
-        await coordinator.async_refresh()
-        runtime.coordinators[subentry_id] = coordinator
         world = runtime.worlds.get(
             (subentry.data[CONF_REGION], subentry.data[CONF_NAMESPACE_SUFFIX])
         )
+        coordinator = WowCoordinator(hass, entry, client, subentry, world)
+        await coordinator.async_refresh()
+        runtime.coordinators[subentry_id] = coordinator
         detail = WowDetailCoordinator(hass, entry, client, subentry, coordinator, world)
         await detail.async_refresh()
         runtime.details[subentry_id] = detail

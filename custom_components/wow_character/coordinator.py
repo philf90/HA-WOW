@@ -106,7 +106,10 @@ class _CharacterMixin:
 
 
 class WowCoordinator(_CharacterMixin, DataUpdateCoordinator[dict[str, Any]]):
-    """Profil und Mythic+-Profil alle 15 Minuten: {"profile": {...}, "mythic": ...}."""
+    """Profil und Mythic+-Profil alle 15 Minuten.
+
+    data: {"profile": {...}, "mythic": {...} oder None, "season_id": int oder None}
+    """
 
     config_entry: WowConfigEntry
 
@@ -116,6 +119,7 @@ class WowCoordinator(_CharacterMixin, DataUpdateCoordinator[dict[str, Any]]):
         entry: WowConfigEntry,
         client: BattleNetClient,
         subentry: ConfigSubentry,
+        world: WowWorldCoordinator | None = None,
     ) -> None:
         super().__init__(
             hass,
@@ -126,6 +130,7 @@ class WowCoordinator(_CharacterMixin, DataUpdateCoordinator[dict[str, Any]]):
         )
         self.client = client
         self._init_character(subentry)
+        self._world = world
 
     async def _async_update_data(self) -> dict[str, Any]:
         args = (self.region, self.realm, self.character, self.suffix)
@@ -149,7 +154,9 @@ class WowCoordinator(_CharacterMixin, DataUpdateCoordinator[dict[str, Any]]):
             except BattleNetError as err:
                 raise UpdateFailed(str(err)) from err
 
-        return {"profile": profile, "mythic": mythic}
+        # Aktuelle M+-Season der Region, damit die Wertung nur fuer sie gilt.
+        season_id = ((self._world.data if self._world else None) or {}).get("season_id")
+        return {"profile": profile, "mythic": mythic, "season_id": season_id}
 
 
 class WowDetailCoordinator(_CharacterMixin, DataUpdateCoordinator[dict[str, Any]]):
@@ -182,6 +189,8 @@ class WowDetailCoordinator(_CharacterMixin, DataUpdateCoordinator[dict[str, Any]
         self._profile = profile
         self._world = world
         self._fetched: dict[str, float] = {}
+        # Beruf-ID -> Name aus den statischen Spieldaten (Sprache der Region).
+        self._profession_names: dict[int, str] = {}
 
     def needed_endpoints(self) -> set[str]:
         """Endpunkte mit mindestens einer aktiven oder noch nicht angelegten Entitaet."""
@@ -247,7 +256,32 @@ class WowDetailCoordinator(_CharacterMixin, DataUpdateCoordinator[dict[str, Any]
             self._fetched[endpoint] = now
         if attempted and failed == attempted:
             raise UpdateFailed("Alle Detail-Abfragen fehlgeschlagen")
+        await self._lookup_profession_names(data.get("professions"))
+        data["profession_names"] = dict(self._profession_names)
         return data
+
+    async def _lookup_profession_names(
+        self, professions: dict[str, Any] | None
+    ) -> None:
+        """Namen der Berufe einmalig nachschlagen.
+
+        Die Berufe-Seite eines Charakters liefert Namen auf Englisch, auch mit
+        locale=de_DE. Faellt das Nachschlagen aus, bleibt der englische Name.
+        """
+        for group in ("primaries", "secondaries"):
+            for entry in (professions or {}).get(group) or []:
+                prof_id = (entry.get("profession") or {}).get("id")
+                if not isinstance(prof_id, int) or prof_id in self._profession_names:
+                    continue
+                try:
+                    static = await self.client.get_static_data(
+                        self.region, self.suffix, f"profession/{prof_id}"
+                    )
+                except BattleNetError as err:
+                    _LOGGER.debug("Beruf %s nicht nachgeschlagen: %s", prof_id, err)
+                    continue
+                if isinstance(name := static.get("name"), str) and name:
+                    self._profession_names[prof_id] = name
 
 
 class WowWorldCoordinator(DataUpdateCoordinator[dict[str, Any]]):

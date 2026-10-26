@@ -35,9 +35,28 @@ def _mythic(data: dict[str, Any]) -> dict[str, Any]:
     return (data["mythic"] or {}).get("current_mythic_rating") or {}
 
 
+def _in_current_season(data: dict[str, Any]) -> bool:
+    """False, wenn die aktuelle Season bekannt ist und der Charakter sie nicht spielte."""
+    season = data.get("season_id")
+    if season is None:
+        return True
+    seasons = (data["mythic"] or {}).get("seasons") or []
+    return any(isinstance(s, dict) and s.get("id") == season for s in seasons)
+
+
 def _mythic_rating(data: dict[str, Any]) -> float | None:
+    if not _in_current_season(data):
+        return None
     rating = _mythic(data).get("rating")
     return round(rating, 1) if rating is not None else None
+
+
+def _mythic_attrs(data: dict[str, Any]) -> dict[str, Any]:
+    current = _in_current_season(data)
+    return {
+        "season": data.get("season_id"),
+        "color": p.color_hex(_mythic(data).get("color")) if current else None,
+    }
 
 
 def _level_attrs(data: dict[str, Any]) -> dict[str, Any]:
@@ -111,7 +130,7 @@ PROFILE_SENSORS: tuple[WowSensorDescription, ...] = (
         icon="mdi:key-variant",
         state_class=SensorStateClass.MEASUREMENT,
         value_fn=_mythic_rating,
-        attrs_fn=lambda d: {"color": p.color_hex(_mythic(d).get("color"))},
+        attrs_fn=_mythic_attrs,
         mythic_plus_only=True,
     ),
 )
@@ -242,7 +261,7 @@ async def async_setup_entry(
             and detail_available(detail, d.key)
         ]
         # Berufe: je Beruf ein Sensor, angelegt aus der ersten Antwort.
-        for prof_id in p.professions((detail.data or {}).get("professions")):
+        for prof_id in _professions(detail):
             entities.append(WowProfessionSensor(detail, prof_id))
         async_add_entities(entities, config_subentry_id=subentry_id)
 
@@ -292,6 +311,11 @@ class WowSensor(WowCharacterEntity, SensorEntity):
         return attrs_fn(self.coordinator.data)
 
 
+def _professions(detail: WowDetailCoordinator) -> dict[int, dict[str, Any]]:
+    data = detail.data or {}
+    return p.professions(data.get("professions"), data.get("profession_names"))
+
+
 class WowProfessionSensor(WowCharacterEntity, SensorEntity):
     """Skill eines Berufs in der neuesten Erweiterungsstufe."""
 
@@ -302,12 +326,11 @@ class WowProfessionSensor(WowCharacterEntity, SensorEntity):
     def __init__(self, coordinator: WowDetailCoordinator, prof_id: int) -> None:
         super().__init__(coordinator, f"{PROFESSION_PREFIX}{prof_id}")
         self._prof_id = prof_id
-        info = p.professions((coordinator.data or {}).get("professions"))[prof_id]
+        info = _professions(coordinator)[prof_id]
         self._attr_translation_placeholders = {"profession": info["name"] or "?"}
 
     def _info(self) -> dict[str, Any]:
-        data = (self.coordinator.data or {}).get("professions")
-        return p.professions(data).get(self._prof_id, {})
+        return _professions(self.coordinator).get(self._prof_id, {})
 
     @property
     def native_value(self) -> int | None:

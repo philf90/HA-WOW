@@ -23,6 +23,21 @@ def _shrink(endpoint: str, data: Any) -> Any:
             "total_quantity": data.get("total_quantity"),
             "recent_events": (data.get("recent_events") or [])[:5],
         }
+    if endpoint == "professions":
+        # Rezeptlisten machen die Diagnose sehr gross und helfen nicht.
+        return {
+            group: [
+                {
+                    **entry,
+                    "tiers": [
+                        {k: v for k, v in tier.items() if k != "known_recipes"}
+                        for tier in entry.get("tiers") or []
+                    ],
+                }
+                for entry in data.get(group) or []
+            ]
+            for group in ("primaries", "secondaries")
+        }
     if endpoint in ("mounts", "pets", "toys"):
         items = data.get(endpoint) or []
         return {"count": len(items), "first": items[:2]}

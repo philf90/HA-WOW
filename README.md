@@ -1,7 +1,7 @@
 # WoW Charakter
 
 Home-Assistant-Integration für World-of-Warcraft-Charaktere. Liest die Profildaten
-über die offizielle Battle.net API. Version 0.3.0.
+über die offizielle Battle.net API. Version 0.3.1.
 
 ## Aufbau
 
@@ -24,19 +24,25 @@ anderen laufen weiter.
 | Erfahrungspunkte | Sensor | 15 min | Profil, `experience` |
 | Erfolgspunkte | Sensor | 15 min | Profil, `achievement_points` |
 | Letzter Login | Zeitstempel | 15 min | Profil, `last_login_timestamp` |
-| Mythic+-Wertung, Farbe als Attribut | Sensor | 15 min | Mythic+-Profil, `current_mythic_rating` |
+| Mythic+-Wertung der aktuellen Season, Farbe und Season als Attribut | Sensor | 15 min | Mythic+-Profil, `current_mythic_rating` |
 | Raid-Fortschritt LFR, Normal, Heroisch, Mythisch | Sensoren | 1 h | `encounters/raids`, neueste Erweiterung |
 | Boss besiegt | Ereignis | 1 h | `encounters/raids`, `last_kill_timestamp` |
 | Höchster Mythic+-Schlüssel, Läufe in Zeit | Sensoren | 1 h | `mythic-keystone-profile/season/{aktuelle Season}` |
 | Ehrenstufe, ehrenhafte Siege | Sensoren | 1 h | `pvp-summary` |
 | Leben, Primärwert, Krit, Tempo, Meisterschaft, Vielseitigkeit | Sensoren, **standardmäßig deaktiviert** | 1 h | `statistics` |
 | Neuer Erfolg | Ereignis | 1 h | `achievements`, `recent_events` |
-| Beruf (je Beruf) | Sensor | 6 h | `professions`, Skill der neuesten Stufe |
+| Beruf (je Beruf) | Sensor | 6 h | `professions`, Skill der neuesten Stufe; Name aus `profession/{id}` |
 | Reittiere, Haustiere, Spielzeuge | Sensoren | 6 h | `collections/*`, Anzahl |
 | Avatar, Ganzkörperbild | Bilder | 6 h | `character-media` |
 
 Klasse, Spezialisierung, Volk, Fraktion, Gilde, Realm und aktiver Titel stehen als
-Attribute am Level-Sensor. Mythic+-Werte gibt es nur für Retail.
+Attribute am Level-Sensor. Mythic+-Werte gibt es nur für Retail. Hat der Charakter in
+der aktuellen Season noch nicht gespielt, ist die Mythic+-Wertung „unbekannt“.
+
+Die Berufe-Seite eines Charakters liefert Namen auf Englisch, auch mit deutscher
+Spracheinstellung. Die Integration schlägt die Namen deshalb einmalig in den
+statischen Spieldaten nach; klappt das nicht, bleibt der englische Name. Raidnamen
+kommen ebenfalls auf Englisch.
 
 Ein Endpunkt wird nur abgefragt, wenn mindestens eine seiner Entitäten aktiviert ist.
 Ereignisse lösen nur für Einträge aus, die nach dem Start von Home Assistant dazukommen.
@@ -101,10 +107,11 @@ lesen; ein Zurückgehen geht nur über das Backup.
   „Charakter hinzufügen“ angelegt; die Werte beider Charaktere stimmen mit dem Arsenal
   überein, auch ein Charakter ohne Mythic+-Wertung. Erneutes Anmelden und der Ausfall
   einzelner Charaktere sind nur automatisch getestet.
-- 0.3.0: 29 automatische Tests gegen Home Assistant 2026.2.3. Die neuen Werte sind
-  live noch nicht geprüft. Feldnamen stammen aus den Typdefinitionen von
-  `@blizzard-api/wow` und dem Code von homeassistant-wow-blizzard; ungeprüft sind
-  Erfahrungspunkte, das Format des Titels und die Farbe der Mythic+-Wertung.
+- 0.3.x: 32 automatische Tests gegen Home Assistant 2026.2.3. 0.3.0 am 26.10.2026
+  live mit zwei Retail-Charakteren geprüft: alle Entitäten angelegt, keine Fehler,
+  Titel und Mythic+-Farbe an echten Antworten bestätigt. Erfahrungspunkte waren bei
+  beiden 0 (Höchststufe beim letzten Login); das Verhalten beim Leveln ist ungeprüft.
+  Ob die statischen Spieldaten deutsche Berufsnamen liefern, ist noch ungeprüft.
 - 0.1.x: am 26.10.2026 mit einem Retail-Charakter unter Home Assistant 2026.10.4 live
   geprüft: Realm-Liste, Profil, Mythic+-Profil und die Abfrage alle 15 Minuten.
 - WoW Forever ist ungetestet.

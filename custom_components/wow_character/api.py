@@ -150,6 +150,14 @@ class BattleNetClient:
             self.namespace("profile", suffix, region),
         )
 
+    async def get_static_data(
+        self, region: str, suffix: str, path: str
+    ) -> dict[str, Any]:
+        """Spieldaten im static-Namespace, z. B. "profession/164"."""
+        return await self._get(
+            region, f"/data/wow/{path}", self.namespace("static", suffix, region)
+        )
+
     async def get_game_data(
         self, region: str, suffix: str, path: str
     ) -> dict[str, Any]:
