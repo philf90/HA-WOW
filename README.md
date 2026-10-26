@@ -1,7 +1,15 @@
 # WoW Charakter
 
+[![Erstellt mit Claude Code](https://img.shields.io/badge/erstellt%20mit-Claude%20Code-D97757?logo=claude&logoColor=white)](https://claude.com/claude-code)
+[![KI-generiert](https://img.shields.io/badge/Code%20%26%20Doku-KI--generiert-6A2BB0)](#ki-hinweis)
+
 Home-Assistant-Integration für World-of-Warcraft-Charaktere. Liest die Profildaten
 über die offizielle Battle.net API. Version 0.3.1.
+
+> **KI-Hinweis:** Dieses Projekt ist mit Claude Code entstanden. Code, Tests und
+> Dokumentation wurden von der KI geschrieben und mit automatischen Tests sowie in
+> einer echten Home-Assistant-Instanz geprüft; Details im Abschnitt
+> [KI-Hinweis](#ki-hinweis).
 
 ## Aufbau
 
@@ -111,7 +119,9 @@ lesen; ein Zurückgehen geht nur über das Backup.
   live mit zwei Retail-Charakteren geprüft: alle Entitäten angelegt, keine Fehler,
   Titel und Mythic+-Farbe an echten Antworten bestätigt. Erfahrungspunkte waren bei
   beiden 0 (Höchststufe beim letzten Login); das Verhalten beim Leveln ist ungeprüft.
-  Ob die statischen Spieldaten deutsche Berufsnamen liefern, ist noch ungeprüft.
+  0.3.1 live geprüft: Die statischen Spieldaten liefern deutsche Berufsnamen, die
+  Mythic+-Wertung ist ohne Lauf in der aktuellen Season „unbekannt“, die Diagnose
+  schrumpfte von 119 KB auf 64 KB.
 - 0.1.x: am 26.10.2026 mit einem Retail-Charakter unter Home Assistant 2026.10.4 live
   geprüft: Realm-Liste, Profil, Mythic+-Profil und die Abfrage alle 15 Minuten.
 - WoW Forever ist ungetestet.
@@ -141,6 +151,21 @@ schlägt das Hinzufügen fehl, ist das die wahrscheinlichste Ursache.
 pip install pytest-homeassistant-custom-component==0.13.316
 pytest tests   # pytest.ini setzt asyncio_mode = auto
 ```
+
+## KI-Hinweis
+
+Dieses Projekt wurde mit [Claude Code](https://claude.com/claude-code) entwickelt,
+einem KI-Assistenten von Anthropic. Recherche, Code, Tests und Dokumentation hat die
+KI im Auftrag und unter Anleitung des Repo-Inhabers erstellt. Geprüft wurde so:
+
+- automatische Tests (`pytest`, siehe Abschnitt „Tests“) und Code-Prüfung mit `ruff`
+- Gegenproben mit absichtlich eingebauten Fehlern, um zu sehen, ob die Tests sie finden
+- Betrieb in einer echten Home-Assistant-Instanz mit Abgleich gegen das Arsenal
+  (Stand im Abschnitt „Teststand“)
+
+Feldnamen der Battle.net API stammen aus öffentlichen Bibliotheken und dem Projekt
+homeassistant-wow-blizzard, weil die offizielle Doku bei der Entwicklung nicht
+erreichbar war. Nicht live geprüfte Punkte sind im Abschnitt „Teststand“ genannt.
 
 ## Lizenz
 
