@@ -121,7 +121,8 @@ lesen; ein Zurückgehen geht nur über das Backup.
   beiden 0 (Höchststufe beim letzten Login); das Verhalten beim Leveln ist ungeprüft.
   0.3.1 live geprüft: Die statischen Spieldaten liefern deutsche Berufsnamen, die
   Mythic+-Wertung ist ohne Lauf in der aktuellen Season „unbekannt“, die Diagnose
-  schrumpfte von 119 KB auf 64 KB.
+  schrumpfte von 119 KB auf 64 KB. 0.3.2 (nur README) über HACS ohne Fehler
+  installiert; Avatar und Ganzkörperbild werden in Home Assistant angezeigt.
 - 0.1.x: am 26.10.2026 mit einem Retail-Charakter unter Home Assistant 2026.10.4 live
   geprüft: Realm-Liste, Profil, Mythic+-Profil und die Abfrage alle 15 Minuten.
 - WoW Forever ist ungetestet.
