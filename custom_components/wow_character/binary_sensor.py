@@ -12,6 +12,9 @@ from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from .coordinator import WowConfigEntry, WowWorldCoordinator
 from .entity import WowWorldEntity
 
+# Nur Coordinator-Entitaeten ohne eigene Abfragen: keine Begrenzung noetig.
+PARALLEL_UPDATES = 0
+
 
 async def async_setup_entry(
     hass: HomeAssistant,
@@ -55,7 +58,6 @@ class WowRealmStatus(_RealmEntity):
 
 class WowRealmQueue(_RealmEntity):
     _attr_translation_key = "realm_queue"
-    _attr_icon = "mdi:human-queue"
 
     def __init__(self, coordinator: WowWorldCoordinator, slug: str) -> None:
         super().__init__(coordinator, slug, "queue")

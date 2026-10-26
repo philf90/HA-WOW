@@ -30,6 +30,9 @@ from .coordinator import (
 )
 from .entity import WowCharacterEntity, WowWorldEntity
 
+# Nur Coordinator-Entitaeten ohne eigene Abfragen: keine Begrenzung noetig.
+PARALLEL_UPDATES = 0
+
 # Profil-Sensoren (15-Minuten-Takt)
 
 
@@ -90,7 +93,6 @@ PROFILE_SENSORS: tuple[WowSensorDescription, ...] = (
     WowSensorDescription(
         key="level",
         translation_key="level",
-        icon="mdi:star-circle",
         state_class=SensorStateClass.MEASUREMENT,
         value_fn=lambda d: d["profile"].get("level"),
         attrs_fn=_level_attrs,
@@ -98,28 +100,24 @@ PROFILE_SENSORS: tuple[WowSensorDescription, ...] = (
     WowSensorDescription(
         key="item_level",
         translation_key="item_level",
-        icon="mdi:shield-sword",
         state_class=SensorStateClass.MEASUREMENT,
         value_fn=lambda d: d["profile"].get("equipped_item_level"),
     ),
     WowSensorDescription(
         key="item_level_average",
         translation_key="item_level_average",
-        icon="mdi:shield-sword-outline",
         state_class=SensorStateClass.MEASUREMENT,
         value_fn=lambda d: d["profile"].get("average_item_level"),
     ),
     WowSensorDescription(
         key="experience",
         translation_key="experience",
-        icon="mdi:chart-line",
         state_class=SensorStateClass.MEASUREMENT,
         value_fn=lambda d: d["profile"].get("experience"),
     ),
     WowSensorDescription(
         key="achievement_points",
         translation_key="achievement_points",
-        icon="mdi:trophy",
         state_class=SensorStateClass.MEASUREMENT,
         value_fn=lambda d: d["profile"].get("achievement_points"),
     ),
@@ -132,7 +130,6 @@ PROFILE_SENSORS: tuple[WowSensorDescription, ...] = (
     WowSensorDescription(
         key="mythic_rating",
         translation_key="mythic_rating",
-        icon="mdi:key-variant",
         state_class=SensorStateClass.MEASUREMENT,
         value_fn=_mythic_rating,
         attrs_fn=_mythic_attrs,
@@ -148,7 +145,6 @@ def _raid_sensor(key: str) -> WowSensorDescription:
     return WowSensorDescription(
         key=key,
         translation_key=key,
-        icon="mdi:sword-cross",
         state_class=SensorStateClass.MEASUREMENT,
         value_fn=lambda d: p.raid_progress(d.get("raids"), difficulty)[0],
         attrs_fn=lambda d: p.raid_progress(d.get("raids"), difficulty)[1],
@@ -162,7 +158,6 @@ def _stat_sensor(key: str, unit: str | None = None) -> WowSensorDescription:
     return WowSensorDescription(
         key=key,
         translation_key=key,
-        icon="mdi:chart-bar",
         native_unit_of_measurement=unit,
         state_class=SensorStateClass.MEASUREMENT,
         # Selten gebraucht: angelegt, aber standardmaessig deaktiviert.
@@ -223,7 +218,6 @@ DETAIL_SENSORS: tuple[WowSensorDescription, ...] = (
     WowSensorDescription(
         key="mythic_best_key",
         translation_key="mythic_best_key",
-        icon="mdi:key-chain-variant",
         state_class=SensorStateClass.MEASUREMENT,
         value_fn=lambda d: p.mythic_season(d.get("mythic_season"))["best_key"],
         attrs_fn=lambda d: {
@@ -235,7 +229,6 @@ DETAIL_SENSORS: tuple[WowSensorDescription, ...] = (
     WowSensorDescription(
         key="mythic_runs_timed",
         translation_key="mythic_runs_timed",
-        icon="mdi:timer-check-outline",
         state_class=SensorStateClass.MEASUREMENT,
         value_fn=lambda d: p.mythic_season(d.get("mythic_season"))["runs_timed"],
         mythic_plus_only=True,
@@ -243,14 +236,12 @@ DETAIL_SENSORS: tuple[WowSensorDescription, ...] = (
     WowSensorDescription(
         key="honor_level",
         translation_key="honor_level",
-        icon="mdi:medal",
         state_class=SensorStateClass.MEASUREMENT,
         value_fn=lambda d: (d.get("pvp") or {}).get("honor_level"),
     ),
     WowSensorDescription(
         key="honorable_kills",
         translation_key="honorable_kills",
-        icon="mdi:sword",
         state_class=SensorStateClass.TOTAL_INCREASING,
         value_fn=lambda d: (d.get("pvp") or {}).get("honorable_kills"),
     ),
@@ -263,28 +254,24 @@ DETAIL_SENSORS: tuple[WowSensorDescription, ...] = (
     WowSensorDescription(
         key="mounts",
         translation_key="mounts",
-        icon="mdi:horse",
         state_class=SensorStateClass.MEASUREMENT,
         value_fn=lambda d: p.collection_count(d.get("mounts"), "mounts"),
     ),
     WowSensorDescription(
         key="pets",
         translation_key="pets",
-        icon="mdi:paw",
         state_class=SensorStateClass.MEASUREMENT,
         value_fn=lambda d: p.collection_count(d.get("pets"), "pets"),
     ),
     WowSensorDescription(
         key="toys",
         translation_key="toys",
-        icon="mdi:teddy-bear",
         state_class=SensorStateClass.MEASUREMENT,
         value_fn=lambda d: p.collection_count(d.get("toys"), "toys"),
     ),
     WowSensorDescription(
         key="empty_sockets",
         translation_key="empty_sockets",
-        icon="mdi:diamond-outline",
         state_class=SensorStateClass.MEASUREMENT,
         value_fn=lambda d: _count(
             p.empty_sockets(items) if (items := _items(d)) is not None else None
@@ -294,7 +281,6 @@ DETAIL_SENSORS: tuple[WowSensorDescription, ...] = (
     WowSensorDescription(
         key="enchantments",
         translation_key="enchantments",
-        icon="mdi:auto-fix",
         state_class=SensorStateClass.MEASUREMENT,
         value_fn=lambda d: _count(
             p.enchanted_slots(items) if (items := _items(d)) is not None else None
@@ -304,7 +290,6 @@ DETAIL_SENSORS: tuple[WowSensorDescription, ...] = (
     WowSensorDescription(
         key="item_set",
         translation_key="item_set",
-        icon="mdi:tshirt-crew-outline",
         state_class=SensorStateClass.MEASUREMENT,
         value_fn=_set_value,
         attrs_fn=_set_attrs,
@@ -312,7 +297,6 @@ DETAIL_SENSORS: tuple[WowSensorDescription, ...] = (
     WowSensorDescription(
         key="achievements",
         translation_key="achievements",
-        icon="mdi:trophy-variant",
         state_class=SensorStateClass.MEASUREMENT,
         value_fn=_achievements_value,
         attrs_fn=lambda d: {
@@ -325,7 +309,6 @@ DETAIL_SENSORS: tuple[WowSensorDescription, ...] = (
     WowSensorDescription(
         key="specialization",
         translation_key="specialization",
-        icon="mdi:account-star",
         value_fn=lambda d: p.specialization(d.get("specializations"))["name"],
         attrs_fn=lambda d: {
             k: v
@@ -336,7 +319,6 @@ DETAIL_SENSORS: tuple[WowSensorDescription, ...] = (
     WowSensorDescription(
         key="titles",
         translation_key="titles",
-        icon="mdi:card-account-details-star",
         state_class=SensorStateClass.MEASUREMENT,
         value_fn=lambda d: _count(
             p.titles(d["titles"]) if d.get("titles") is not None else None
@@ -346,7 +328,6 @@ DETAIL_SENSORS: tuple[WowSensorDescription, ...] = (
     WowSensorDescription(
         key="game_statistics",
         translation_key="game_statistics",
-        icon="mdi:counter",
         # Grosse Antwort mit mehreren hundert Werten: angelegt, aber aus.
         entity_registry_enabled_default=False,
         value_fn=lambda d: _count(
@@ -457,7 +438,6 @@ class WowProfessionSensor(WowCharacterEntity, SensorEntity):
     """Skill eines Berufs in der neuesten Erweiterungsstufe."""
 
     _attr_translation_key = "profession"
-    _attr_icon = "mdi:hammer-wrench"
     _attr_state_class = SensorStateClass.MEASUREMENT
 
     def __init__(self, coordinator: WowDetailCoordinator, prof_id: int) -> None:
@@ -482,7 +462,6 @@ class WowProfessionSensor(WowCharacterEntity, SensorEntity):
 class WowEquipmentSensor(WowCharacterEntity, SensorEntity):
     """Item auf einem Ausruestungsplatz: Itemlevel, Symbol als Bild."""
 
-    _attr_icon = "mdi:shield-outline"
     # Tooltip-Zeilen fuer Karten; aendern sich nur mit dem Item und bleiben
     # aus der Datenbank (18 Plaetze je Charakter).
     _unrecorded_attributes = frozenset({"tooltip"})
@@ -528,7 +507,6 @@ class WowReputationSensor(WowCharacterEntity, SensorEntity):
     """Anzahl der Fraktionen; Stufe und Fortschritt je Fraktion als Attribut."""
 
     _attr_translation_key = "reputation"
-    _attr_icon = "mdi:handshake"
     # Die Liste kann ueber 100 Fraktionen lang sein; nicht in die Datenbank.
     _unrecorded_attributes = frozenset({"factions"})
 
@@ -551,7 +529,6 @@ class WowReputationSensor(WowCharacterEntity, SensorEntity):
 
 class WowTokenSensor(WowWorldEntity, SensorEntity):
     _attr_translation_key = "token"
-    _attr_icon = "mdi:cash"
     _attr_native_unit_of_measurement = "Gold"
     _attr_state_class = SensorStateClass.MEASUREMENT
 
@@ -577,7 +554,6 @@ class WowResetSensor(WowWorldEntity, SensorEntity):
 
 class WowRealmPopulationSensor(WowWorldEntity, SensorEntity):
     _attr_translation_key = "realm_population"
-    _attr_icon = "mdi:account-group"
 
     def __init__(self, coordinator: WowWorldCoordinator, slug: str) -> None:
         super().__init__(coordinator, f"realm-{slug}-population")

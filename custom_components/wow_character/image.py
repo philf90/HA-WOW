@@ -12,6 +12,9 @@ from .coordinator import WowConfigEntry, WowDetailCoordinator
 from .entity import WowCharacterEntity
 from .sensor import detail_available
 
+# Nur Coordinator-Entitaeten ohne eigene Abfragen: keine Begrenzung noetig.
+PARALLEL_UPDATES = 0
+
 
 async def async_setup_entry(
     hass: HomeAssistant,

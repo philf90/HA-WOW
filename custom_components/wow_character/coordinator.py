@@ -13,12 +13,14 @@ from homeassistant.config_entries import ConfigEntry, ConfigSubentry
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryAuthFailed
 from homeassistant.helpers import entity_registry as er
+from homeassistant.helpers import issue_registry as ir
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
 from . import parsers as p
 from .api import BattleNetAuthError, BattleNetClient, BattleNetError, BattleNetNotFound
 from .const import (
     CONF_CHARACTER,
+    CONF_CHARACTER_ID,
     CONF_GAME_VERSION,
     CONF_NAMESPACE_SUFFIX,
     CONF_REALM,
@@ -27,6 +29,8 @@ from .const import (
     DETAIL_INTERVAL,
     DOMAIN,
     GAME_VERSIONS,
+    NOT_FOUND_LIMIT,
+    STATUS_INTERVAL,
     UPDATE_INTERVAL,
     WORLD_INTERVAL,
 )
@@ -75,6 +79,39 @@ PROFESSION_PREFIX = "profession-"
 EQUIPMENT_PREFIX = "equipment_"
 
 
+def config_snapshot(entry: ConfigEntry) -> Any:
+    """Stand von Eintrag und Untereintraegen, mit dem der Eintrag laeuft."""
+    return (
+        dict(entry.data),
+        {
+            subentry_id: (subentry.title, dict(subentry.data))
+            for subentry_id, subentry in entry.subentries.items()
+        },
+    )
+
+
+def issue_id(subentry_id: str) -> str:
+    """Ein Reparaturhinweis je Charakter; der Grund steht im translation_key."""
+    return f"character_{subentry_id}"
+
+
+def _update_failed(err: Exception) -> UpdateFailed:
+    return UpdateFailed(
+        translation_domain=DOMAIN,
+        translation_key="update_failed",
+        translation_placeholders={"error": str(err)},
+    )
+
+
+def _auth_failed(err: Exception) -> ConfigEntryAuthFailed:
+    # Startet den Dialog zum erneuten Anmelden am Haupteintrag.
+    return ConfigEntryAuthFailed(
+        translation_domain=DOMAIN,
+        translation_key="auth_failed",
+        translation_placeholders={"error": str(err)},
+    )
+
+
 def endpoint_for_key(key: str) -> str | None:
     if key.startswith(PROFESSION_PREFIX):
         return "professions"
@@ -92,6 +129,9 @@ class WowRuntimeData:
     details: dict[str, WowDetailCoordinator] = field(default_factory=dict)
     # Schluessel: (Region, Namespace-Suffix), z. B. ("eu", "").
     worlds: dict[tuple[str, str], WowWorldCoordinator] = field(default_factory=dict)
+    # Stand von Eintrag und Untereintraegen beim Start; der Update-Listener
+    # laedt nur neu, wenn er sich davon unterscheidet.
+    config_snapshot: Any = None
 
 
 type WowConfigEntry = ConfigEntry[WowRuntimeData]
@@ -144,16 +184,35 @@ class WowCoordinator(_CharacterMixin, DataUpdateCoordinator[dict[str, Any]]):
         self.client = client
         self._init_character(subentry)
         self._world = world
+        # 404 in Folge; ab NOT_FOUND_LIMIT gibt es einen Reparaturhinweis.
+        self._not_found = 0
+        # Letzte erfolgreiche Pruefung ueber den Status-Endpunkt.
+        self._status_checked: float | None = None
+        # "character_changed" oder "character_invalid", solange Blizzard die
+        # Daten nicht mehr diesem Charakter zuordnet; die Details warten dann.
+        self.identity_problem: str | None = None
 
     async def _async_update_data(self) -> dict[str, Any]:
         args = (self.region, self.realm, self.character, self.suffix)
         try:
             profile = await self.client.get_profile(*args)
+        except BattleNetNotFound as err:
+            self._not_found += 1
+            if self._not_found >= NOT_FOUND_LIMIT:
+                self._create_issue("character_not_found")
+            raise UpdateFailed(
+                translation_domain=DOMAIN,
+                translation_key="character_not_found",
+                translation_placeholders={"character": self.subentry.title},
+            ) from err
         except BattleNetAuthError as err:
-            # Startet den Dialog zum erneuten Anmelden am Haupteintrag.
-            raise ConfigEntryAuthFailed(str(err)) from err
+            raise _auth_failed(err) from err
         except BattleNetError as err:
-            raise UpdateFailed(str(err)) from err
+            raise _update_failed(err) from err
+        self._not_found = 0
+        await self._check_identity(profile)
+        self.identity_problem = None
+        ir.async_delete_issue(self.hass, DOMAIN, issue_id(self.subentry.subentry_id))
 
         mythic = None
         if self.mythic_plus:
@@ -163,13 +222,91 @@ class WowCoordinator(_CharacterMixin, DataUpdateCoordinator[dict[str, Any]]):
                 # Charakter ohne Mythic+-Lauf in dieser Season.
                 mythic = {}
             except BattleNetAuthError as err:
-                raise ConfigEntryAuthFailed(str(err)) from err
+                raise _auth_failed(err) from err
             except BattleNetError as err:
-                raise UpdateFailed(str(err)) from err
+                raise _update_failed(err) from err
 
         # Aktuelle M+-Season der Region, damit die Wertung nur fuer sie gilt.
         season_id = ((self._world.data if self._world else None) or {}).get("season_id")
         return {"profile": profile, "mythic": mythic, "season_id": season_id}
+
+    async def _check_identity(self, profile: dict[str, Any]) -> None:
+        """Gleicher Charakter wie beim Einrichten und laut Blizzard noch gueltig?
+
+        Blizzard empfiehlt, die Daten eines Charakters zu verwerfen, wenn der
+        Status-Endpunkt 404 oder is_valid false meldet oder die ID nicht mehr
+        zur gespeicherten passt. Die Integration zeigt dann nichts an und legt
+        einen Reparaturhinweis an.
+        """
+        char_id = profile.get("id")
+        if isinstance(char_id, int):
+            recorded = self.subentry.data.get(CONF_CHARACTER_ID)
+            if recorded is None:
+                self._record_id(char_id)
+            elif recorded != char_id:
+                raise self._identity_failed("character_changed")
+
+        now = time.monotonic()
+        if (
+            self._status_checked is not None
+            and now - self._status_checked < STATUS_INTERVAL.total_seconds()
+        ):
+            return
+        try:
+            status = await self.client.get_character_resource(
+                self.region, self.realm, self.character, self.suffix, "status"
+            )
+        except BattleNetAuthError as err:
+            raise _auth_failed(err) from err
+        except BattleNetError as err:
+            # Das Profil kam an; die Pruefung holt der naechste Takt nach.
+            # Ein bekannter ungueltiger Stand bleibt bis dahin bestehen.
+            _LOGGER.debug("%s: Status nicht abgefragt: %s", self.name, err)
+            if self.identity_problem == "character_invalid":
+                raise self._identity_failed("character_invalid") from err
+            return
+        if status.get("is_valid") is False:
+            raise self._identity_failed("character_invalid")
+        self._status_checked = now
+
+    def _identity_failed(self, reason: str) -> UpdateFailed:
+        self.identity_problem = reason
+        self._create_issue(reason)
+        return UpdateFailed(
+            translation_domain=DOMAIN,
+            translation_key=reason,
+            translation_placeholders={"character": self.subentry.title},
+        )
+
+    def _record_id(self, char_id: int) -> None:
+        """ID nachtragen (Charaktere aus Versionen vor 0.7.0).
+
+        Loest kein Neuladen aus: Der neue Stand wird gleich als laufender Stand
+        vermerkt, der Update-Listener findet dann keinen Unterschied. Aendert
+        dagegen "Neu konfigurieren" die ID, wird neu geladen.
+        """
+        entry = self.config_entry
+        data = {**self.subentry.data, CONF_CHARACTER_ID: char_id}
+        # Vorher vermerken: Der Listener startet sofort (eager task). Beim
+        # Start ist runtime_data noch nicht gesetzt; dann vermerkt
+        # async_setup_entry den Stand an seinem Ende.
+        if (runtime := getattr(entry, "runtime_data", None)) is not None:
+            snapshot = config_snapshot(entry)
+            snapshot[1][self.subentry.subentry_id] = (self.subentry.title, dict(data))
+            runtime.config_snapshot = snapshot
+        self.hass.config_entries.async_update_subentry(entry, self.subentry, data=data)
+        self.subentry = entry.subentries[self.subentry.subentry_id]
+
+    def _create_issue(self, reason: str) -> None:
+        ir.async_create_issue(
+            self.hass,
+            DOMAIN,
+            issue_id(self.subentry.subentry_id),
+            is_fixable=False,
+            severity=ir.IssueSeverity.WARNING,
+            translation_key=reason,
+            translation_placeholders={"character": self.subentry.title},
+        )
 
 
 class WowDetailCoordinator(_CharacterMixin, DataUpdateCoordinator[dict[str, Any]]):
@@ -244,6 +381,13 @@ class WowDetailCoordinator(_CharacterMixin, DataUpdateCoordinator[dict[str, Any]
         return max(ids) if ids else None
 
     async def _async_update_data(self) -> dict[str, Any]:
+        if reason := self._profile.identity_problem:
+            # Blizzard ordnet die Daten nicht mehr diesem Charakter zu.
+            raise UpdateFailed(
+                translation_domain=DOMAIN,
+                translation_key=reason,
+                translation_placeholders={"character": self.subentry.title},
+            )
         now = time.monotonic()
         data = dict(self.data or {})
         attempted = failed = 0
@@ -266,7 +410,7 @@ class WowDetailCoordinator(_CharacterMixin, DataUpdateCoordinator[dict[str, Any]
             except BattleNetNotFound:
                 data[endpoint] = None
             except BattleNetAuthError as err:
-                raise ConfigEntryAuthFailed(str(err)) from err
+                raise _auth_failed(err) from err
             except BattleNetError as err:
                 # Alten Stand behalten, beim naechsten Takt erneut versuchen.
                 failed += 1
@@ -274,7 +418,9 @@ class WowDetailCoordinator(_CharacterMixin, DataUpdateCoordinator[dict[str, Any]
                 continue
             self._fetched[endpoint] = now
         if attempted and failed == attempted:
-            raise UpdateFailed("Alle Detail-Abfragen fehlgeschlagen")
+            raise UpdateFailed(
+                translation_domain=DOMAIN, translation_key="details_failed"
+            )
         await self._lookup_profession_names(data.get("professions"))
         data["profession_names"] = dict(self._profession_names)
         data["tier_names"] = dict(self._tier_names)
@@ -298,7 +444,7 @@ class WowDetailCoordinator(_CharacterMixin, DataUpdateCoordinator[dict[str, Any]
                 self.region, self.suffix, "achievement-category/index"
             )
         except BattleNetAuthError as err:
-            raise ConfigEntryAuthFailed(str(err)) from err
+            raise _auth_failed(err) from err
         except BattleNetError as err:
             _LOGGER.debug("Erfolgskategorien nicht nachgeschlagen: %s", err)
             return
@@ -325,7 +471,7 @@ class WowDetailCoordinator(_CharacterMixin, DataUpdateCoordinator[dict[str, Any]
                     self.region, self.suffix, f"media/item/{media_id}"
                 )
             except BattleNetAuthError as err:
-                raise ConfigEntryAuthFailed(str(err)) from err
+                raise _auth_failed(err) from err
             except BattleNetError as err:
                 _LOGGER.debug("Symbol fuer Item %s fehlt: %s", media_id, err)
                 continue
@@ -435,9 +581,9 @@ class WowWorldCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             for slug in sorted(self.realms):
                 data["realms"][slug] = await self._realm_status(slug)
         except BattleNetAuthError as err:
-            raise ConfigEntryAuthFailed(str(err)) from err
+            raise _auth_failed(err) from err
         except BattleNetError as err:
-            raise UpdateFailed(str(err)) from err
+            raise _update_failed(err) from err
         return data
 
     async def _weekly_reset(self) -> datetime | None:

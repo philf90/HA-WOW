@@ -58,6 +58,14 @@
             "realm": "Realm",
             "character": "Charakter"
           }
+        },
+        "reconfigure": {
+          "title": "Charakter ändern",
+          "description": "Nach Umbenennung oder Realm-Transfer den neuen Realm und Namen eintragen. Gerät, Entitäts-IDs und Verlauf bleiben erhalten.",
+          "data": {
+            "realm": "Realm",
+            "character": "Charakter"
+          }
         }
       },
       "error": {
@@ -67,7 +75,9 @@
       },
       "abort": {
         "already_configured": "Dieser Charakter ist bereits eingerichtet.",
-        "entry_not_loaded": "Der Eintrag des API-Clients ist nicht geladen. Prüfe ihn, bevor du Charaktere hinzufügst."
+        "entry_not_loaded": "Der Eintrag des API-Clients ist nicht geladen. Prüfe ihn, bevor du Charaktere hinzufügst.",
+        "reconfigure_successful": "Charakter geändert.",
+        "cannot_connect": "Battle.net API nicht erreichbar."
       }
     }
   },
@@ -294,6 +304,40 @@
   "device": {
     "world": {
       "name": "WoW-Spielwelt {region}{version}"
+    }
+  },
+  "issues": {
+    "character_not_found": {
+      "title": "Charakter {character} nicht gefunden",
+      "description": "Die Battle.net API findet {character} nicht mehr. Mögliche Gründe: Der Charakter wurde umbenannt, auf einen anderen Realm verschoben oder gelöscht, oder er war lange nicht eingeloggt.\n\nHast du ihn umbenannt oder verschoben, öffne Einstellungen → Geräte & Dienste → WoW Charakter, suche den Charakter unter dem Eintrag „Battle.net API“ und wähle ⋮ → Neu konfigurieren. Sonst lösche den Charakter dort. Der Hinweis verschwindet, sobald der Charakter wieder gefunden wird."
+    },
+    "character_changed": {
+      "title": "{character} ist jetzt ein anderer Charakter",
+      "description": "Den Namen {character} trägt jetzt ein anderer Charakter als der eingerichtete (die Charakter-ID bei Battle.net hat sich geändert). Das passiert meist nach einer Umbenennung, einem Realm-Transfer oder wenn ein Charakter gelöscht und neu erstellt wurde. Bis du das bestätigst, zeigt die Integration für ihn keine Daten.\n\nÖffne Einstellungen → Geräte & Dienste → WoW Charakter, suche den Charakter unter dem Eintrag „Battle.net API“ und wähle ⋮ → Neu konfigurieren. Speichern übernimmt den aktuellen Charakter; wurde deiner umbenannt, trage dort den neuen Namen ein."
+    },
+    "character_invalid": {
+      "title": "{character} ist nicht mehr gültig",
+      "description": "Blizzard meldet das Profil von {character} als nicht mehr gültig. Blizzard bittet, solche Daten nicht mehr anzuzeigen, deshalb zeigt die Integration für diesen Charakter nichts an.\n\nHast du ihn umbenannt oder verschoben, wähle am Charakter unter Einstellungen → Geräte & Dienste → WoW Charakter ⋮ → Neu konfigurieren; sonst lösche ihn dort."
+    }
+  },
+  "exceptions": {
+    "update_failed": {
+      "message": "Abfrage der Battle.net API fehlgeschlagen: {error}"
+    },
+    "auth_failed": {
+      "message": "Battle.net hat den API-Client abgelehnt: {error}"
+    },
+    "details_failed": {
+      "message": "Alle Detail-Abfragen sind fehlgeschlagen."
+    },
+    "character_not_found": {
+      "message": "Charakter {character} nicht gefunden."
+    },
+    "character_changed": {
+      "message": "Der Name {character} gehört jetzt einem anderen Charakter."
+    },
+    "character_invalid": {
+      "message": "Blizzard meldet {character} als nicht mehr gültig."
     }
   }
 }

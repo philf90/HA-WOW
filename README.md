@@ -10,7 +10,7 @@
 Home-Assistant-Integration für World-of-Warcraft-Charaktere: Level, Itemlevel,
 Ausrüstung, Raid- und Mythic+-Fortschritt, Berufe, Ruf, Erfolge und mehr als
 Sensoren, dazu WoW-Marke, wöchentlicher Reset und Serverstatus. Die Daten kommen
-aus der offiziellen Battle.net API. Version 0.6.2.
+aus der offiziellen Battle.net API. Version 0.7.0.
 
 > **KI-Hinweis:** Dieses Projekt ist mit Claude Code entstanden. Code, Tests und
 > Dokumentation wurden von der KI geschrieben und mit automatischen Tests sowie in
@@ -69,7 +69,7 @@ Region und Realm stehen im Gerät „WoW-Spielwelt EU“ (bzw. US, KR, TW).
 - [Attribute im Detail](#attribute-im-detail)
 - [Abfragen und Takte](#abfragen-und-takte)
 - [Dashboard-Karten](#dashboard-karten)
-- [Zugangsdaten ändern und Diagnose](#zugangsdaten-ändern-und-diagnose)
+- [Ändern, Hinweise und Diagnose](#ändern-hinweise-und-diagnose)
 - [WoW Forever](#wow-forever)
 - [Grenzen](#grenzen)
 - [Teststand](#teststand)
@@ -236,6 +236,8 @@ Lange Attribute speichert Home Assistant nicht im Verlauf: `tooltip`, `factions`
 - Das Token holt die Integration über den globalen Endpunkt
   `https://oauth.battle.net/token` (seit 0.2.0), wie die Bibliotheken
   `@blizzard-api/core` und `blizzard.js`.
+- Einmal am Tag je Charakter der Status-Endpunkt (`…/status`, Feld `is_valid`),
+  siehe [Ändern, Hinweise und Diagnose](#ändern-hinweise-und-diagnose).
 
 ## Dashboard-Karten
 
@@ -247,10 +249,30 @@ Charaktere, Spielwelt, Raids, Mythic+, Berufe, Ruf, Sammlungen und Werte.
 Alle brauchen `custom:button-card`; weitere Voraussetzungen (z. B. browser_mod
 für das Arsenal-Popup) stehen im Kopf jeder Datei.
 
-## Zugangsdaten ändern und Diagnose
+## Ändern, Hinweise und Diagnose
 
 - **Neues Secret:** am Eintrag „Battle.net API“ ⋮ → **Neu konfigurieren**. Lehnt
   Blizzard die Zugangsdaten ab, fragt Home Assistant von selbst nach neuen.
+- **Charakter umbenannt oder transferiert:** am Charakter unter dem Eintrag
+  „Battle.net API“ ⋮ → **Neu konfigurieren**, dann Realm und Namen ändern. Gerät,
+  Entitäts-IDs und Verlauf bleiben; die Entitäts-IDs tragen weiter den alten
+  Namen. Region und Spielversion lassen sich nicht ändern, dafür den Charakter
+  neu hinzufügen.
+- **Reparaturhinweise** (Einstellungen → System → Reparaturen): Die Integration
+  vergleicht bei jeder Profilabfrage die Charakter-ID mit der gespeicherten und
+  fragt einmal am Tag den Status-Endpunkt, ob das Profil noch gültig ist. So
+  empfiehlt es Blizzard. Einen Hinweis gibt es, wenn
+  - der Charakter dreimal in Folge (etwa 45 Minuten) nicht gefunden wird,
+  - unter dem Namen jetzt ein anderer Charakter steht (andere ID) oder
+  - Blizzard das Profil als ungültig meldet.
+
+  In den letzten beiden Fällen zeigen die Entitäten keine Werte, bis du über
+  **Neu konfigurieren** bestätigst. Der Hinweis verschwindet von selbst, sobald
+  alles wieder passt.
+- **Nicht mehr benötigte Geräte:** Das Gerät eines Charakters entfernt Home
+  Assistant mit dem Charakter. Spielwelt-Geräte und Realm-Entitäten ohne
+  Charakter entfernt die Integration beim nächsten Start. Übrig gebliebene
+  Geräte lassen sich auf ihrer Geräteseite löschen.
 - **Diagnose:** Einstellungen → Geräte & Dienste → WoW Charakter → ⋮ →
   **Diagnose herunterladen** liefert die API-Antworten ohne Client-ID und Secret.
   Damit lassen sich Feldnamen prüfen, wenn ein Wert fehlt.
@@ -289,6 +311,8 @@ Start Daten liefert.
 Automatische Tests laufen gegen Home Assistant 2026.2.3; live geprüft wurde unter
 Home Assistant 2026.10.4 mit Retail-Charakteren der Region EU.
 
+- **0.7.x:** 71 automatische Tests, hassfest ohne Fehler. Die Live-Prüfung steht
+  noch aus.
 - **0.6.x:** 52 automatische Tests. 0.6.0 am 26.10.2026 über HACS installiert und
   live geprüft: keine Fehler, alle neuen Entitäten angelegt. Leere Sockel (3),
   Verzauberungen (2) und Set (3/5, ein Bonus aktiv) stimmen mit dem Arsenal
@@ -326,9 +350,13 @@ Home Assistant 2026.10.4 mit Retail-Charakteren der Region EU.
 ## Tests
 
 ```bash
-pip install pytest-homeassistant-custom-component==0.13.316
+pip install pytest-homeassistant-custom-component==0.13.316 ruff==0.16.9
+ruff check . && ruff format --check .
 pytest tests   # pytest.ini setzt asyncio_mode = auto
 ```
+
+Dieselben Schritte laufen bei jedem Push und Pull Request im Workflow
+„Pruefung“, zusammen mit hassfest und der HACS-Prüfung.
 
 ## KI-Hinweis
 

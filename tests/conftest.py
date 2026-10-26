@@ -91,12 +91,20 @@ def auto_enable_custom_integrations(enable_custom_integrations):
     yield
 
 
-def mock_token(aioclient_mock: AiohttpClientMocker, status: int = 200) -> None:
+def mock_token(
+    aioclient_mock: AiohttpClientMocker, status: int = 200, valid: bool = True
+) -> None:
+    """Token und Status-Endpunkt beider Test-Charaktere.
+
+    valid: is_valid des Status-Endpunkts (taeglich abgefragt).
+    """
     aioclient_mock.post(
         TOKEN_URL,
         status=status,
         json={"access_token": "tok", "token_type": "bearer", "expires_in": 86399},
     )
+    for base in (API, API2):
+        aioclient_mock.get(f"{base}/status", json={"id": 1, "is_valid": valid})
 
 
 GAME = "https://eu.api.blizzard.com/data/wow"
@@ -471,10 +479,14 @@ def mock_api(
             "has_queue": False,
         },
     }
-    for path, body in {
+    known = {
         **{base + k: v for k, v in responses.items()},
         **{GAME + k: v for k, v in world.items()},
-    }.items():
+    }
+    # Overrides fuer weitere Pfade (z. B. /status) gelten ebenfalls; sie
+    # stehen vorn, weil der erste passende Mock gewinnt.
+    extra = {path: body for path, body in override.items() if path not in known}
+    for path, body in {**extra, **known}.items():
         body = override.get(path, body)
         if isinstance(body, int):
             aioclient_mock.get(path, status=body)

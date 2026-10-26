@@ -58,6 +58,14 @@
             "realm": "Realm",
             "character": "Character"
           }
+        },
+        "reconfigure": {
+          "title": "Change character",
+          "description": "After a rename or realm transfer, enter the new realm and name. Device, entity IDs and history stay.",
+          "data": {
+            "realm": "Realm",
+            "character": "Character"
+          }
         }
       },
       "error": {
@@ -67,7 +75,9 @@
       },
       "abort": {
         "already_configured": "This character is already configured.",
-        "entry_not_loaded": "The API client entry is not loaded. Check it before adding characters."
+        "entry_not_loaded": "The API client entry is not loaded. Check it before adding characters.",
+        "reconfigure_successful": "Character changed.",
+        "cannot_connect": "Battle.net API is not reachable."
       }
     }
   },
@@ -294,6 +304,40 @@
   "device": {
     "world": {
       "name": "WoW world {region}{version}"
+    }
+  },
+  "issues": {
+    "character_not_found": {
+      "title": "Character {character} not found",
+      "description": "The Battle.net API no longer finds {character}. Possible reasons: the character was renamed, moved to another realm or deleted, or has not logged in for a long time.\n\nIf you renamed or moved the character, open Settings → Devices & services → WoW Charakter, find the character under the Battle.net API entry and choose ⋮ → Reconfigure. Otherwise delete the character there. This notice disappears once the character is found again."
+    },
+    "character_changed": {
+      "title": "{character} is a different character now",
+      "description": "A different character than the one set up now carries the name {character} (the Battle.net character ID changed). This usually happens after a rename, a realm transfer or a deleted and newly created character. Until you confirm, the integration shows no data for it.\n\nOpen Settings → Devices & services → WoW Charakter, find the character under the Battle.net API entry and choose ⋮ → Reconfigure. Saving there accepts the current character; enter the new name if yours was renamed."
+    },
+    "character_invalid": {
+      "title": "{character} is no longer valid",
+      "description": "Blizzard reports the profile of {character} as no longer valid. Blizzard asks applications not to show such data, so the integration shows nothing for this character.\n\nIf you renamed or moved the character, choose ⋮ → Reconfigure on the character under Settings → Devices & services → WoW Charakter; otherwise delete it there."
+    }
+  },
+  "exceptions": {
+    "update_failed": {
+      "message": "Battle.net API query failed: {error}"
+    },
+    "auth_failed": {
+      "message": "Battle.net rejected the API client: {error}"
+    },
+    "details_failed": {
+      "message": "All detail queries failed."
+    },
+    "character_not_found": {
+      "message": "Character {character} not found."
+    },
+    "character_changed": {
+      "message": "The name of {character} now belongs to a different character."
+    },
+    "character_invalid": {
+      "message": "Blizzard reports {character} as no longer valid."
     }
   }
 }

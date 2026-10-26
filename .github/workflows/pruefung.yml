@@ -1,0 +1,52 @@
+# Prueft jeden Push auf main und jeden Pull Request: Code-Stil, Tests,
+# hassfest (Pruefung von Home Assistant) und die HACS-Pruefung.
+# Tests laufen gegen dieselbe Home-Assistant-Version wie lokal
+# (pytest-homeassistant-custom-component 0.13.316 = Home Assistant 2026.2.3).
+name: Pruefung
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  tests:
+    name: Ruff und Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Abhaengigkeiten installieren
+        run: pip install pytest-homeassistant-custom-component==0.13.316 ruff==0.16.9
+
+      - name: Ruff
+        run: |
+          ruff check .
+          ruff format --check .
+
+      - name: Tests
+        run: python -m pytest tests -q
+
+  hassfest:
+    name: hassfest
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: home-assistant/actions/hassfest@master
+
+  hacs:
+    name: HACS
+    runs-on: ubuntu-latest
+    steps:
+      - uses: hacs/action@main
+        with:
+          category: integration

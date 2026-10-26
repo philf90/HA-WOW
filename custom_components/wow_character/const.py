@@ -13,6 +13,10 @@ CONF_REALM = "realm"
 CONF_CHARACTER = "character"
 # Wird beim Einrichten ermittelt und gespeichert, z. B. "" (Retail) oder "-forever".
 CONF_NAMESPACE_SUFFIX = "namespace_suffix"
+# ID des Charakters bei Blizzard. Blizzard empfiehlt, sie zu speichern und mit
+# der Antwort zu vergleichen: Weicht sie ab, traegt jetzt ein anderer Charakter
+# diesen Namen (z. B. nach Umbenennung oder Transfer).
+CONF_CHARACTER_ID = "character_id"
 
 # Ein Haupteintrag je API-Client, darunter ein Untereintrag je Charakter.
 SUBENTRY_CHARACTER = "character"
@@ -27,6 +31,12 @@ UPDATE_INTERVAL = timedelta(minutes=15)
 # Takt fuer Detail-Endpunkte je Charakter und fuer die Spielwelt.
 DETAIL_INTERVAL = timedelta(minutes=60)
 WORLD_INTERVAL = timedelta(minutes=15)
+# Abstand der Pruefung ueber den Status-Endpunkt (is_valid und ID).
+STATUS_INTERVAL = timedelta(hours=24)
+# Erst nach so vielen 404 in Folge gilt ein Charakter als nicht gefunden
+# (bei 15 Minuten Takt etwa 45 Minuten), damit kurze API-Aussetzer keinen
+# Reparaturhinweis ausloesen.
+NOT_FOUND_LIMIT = 3
 
 # Detail-Endpunkte je Charakter: Unterseite und Mindestabstand in Minuten.
 # Ein Endpunkt wird nur abgefragt, wenn mindestens eine seiner Entitaeten

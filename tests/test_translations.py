@@ -20,6 +20,8 @@ def _used_keys(source: str) -> tuple[set[str], set[str]]:
         aborts.add("already_configured")
     if "async_update_reload_and_abort" in source:
         aborts |= {"reauth_successful", "reconfigure_successful"}
+    if "async_update_and_abort" in source:
+        aborts.add("reconfigure_successful")
     return errors, aborts
 
 
@@ -71,3 +73,27 @@ def test_entity_keys_translated() -> None:
             missing = wanted - set(entity.get(platform, {}))
             assert not missing, f"{path} {platform}: {missing}"
         assert "world" in json.loads((BASE / path).read_text())["device"]
+
+
+@pytest.mark.parametrize("path", FILES)
+def test_issue_and_exception_keys_translated(path: str) -> None:
+    """Reparaturhinweise und Fehlermeldungen aus coordinator.py sind uebersetzt."""
+    source = (BASE / "coordinator.py").read_text()
+    exceptions = set(re.findall(r'translation_key="(\w+)"', source))
+    issues = set(re.findall(r'_(?:create_issue|identity_failed)\("(\w+)"\)', source))
+    assert exceptions and issues, "keine Schluessel gefunden"
+    strings = json.loads((BASE / path).read_text())
+    assert exceptions <= set(strings["exceptions"]), exceptions - set(
+        strings["exceptions"]
+    )
+    assert issues <= set(strings["issues"]), issues - set(strings["issues"])
+    for key in issues:
+        assert "{character}" in strings["issues"][key]["description"]
+
+
+def test_icons_match_translation_keys() -> None:
+    """icons.json nennt nur Entitaeten, die es gibt."""
+    icons = json.loads((BASE / "icons.json").read_text())["entity"]
+    entity = json.loads((BASE / "strings.json").read_text())["entity"]
+    for platform, keys in icons.items():
+        assert set(keys) <= set(entity[platform]), set(keys) - set(entity[platform])

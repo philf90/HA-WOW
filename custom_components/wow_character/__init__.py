@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import inspect
 import logging
+import re
 from types import MappingProxyType
 
 from homeassistant.config_entries import ConfigEntry, ConfigSubentry
@@ -22,6 +23,9 @@ from homeassistant.helpers import (
 from homeassistant.helpers import (
     entity_registry as er,
 )
+from homeassistant.helpers import (
+    issue_registry as ir,
+)
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.typing import ConfigType
 
@@ -35,7 +39,9 @@ from .const import (
     CONF_REALM,
     CONF_REGION,
     DOMAIN,
+    GAME_VERSIONS,
     MAIN_TITLE,
+    REGIONS,
     SUBENTRY_CHARACTER,
 )
 from .coordinator import (
@@ -44,6 +50,8 @@ from .coordinator import (
     WowDetailCoordinator,
     WowRuntimeData,
     WowWorldCoordinator,
+    config_snapshot,
+    issue_id,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -98,13 +106,119 @@ async def async_setup_entry(hass: HomeAssistant, entry: WowConfigEntry) -> bool:
     entry.runtime_data = runtime
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
+    _remove_stale(hass, entry)
+    runtime.config_snapshot = config_snapshot(entry)
     # Charakter hinzugefuegt oder entfernt, Zugangsdaten geaendert: neu laden.
     entry.async_on_unload(entry.add_update_listener(_async_reload))
     return True
 
 
 async def _async_reload(hass: HomeAssistant, entry: WowConfigEntry) -> None:
+    runtime = getattr(entry, "runtime_data", None)
+    if runtime is not None and runtime.config_snapshot == config_snapshot(entry):
+        return
     await hass.config_entries.async_reload(entry.entry_id)
+
+
+# Spielwelt-Entitaeten: "<unique_id des Eintrags>-world-<region><suffix>-<key>",
+# z. B. "...-world-eu-token" oder "...-world-eu-forever-realm-x-status".
+_REALM_KEY = re.compile(r"realm-(.+)-(status|queue|population)")
+_SUFFIXES = sorted(
+    {s for version in GAME_VERSIONS.values() for s in version["namespaces"]},
+    key=len,
+    reverse=True,
+)
+
+
+def _parse_world_key(rest: str) -> tuple[tuple[str, str], str] | None:
+    """ "eu-forever-token" -> (("eu", "-forever"), "token")."""
+    for region in REGIONS:
+        if not rest.startswith(f"{region}-"):
+            continue
+        tail = rest[len(region) :]
+        for suffix in _SUFFIXES:
+            if tail.startswith(f"{suffix}-"):
+                return (region, suffix), tail[len(suffix) + 1 :]
+    return None
+
+
+def _world_scope(region: str, suffix: str) -> str:
+    return f"world-{region}{suffix}"
+
+
+def _world_key_in_use(world: WowWorldCoordinator, key: str) -> bool:
+    """Verwaist sind nur Realm-Entitaeten von Realms ohne Charakter."""
+    match = _REALM_KEY.fullmatch(key)
+    return match is None or match.group(1) in world.realms
+
+
+def _remove_stale(hass: HomeAssistant, entry: WowConfigEntry) -> None:
+    """Spielwelt-Entitaeten und -Geraete ohne Charakter entfernen.
+
+    Charakter-Geraete raeumt Home Assistant beim Entfernen des Untereintrags
+    selbst auf. Realms und Regionen haengen dagegen nur indirekt an den
+    Charakteren und blieben sonst als "nicht mehr bereitgestellt" stehen.
+    Dazu Reparaturhinweise von Charakteren, die es nicht mehr gibt.
+    """
+    worlds = entry.runtime_data.worlds
+    world_prefix = f"{entry.unique_id}-world-"
+    ent_reg = er.async_get(hass)
+    for reg_entry in er.async_entries_for_config_entry(ent_reg, entry.entry_id):
+        uid = reg_entry.unique_id
+        if not uid.startswith(world_prefix):
+            continue
+        parsed = _parse_world_key(uid[len(world_prefix) :])
+        if parsed is None:
+            continue
+        scope, key = parsed
+        world = worlds.get(scope)
+        if world is None or not _world_key_in_use(world, key):
+            _LOGGER.debug("Entferne verwaiste Entitaet %s", reg_entry.entity_id)
+            ent_reg.async_remove(reg_entry.entity_id)
+
+    dev_reg = dr.async_get(hass)
+    for device in dr.async_entries_for_config_entry(dev_reg, entry.entry_id):
+        if not _device_in_use(entry, device):
+            _LOGGER.debug("Entferne verwaistes Geraet %s", device.name)
+            dev_reg.async_update_device(
+                device.id, remove_config_entry_id=entry.entry_id
+            )
+
+    known = {
+        issue_id(subentry_id)
+        for other in hass.config_entries.async_entries(DOMAIN)
+        for subentry_id in other.subentries
+    }
+    for domain, existing in list(ir.async_get(hass).issues):
+        if (
+            domain == DOMAIN
+            and existing.startswith("character_")
+            and existing not in known
+        ):
+            ir.async_delete_issue(hass, DOMAIN, existing)
+
+
+def _device_in_use(entry: WowConfigEntry, device: dr.DeviceEntry) -> bool:
+    """Charakter mit Untereintrag oder Spielwelt einer Region mit Charakteren."""
+    in_use = {sub.unique_id for sub in entry.subentries.values()}
+    runtime = getattr(entry, "runtime_data", None)
+    for region, suffix in runtime.worlds if runtime else ():
+        in_use.add(f"{entry.entry_id}-{_world_scope(region, suffix)}")
+    return any(
+        domain == DOMAIN and ident in in_use for domain, ident in device.identifiers
+    )
+
+
+async def async_remove_config_entry_device(
+    hass: HomeAssistant, entry: WowConfigEntry, device: dr.DeviceEntry
+) -> bool:
+    """Nur Geraete loeschen lassen, die nicht mehr gebraucht werden."""
+    return not _device_in_use(entry, device)
+
+
+async def async_remove_entry(hass: HomeAssistant, entry: WowConfigEntry) -> None:
+    for subentry_id in entry.subentries:
+        ir.async_delete_issue(hass, DOMAIN, issue_id(subentry_id))
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: WowConfigEntry) -> bool:

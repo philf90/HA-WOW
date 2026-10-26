@@ -1,12 +1,14 @@
 {
   "domain": "wow_character",
   "name": "WoW Charakter",
-  "codeowners": [],
+  "codeowners": [
+    "@philf90"
+  ],
   "config_flow": true,
   "documentation": "https://github.com/philf90/HA-WOW",
-  "issue_tracker": "https://github.com/philf90/HA-WOW/issues",
   "integration_type": "service",
   "iot_class": "cloud_polling",
+  "issue_tracker": "https://github.com/philf90/HA-WOW/issues",
   "requirements": [],
-  "version": "0.6.2"
+  "version": "0.7.0"
 }

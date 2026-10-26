@@ -1,0 +1,185 @@
+{
+  "entity": {
+    "binary_sensor": {
+      "realm_status": {
+        "default": "mdi:server",
+        "state": {
+          "on": "mdi:server",
+          "off": "mdi:server-off"
+        }
+      },
+      "realm_queue": {
+        "default": "mdi:human-queue",
+        "state": {
+          "off": "mdi:account-check"
+        }
+      }
+    },
+    "event": {
+      "boss_killed": {
+        "default": "mdi:skull-crossbones"
+      },
+      "new_achievement": {
+        "default": "mdi:trophy-award"
+      }
+    },
+    "sensor": {
+      "achievement_points": {
+        "default": "mdi:trophy"
+      },
+      "achievements": {
+        "default": "mdi:trophy-variant"
+      },
+      "empty_sockets": {
+        "default": "mdi:diamond-outline"
+      },
+      "enchantments": {
+        "default": "mdi:auto-fix"
+      },
+      "equipment_back": {
+        "default": "mdi:shield-outline"
+      },
+      "equipment_chest": {
+        "default": "mdi:shield-outline"
+      },
+      "equipment_feet": {
+        "default": "mdi:shield-outline"
+      },
+      "equipment_finger_1": {
+        "default": "mdi:shield-outline"
+      },
+      "equipment_finger_2": {
+        "default": "mdi:shield-outline"
+      },
+      "equipment_hands": {
+        "default": "mdi:shield-outline"
+      },
+      "equipment_head": {
+        "default": "mdi:shield-outline"
+      },
+      "equipment_legs": {
+        "default": "mdi:shield-outline"
+      },
+      "equipment_main_hand": {
+        "default": "mdi:shield-outline"
+      },
+      "equipment_neck": {
+        "default": "mdi:shield-outline"
+      },
+      "equipment_off_hand": {
+        "default": "mdi:shield-outline"
+      },
+      "equipment_shirt": {
+        "default": "mdi:shield-outline"
+      },
+      "equipment_shoulder": {
+        "default": "mdi:shield-outline"
+      },
+      "equipment_tabard": {
+        "default": "mdi:shield-outline"
+      },
+      "equipment_trinket_1": {
+        "default": "mdi:shield-outline"
+      },
+      "equipment_trinket_2": {
+        "default": "mdi:shield-outline"
+      },
+      "equipment_waist": {
+        "default": "mdi:shield-outline"
+      },
+      "equipment_wrist": {
+        "default": "mdi:shield-outline"
+      },
+      "experience": {
+        "default": "mdi:chart-line"
+      },
+      "game_statistics": {
+        "default": "mdi:counter"
+      },
+      "honor_level": {
+        "default": "mdi:medal"
+      },
+      "honorable_kills": {
+        "default": "mdi:sword"
+      },
+      "item_level": {
+        "default": "mdi:shield-sword"
+      },
+      "item_level_average": {
+        "default": "mdi:shield-sword-outline"
+      },
+      "item_set": {
+        "default": "mdi:tshirt-crew-outline"
+      },
+      "level": {
+        "default": "mdi:star-circle"
+      },
+      "mounts": {
+        "default": "mdi:horse"
+      },
+      "mythic_best_key": {
+        "default": "mdi:sword-cross"
+      },
+      "mythic_rating": {
+        "default": "mdi:key-variant"
+      },
+      "mythic_runs_timed": {
+        "default": "mdi:timer-check-outline"
+      },
+      "pets": {
+        "default": "mdi:paw"
+      },
+      "profession": {
+        "default": "mdi:hammer-wrench"
+      },
+      "raid_heroic": {
+        "default": "mdi:sword-cross"
+      },
+      "raid_lfr": {
+        "default": "mdi:sword-cross"
+      },
+      "raid_mythic": {
+        "default": "mdi:sword-cross"
+      },
+      "raid_normal": {
+        "default": "mdi:sword-cross"
+      },
+      "realm_population": {
+        "default": "mdi:account-group"
+      },
+      "reputation": {
+        "default": "mdi:handshake"
+      },
+      "specialization": {
+        "default": "mdi:account-star"
+      },
+      "stat_crit": {
+        "default": "mdi:chart-bar"
+      },
+      "stat_haste": {
+        "default": "mdi:chart-bar"
+      },
+      "stat_health": {
+        "default": "mdi:chart-bar"
+      },
+      "stat_mastery": {
+        "default": "mdi:chart-bar"
+      },
+      "stat_primary": {
+        "default": "mdi:chart-bar"
+      },
+      "stat_versatility": {
+        "default": "mdi:chart-bar"
+      },
+      "titles": {
+        "default": "mdi:card-account-details-star"
+      },
+      "token": {
+        "default": "mdi:cash"
+      },
+      "toys": {
+        "default": "mdi:teddy-bear"
+      }
+    }
+  }
+}
