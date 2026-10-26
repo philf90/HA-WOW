@@ -42,7 +42,33 @@ DETAIL_ENDPOINTS: dict[str, tuple[str, int]] = {
     "pets": ("collections/pets", 360),
     "toys": ("collections/toys", 360),
     "media": ("character-media", 360),
+    "equipment": ("equipment", 60),
+    "reputations": ("reputations", 360),
 }
+
+# Ausruestungsplaetze in der Reihenfolge des Arsenals (links, rechts, Waffen).
+# Bezeichner wie im Feld "slot.type" der Ausruestungs-Seite; dieselbe Liste
+# nutzt der Arsenal-Import von SimulationCraft.
+EQUIPMENT_SLOTS = (
+    "HEAD",
+    "NECK",
+    "SHOULDER",
+    "BACK",
+    "CHEST",
+    "SHIRT",
+    "TABARD",
+    "WRIST",
+    "HANDS",
+    "WAIST",
+    "LEGS",
+    "FEET",
+    "FINGER_1",
+    "FINGER_2",
+    "TRINKET_1",
+    "TRINKET_2",
+    "MAIN_HAND",
+    "OFF_HAND",
+)
 REQUEST_TIMEOUT = 15
 
 REGIONS = {

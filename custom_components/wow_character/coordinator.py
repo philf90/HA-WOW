@@ -15,6 +15,7 @@ from homeassistant.exceptions import ConfigEntryAuthFailed
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
+from . import parsers as p
 from .api import BattleNetAuthError, BattleNetClient, BattleNetError, BattleNetNotFound
 from .const import (
     CONF_CHARACTER,
@@ -60,13 +61,18 @@ DETAIL_KEYS: dict[str, str] = {
     "toys": "toys",
     "avatar": "media",
     "full_body": "media",
+    "reputation": "reputations",
 }
 PROFESSION_PREFIX = "profession-"
+# Ein Sensor je Ausruestungsplatz, z. B. "equipment_head".
+EQUIPMENT_PREFIX = "equipment_"
 
 
 def endpoint_for_key(key: str) -> str | None:
     if key.startswith(PROFESSION_PREFIX):
         return "professions"
+    if key.startswith(EQUIPMENT_PREFIX):
+        return "equipment"
     return DETAIL_KEYS.get(key)
 
 
@@ -191,6 +197,8 @@ class WowDetailCoordinator(_CharacterMixin, DataUpdateCoordinator[dict[str, Any]
         self._fetched: dict[str, float] = {}
         # Beruf-ID -> Name aus den statischen Spieldaten (Sprache der Region).
         self._profession_names: dict[int, str] = {}
+        # Medien-ID eines Items -> URL des Symbols; Symbole aendern sich nicht.
+        self._item_icons: dict[int, str] = {}
 
     def needed_endpoints(self) -> set[str]:
         """Endpunkte mit mindestens einer aktiven oder noch nicht angelegten Entitaet."""
@@ -258,7 +266,31 @@ class WowDetailCoordinator(_CharacterMixin, DataUpdateCoordinator[dict[str, Any]
             raise UpdateFailed("Alle Detail-Abfragen fehlgeschlagen")
         await self._lookup_profession_names(data.get("professions"))
         data["profession_names"] = dict(self._profession_names)
+        await self._lookup_item_icons(data.get("equipment"))
+        data["item_icons"] = dict(self._item_icons)
         return data
+
+    async def _lookup_item_icons(self, equipment: dict[str, Any] | None) -> None:
+        """Symbole der angelegten Items nachschlagen, jedes nur einmal.
+
+        Die Ausruestungs-Seite nennt nur die Medien-ID. Faellt das Nachschlagen
+        aus, fehlt das Symbol bis zum naechsten Takt.
+        """
+        for item in p.equipment(equipment).values():
+            media_id = item["media_id"]
+            if not isinstance(media_id, int) or media_id in self._item_icons:
+                continue
+            try:
+                media = await self.client.get_static_data(
+                    self.region, self.suffix, f"media/item/{media_id}"
+                )
+            except BattleNetAuthError as err:
+                raise ConfigEntryAuthFailed(str(err)) from err
+            except BattleNetError as err:
+                _LOGGER.debug("Symbol fuer Item %s fehlt: %s", media_id, err)
+                continue
+            if url := p.icon_url(media):
+                self._item_icons[media_id] = url
 
     async def _lookup_profession_names(
         self, professions: dict[str, Any] | None

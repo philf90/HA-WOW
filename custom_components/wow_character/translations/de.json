@@ -172,6 +172,63 @@
       },
       "realm_population": {
         "name": "Bevölkerung {realm}"
+      },
+      "equipment_head": {
+        "name": "Ausrüstung Kopf"
+      },
+      "equipment_neck": {
+        "name": "Ausrüstung Hals"
+      },
+      "equipment_shoulder": {
+        "name": "Ausrüstung Schultern"
+      },
+      "equipment_back": {
+        "name": "Ausrüstung Rücken"
+      },
+      "equipment_chest": {
+        "name": "Ausrüstung Brust"
+      },
+      "equipment_shirt": {
+        "name": "Ausrüstung Hemd"
+      },
+      "equipment_tabard": {
+        "name": "Ausrüstung Wappenrock"
+      },
+      "equipment_wrist": {
+        "name": "Ausrüstung Handgelenke"
+      },
+      "equipment_hands": {
+        "name": "Ausrüstung Hände"
+      },
+      "equipment_waist": {
+        "name": "Ausrüstung Taille"
+      },
+      "equipment_legs": {
+        "name": "Ausrüstung Beine"
+      },
+      "equipment_feet": {
+        "name": "Ausrüstung Füße"
+      },
+      "equipment_finger_1": {
+        "name": "Ausrüstung Finger 1"
+      },
+      "equipment_finger_2": {
+        "name": "Ausrüstung Finger 2"
+      },
+      "equipment_trinket_1": {
+        "name": "Ausrüstung Schmuck 1"
+      },
+      "equipment_trinket_2": {
+        "name": "Ausrüstung Schmuck 2"
+      },
+      "equipment_main_hand": {
+        "name": "Ausrüstung Waffenhand"
+      },
+      "equipment_off_hand": {
+        "name": "Ausrüstung Schildhand"
+      },
+      "reputation": {
+        "name": "Ruf"
       }
     },
     "binary_sensor": {

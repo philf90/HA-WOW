@@ -213,6 +213,8 @@ async def test_forever_creates_only_available(
             "collections/pets",
             "collections/toys",
             "character-media",
+            "equipment",
+            "reputations",
         )
     }
     not_found[f"{GAME}/token/index"] = 404
@@ -228,6 +230,8 @@ async def test_forever_creates_only_available(
         ("sensor", "mythic_rating"),
         ("event", "boss_killed"),
         ("image", "avatar"),
+        ("sensor", "equipment_head"),
+        ("sensor", "reputation"),
     ):
         assert _eid(hass, platform, f"{UID1}-{key}") is None, key
     world = "id-world-eu-forever"
@@ -326,6 +330,8 @@ async def test_mythic_rating_only_for_current_season(
     assert rating.state == "unknown"
     assert rating.attributes["season"] == 14
     assert rating.attributes["color"] is None
+    # Rohwert wie im Arsenal bleibt als Attribut erhalten.
+    assert rating.attributes["api_rating"] == 170
 
 
 async def test_diagnostics_without_recipes(hass: HomeAssistant, aioclient_mock) -> None:
@@ -352,3 +358,117 @@ async def test_diagnostics_without_recipes(hass: HomeAssistant, aioclient_mock) 
     assert "known_recipes" not in tier
     assert tier["skill_points"] == 5
     assert details["profession_names"] == {164: "Schmiedekunst"}
+
+
+async def test_equipment(hass: HomeAssistant, aioclient_mock) -> None:
+    mock_token(aioclient_mock)
+    mock_api(aioclient_mock)
+    entry = await _setup(hass, character_subentry())
+
+    head = _state(hass, "sensor", "equipment_head")
+    assert head.state == "253"
+    assert head.name.endswith("Equipment head")
+    assert head.attributes["entity_picture"] == "https://render.example/helm.jpg"
+    assert head.attributes["name"] == "Testhelm"
+    assert head.attributes["item_id"] == 5001
+    assert head.attributes["quality"] == "EPIC"
+    assert head.attributes["quality_name"] == "Episch"
+    # Symbol-Steuerzeichen des Spiels werden entfernt.
+    assert head.attributes["enchantments"] == ["Verzaubert: +16 Intelligenz"]
+    assert head.attributes["sockets"] == [
+        {"type": "PRISMATIC", "gem": "Testedelstein"},
+        {"type": "PRISMATIC", "gem": None},
+    ]
+    assert head.attributes["set"] == "Testset"
+
+    # Ohne Symbol von der API bleibt das Standard-Icon.
+    weapon = _state(hass, "sensor", "equipment_main_hand")
+    assert weapon.state == "259"
+    assert "entity_picture" not in weapon.attributes
+    assert weapon.attributes["enchantments"] == []
+
+    # Leere Plaetze gibt es trotzdem, damit Karten feste Entitaeten haben.
+    assert _state(hass, "sensor", "equipment_shirt").state == "unknown"
+    slots = [
+        e
+        for e in er.async_get(hass).entities.values()
+        if e.unique_id.startswith(f"{UID1}-equipment_")
+    ]
+    assert len(slots) == 18
+
+    # Bekannte Symbole werden nicht erneut abgefragt, fehlende schon.
+    aioclient_mock.mock_calls.clear()
+    detail = entry.runtime_data.details[next(iter(entry.subentries))]
+    detail._fetched.clear()
+    await detail.async_refresh()
+    urls = [str(call[1]) for call in aioclient_mock.mock_calls]
+    assert not any("/media/item/6001" in u for u in urls)
+    assert any("/media/item/6002" in u for u in urls)
+
+
+async def test_reputation(hass: HomeAssistant, aioclient_mock) -> None:
+    mock_token(aioclient_mock)
+    mock_api(aioclient_mock)
+    await _setup(hass, character_subentry())
+
+    rep = _state(hass, "sensor", "reputation")
+    assert rep.state == "2"
+    assert rep.attributes["factions"] == [
+        {
+            "faction": "Testfraktion",
+            "standing": "Ehrfürchtig",
+            "value": 0,
+            "max": 0,
+            "paragon": {"value": 3000, "max": 10000},
+        },
+        {
+            "faction": "Neue Fraktion",
+            "standing": "Renommee 4",
+            "value": 500,
+            "max": 2500,
+            "renown": 4,
+        },
+    ]
+
+
+def test_reputation_not_recorded() -> None:
+    """Die lange Fraktionsliste kommt nicht in die Datenbank."""
+    from custom_components.wow_character.sensor import WowReputationSensor
+
+    assert "factions" in WowReputationSensor._unrecorded_attributes
+
+
+async def test_diagnostics_equipment(hass: HomeAssistant, aioclient_mock) -> None:
+    mock_token(aioclient_mock)
+    mock_api(aioclient_mock)
+    entry = await _setup(hass, character_subentry())
+    diag = await async_get_config_entry_diagnostics(hass, entry)
+    details = diag["characters"]["Testchar – Die Aldor"]["details"]
+    head = details["equipment"]["equipped_items"][0]
+    assert head["slot"]["type"] == "HEAD"
+    assert "set" in head["fields"]
+    assert "set" not in head
+    assert details["reputations"]["count"] == 2
+    assert details["item_icons"] == {6001: "https://render.example/helm.jpg"}
+
+
+def test_clean_text() -> None:
+    from custom_components.wow_character.parsers import clean_text
+
+    assert clean_text("|cnGREEN_FONT_COLOR:+16 Intelligenz|r") == "+16 Intelligenz"
+    assert clean_text("|cff1eff00Grün|r Text") == "Grün Text"
+    assert clean_text("Ohne Steuerzeichen") == "Ohne Steuerzeichen"
+    assert clean_text(None) is None
+
+
+def test_icon_url() -> None:
+    from custom_components.wow_character.parsers import icon_url
+
+    assets = [
+        {"key": "zoom", "value": "https://render.example/zoom.jpg"},
+        {"key": "icon", "value": "https://render.example/icon.jpg"},
+    ]
+    assert icon_url({"assets": assets}) == "https://render.example/icon.jpg"
+    # Ohne "icon" das erste Bild, ohne Bilder nichts.
+    assert icon_url({"assets": assets[:1]}) == "https://render.example/zoom.jpg"
+    assert icon_url({}) is None

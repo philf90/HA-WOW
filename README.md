@@ -4,7 +4,7 @@
 [![KI-generiert](https://img.shields.io/badge/Code%20%26%20Doku-KI--generiert-6A2BB0)](#ki-hinweis)
 
 Home-Assistant-Integration für World-of-Warcraft-Charaktere. Liest die Profildaten
-über die offizielle Battle.net API. Version 0.3.3.
+über die offizielle Battle.net API. Version 0.4.0.
 
 > **KI-Hinweis:** Dieses Projekt ist mit Claude Code entstanden. Code, Tests und
 > Dokumentation wurden von der KI geschrieben und mit automatischen Tests sowie in
@@ -42,10 +42,21 @@ anderen laufen weiter.
 | Beruf (je Beruf) | Sensor | 6 h | `professions`, Skill der neuesten Stufe; Name aus `profession/{id}` |
 | Reittiere, Haustiere, Spielzeuge | Sensoren | 6 h | `collections/*`, Anzahl |
 | Avatar, Ganzkörperbild | Bilder | 6 h | `character-media` |
+| Ausrüstung, 18 Plätze (Kopf bis Schildhand) | Sensoren, Itemlevel; Symbol als Bild | 1 h | `equipment`; Symbol aus `media/item/{id}` |
+| Ruf: Anzahl der Fraktionen, je Fraktion Stufe und Fortschritt als Attribut | Sensor | 6 h | `reputations` |
 
 Klasse, Spezialisierung, Volk, Fraktion, Gilde, Realm und aktiver Titel stehen als
 Attribute am Level-Sensor. Mythic+-Werte gibt es nur für Retail. Hat der Charakter in
-der aktuellen Season noch nicht gespielt, ist die Mythic+-Wertung „unbekannt“.
+der aktuellen Season noch nicht gespielt, ist die Mythic+-Wertung „unbekannt“. Das
+Attribut `api_rating` enthält den Wert der API ohne diese Prüfung; diesen Wert zeigt
+auch das Arsenal im Kopf der Charakterseite.
+
+Die Ausrüstungs-Sensoren gibt es für alle Plätze, auch leere, damit Karten feste
+Entitäten haben. Attribute: `name`, `item_id`, `quality` (z. B. `EPIC`),
+`quality_name`, `enchantments`, `sockets` und `set`. Das Symbol schlägt die
+Integration einmal je Item nach. Die Fraktionsliste des Ruf-Sensors kann sehr lang
+sein und wird deshalb nicht in der Datenbank gespeichert; sie folgt der Reihenfolge
+der API, ohne Gruppierung nach Erweiterung.
 
 Die Berufe-Seite eines Charakters liefert Namen auf Englisch, auch mit deutscher
 Spracheinstellung. Die Integration schlägt die Namen deshalb einmalig in den
@@ -123,6 +134,10 @@ lesen; ein Zurückgehen geht nur über das Backup.
   Mythic+-Wertung ist ohne Lauf in der aktuellen Season „unbekannt“, die Diagnose
   schrumpfte von 119 KB auf 64 KB. 0.3.2 (nur README) über HACS ohne Fehler
   installiert; Avatar und Ganzkörperbild werden in Home Assistant angezeigt.
+- 0.4.x: 38 automatische Tests gegen Home Assistant 2026.2.3. Die Feldnamen von
+  Ausrüstung und Ruf stammen aus den Typdefinitionen von `@blizzard-api/wow` 4.1.4,
+  die Platz-Bezeichner aus dem Arsenal-Import von SimulationCraft; live noch
+  ungeprüft.
 - 0.1.x: am 26.10.2026 mit einem Retail-Charakter unter Home Assistant 2026.10.4 live
   geprüft: Realm-Liste, Profil, Mythic+-Profil und die Abfrage alle 15 Minuten.
 - WoW Forever ist ungetestet.
@@ -164,9 +179,10 @@ KI im Auftrag und unter Anleitung des Repo-Inhabers erstellt. Geprüft wurde so:
 - Betrieb in einer echten Home-Assistant-Instanz mit Abgleich gegen das Arsenal
   (Stand im Abschnitt „Teststand“)
 
-Feldnamen der Battle.net API stammen aus öffentlichen Bibliotheken und dem Projekt
-homeassistant-wow-blizzard, weil die offizielle Doku bei der Entwicklung nicht
-erreichbar war. Nicht live geprüfte Punkte sind im Abschnitt „Teststand“ genannt.
+Feldnamen der Battle.net API stammen aus öffentlichen Bibliotheken, dem Projekt
+homeassistant-wow-blizzard und dem Arsenal-Import von SimulationCraft. Die offizielle
+Doku war bis 0.3.x nicht erreichbar; sie nennt Endpunkte und Parameter, aber keine
+Antwortfelder. Nicht live geprüfte Punkte sind im Abschnitt „Teststand“ genannt.
 
 ## Lizenz
 

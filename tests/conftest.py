@@ -210,6 +210,68 @@ MEDIA = {
     ]
 }
 
+# Felder wie in den Typdefinitionen von @blizzard-api/wow und im Arsenal-Import
+# von SimulationCraft; Werte erfunden.
+EQUIPMENT = {
+    "equipped_items": [
+        {
+            "item": {"id": 5001},
+            "slot": {"type": "HEAD", "name": "Kopf"},
+            "quality": {"type": "EPIC", "name": "Episch"},
+            "name": "Testhelm",
+            "media": {"id": 6001},
+            "level": {"value": 253, "display_string": "Gegenstandsstufe 253"},
+            "enchantments": [
+                {
+                    "display_string": "Verzaubert: +16 Intelligenz |A:Professions-ChatIcon-Quality-Tier2:20:20|a",
+                    "enchantment_id": 7001,
+                }
+            ],
+            "sockets": [
+                {
+                    "socket_type": {"type": "PRISMATIC"},
+                    "item": {"name": "Testedelstein"},
+                },
+                {"socket_type": {"type": "PRISMATIC"}},
+            ],
+            "set": {"item_set": {"name": "Testset"}},
+        },
+        {
+            "item": {"id": 5002},
+            "slot": {"type": "MAIN_HAND", "name": "Waffenhand"},
+            "quality": {"type": "RARE", "name": "Selten"},
+            "name": "Teststab",
+            "media": {"id": 6002},
+            "level": {"value": 259},
+        },
+    ]
+}
+REPUTATIONS = {
+    "reputations": [
+        {
+            "faction": {"name": "Testfraktion"},
+            "standing": {
+                "raw": 42000,
+                "value": 0,
+                "max": 0,
+                "tier": 7,
+                "name": "Ehrfürchtig",
+            },
+            "paragon": {"raw": 3000, "value": 3000, "max": 10000},
+        },
+        {
+            "faction": {"name": "Neue Fraktion"},
+            "standing": {
+                "raw": 500,
+                "value": 500,
+                "max": 2500,
+                "renown_level": 4,
+                "name": "Renommee 4",
+            },
+        },
+    ]
+}
+
 
 def mock_api(
     aioclient_mock: AiohttpClientMocker,
@@ -234,6 +296,8 @@ def mock_api(
         "/collections/pets": {"pets": [{}, {}]},
         "/collections/toys": {"toys": [{}]},
         "/character-media": MEDIA,
+        "/equipment": EQUIPMENT,
+        "/reputations": REPUTATIONS,
     }
     world = {
         "/token/index": {"price": 3456789},
@@ -248,6 +312,11 @@ def mock_api(
         },
         # Statische Spieldaten: deutscher Berufsname (Berufe-Seite liefert Englisch).
         "/profession/164": {"id": 164, "name": "Schmiedekunst"},
+        # Symbole der Items; fuer 6002 liefert die API nichts.
+        "/media/item/6001": {
+            "assets": [{"key": "icon", "value": "https://render.example/helm.jpg"}]
+        },
+        "/media/item/6002": 404,
         "/connected-realm/1234": {
             "status": {"type": "UP"},
             "population": {"name": "Hoch", "type": "HIGH"},

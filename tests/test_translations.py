@@ -54,6 +54,10 @@ def test_entity_keys_translated() -> None:
         "event": {"boss_killed", "new_achievement"},
         "image": {"avatar", "full_body"},
     }
+    # Ein Sensor je Ausruestungsplatz
+    from custom_components.wow_character.const import EQUIPMENT_SLOTS
+
+    keys["sensor"] |= {f"equipment_{slot.lower()}" for slot in EQUIPMENT_SLOTS}
     # Sensoren mit eigener Klasse
     keys["sensor"] |= set(
         re.findall(r'_attr_translation_key = "(\w+)"', (BASE / "sensor.py").read_text())

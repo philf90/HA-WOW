@@ -18,7 +18,9 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from . import parsers as p
+from .const import EQUIPMENT_SLOTS
 from .coordinator import (
+    EQUIPMENT_PREFIX,
     PROFESSION_PREFIX,
     WowConfigEntry,
     WowCoordinator,
@@ -53,9 +55,12 @@ def _mythic_rating(data: dict[str, Any]) -> float | None:
 
 def _mythic_attrs(data: dict[str, Any]) -> dict[str, Any]:
     current = _in_current_season(data)
+    rating = _mythic(data).get("rating")
     return {
         "season": data.get("season_id"),
         "color": p.color_hex(_mythic(data).get("color")) if current else None,
+        # Wert der API ohne Season-Pruefung; so zeigt ihn das Arsenal.
+        "api_rating": round(rating, 1) if rating is not None else None,
     }
 
 
@@ -263,6 +268,11 @@ async def async_setup_entry(
         # Berufe: je Beruf ein Sensor, angelegt aus der ersten Antwort.
         for prof_id in _professions(detail):
             entities.append(WowProfessionSensor(detail, prof_id))
+        # Ausruestung: alle Plaetze, auch leere, damit Karten feste IDs haben.
+        if detail_available(detail, f"{EQUIPMENT_PREFIX}head"):
+            entities += [WowEquipmentSensor(detail, slot) for slot in EQUIPMENT_SLOTS]
+        if detail_available(detail, "reputation"):
+            entities.append(WowReputationSensor(detail))
         async_add_entities(entities, config_subentry_id=subentry_id)
 
     for world in runtime.worlds.values():
@@ -340,6 +350,72 @@ class WowProfessionSensor(WowCharacterEntity, SensorEntity):
     def extra_state_attributes(self) -> dict[str, Any]:
         info = self._info()
         return {"tier": info.get("tier"), "max_skill": info.get("max_skill")}
+
+
+class WowEquipmentSensor(WowCharacterEntity, SensorEntity):
+    """Item auf einem Ausruestungsplatz: Itemlevel, Symbol als Bild."""
+
+    _attr_icon = "mdi:shield-outline"
+
+    def __init__(self, coordinator: WowDetailCoordinator, slot: str) -> None:
+        key = f"{EQUIPMENT_PREFIX}{slot.lower()}"
+        super().__init__(coordinator, key)
+        self._slot = slot
+        self._attr_translation_key = key
+
+    def _item(self) -> dict[str, Any]:
+        data = self.coordinator.data or {}
+        return p.equipment(data.get("equipment")).get(self._slot, {})
+
+    @property
+    def native_value(self) -> int | None:
+        return self._item().get("level")
+
+    @property
+    def entity_picture(self) -> str | None:
+        icons = (self.coordinator.data or {}).get("item_icons") or {}
+        return icons.get(self._item().get("media_id"))
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        item = self._item()
+        return {
+            key: item.get(key)
+            for key in (
+                "name",
+                "item_id",
+                "quality",
+                "quality_name",
+                "enchantments",
+                "sockets",
+                "set",
+            )
+        }
+
+
+class WowReputationSensor(WowCharacterEntity, SensorEntity):
+    """Anzahl der Fraktionen; Stufe und Fortschritt je Fraktion als Attribut."""
+
+    _attr_translation_key = "reputation"
+    _attr_icon = "mdi:handshake"
+    # Die Liste kann ueber 100 Fraktionen lang sein; nicht in die Datenbank.
+    _unrecorded_attributes = frozenset({"factions"})
+
+    def __init__(self, coordinator: WowDetailCoordinator) -> None:
+        super().__init__(coordinator, "reputation")
+
+    def _factions(self) -> list[dict[str, Any]] | None:
+        data = (self.coordinator.data or {}).get("reputations")
+        return p.reputations(data) if data is not None else None
+
+    @property
+    def native_value(self) -> int | None:
+        factions = self._factions()
+        return len(factions) if factions is not None else None
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        return {"factions": self._factions() or []}
 
 
 class WowTokenSensor(WowWorldEntity, SensorEntity):

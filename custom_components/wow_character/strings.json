@@ -172,6 +172,63 @@
       },
       "realm_population": {
         "name": "Population {realm}"
+      },
+      "equipment_head": {
+        "name": "Equipment head"
+      },
+      "equipment_neck": {
+        "name": "Equipment neck"
+      },
+      "equipment_shoulder": {
+        "name": "Equipment shoulder"
+      },
+      "equipment_back": {
+        "name": "Equipment back"
+      },
+      "equipment_chest": {
+        "name": "Equipment chest"
+      },
+      "equipment_shirt": {
+        "name": "Equipment shirt"
+      },
+      "equipment_tabard": {
+        "name": "Equipment tabard"
+      },
+      "equipment_wrist": {
+        "name": "Equipment wrist"
+      },
+      "equipment_hands": {
+        "name": "Equipment hands"
+      },
+      "equipment_waist": {
+        "name": "Equipment waist"
+      },
+      "equipment_legs": {
+        "name": "Equipment legs"
+      },
+      "equipment_feet": {
+        "name": "Equipment feet"
+      },
+      "equipment_finger_1": {
+        "name": "Equipment finger 1"
+      },
+      "equipment_finger_2": {
+        "name": "Equipment finger 2"
+      },
+      "equipment_trinket_1": {
+        "name": "Equipment trinket 1"
+      },
+      "equipment_trinket_2": {
+        "name": "Equipment trinket 2"
+      },
+      "equipment_main_hand": {
+        "name": "Equipment main hand"
+      },
+      "equipment_off_hand": {
+        "name": "Equipment off hand"
+      },
+      "reputation": {
+        "name": "Reputation"
       }
     },
     "binary_sensor": {

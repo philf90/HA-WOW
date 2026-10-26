@@ -38,6 +38,25 @@ def _shrink(endpoint: str, data: Any) -> Any:
             ]
             for group in ("primaries", "secondaries")
         }
+    if endpoint == "equipment":
+        # Werte, Zauber und Verkaufspreis weglassen; die Feldnamen je Item
+        # bleiben sichtbar, falls ein Wert fehlt.
+        keep = ("slot", "name", "item", "media", "level", "quality")
+        return {
+            "equipped_items": [
+                {
+                    **{k: item.get(k) for k in keep},
+                    "enchantments": item.get("enchantments"),
+                    "sockets": item.get("sockets"),
+                    "fields": sorted(item),
+                }
+                for item in data.get("equipped_items") or []
+                if isinstance(item, dict)
+            ]
+        }
+    if endpoint == "reputations":
+        items = data.get("reputations") or []
+        return {"count": len(items), "first": items[:3]}
     if endpoint in ("mounts", "pets", "toys"):
         items = data.get(endpoint) or []
         return {"count": len(items), "first": items[:2]}

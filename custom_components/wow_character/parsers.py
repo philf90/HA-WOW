@@ -7,6 +7,7 @@ Fehlende Felder ergeben None statt eines Fehlers.
 
 from __future__ import annotations
 
+import re
 from datetime import UTC, datetime
 from typing import Any
 
@@ -225,3 +226,84 @@ def media_url(media: dict[str, Any] | None, key: str) -> str | None:
         or assets.get("inset")
         or assets.get("avatar")
     )
+
+
+# Steuerzeichen des Spiels wie "|cffffffff...|r" (Farbe) oder "|A:...|a"
+# (Symbol). Ob die API sie in Texten liefert, ist ungeprueft; ohne sie
+# bleibt der Text unveraendert.
+_GAME_MARKUP = re.compile(r"\|A:[^|]*\|a|\|c[0-9a-fA-F]{8}|\|c[nN][^:]*:|\|r")
+
+
+def clean_text(text: Any) -> str | None:
+    if not isinstance(text, str):
+        return None
+    return " ".join(_GAME_MARKUP.sub("", text).split()) or None
+
+
+def equipment(data: dict[str, Any] | None) -> dict[str, dict[str, Any]]:
+    """Platz (z. B. "HEAD") -> angelegtes Item mit den Angaben des Arsenals."""
+    result: dict[str, dict[str, Any]] = {}
+    for item in (data or {}).get("equipped_items") or []:
+        if not isinstance(item, dict):
+            continue
+        slot = (item.get("slot") or {}).get("type")
+        if not isinstance(slot, str):
+            continue
+        quality = item.get("quality") or {}
+        result[slot] = {
+            "name": item.get("name"),
+            "item_id": (item.get("item") or {}).get("id"),
+            "media_id": (item.get("media") or {}).get("id"),
+            "level": (item.get("level") or {}).get("value"),
+            "quality": quality.get("type"),
+            "quality_name": quality.get("name"),
+            "enchantments": [
+                text
+                for e in item.get("enchantments") or []
+                if isinstance(e, dict) and (text := clean_text(e.get("display_string")))
+            ],
+            "sockets": [
+                {
+                    "type": (s.get("socket_type") or {}).get("type"),
+                    "gem": name_of(s.get("item")),
+                }
+                for s in item.get("sockets") or []
+                if isinstance(s, dict)
+            ],
+            "set": name_of((item.get("set") or {}).get("item_set")),
+        }
+    return result
+
+
+def icon_url(media: dict[str, Any] | None) -> str | None:
+    """Symbol aus der Medien-Antwort eines Items."""
+    assets = [a for a in (media or {}).get("assets") or [] if isinstance(a, dict)]
+    for asset in assets:
+        if asset.get("key") == "icon":
+            return asset.get("value")
+    return assets[0].get("value") if assets else None
+
+
+def reputations(data: dict[str, Any] | None) -> list[dict[str, Any]]:
+    """Fraktionen mit Stufe und Fortschritt, in der Reihenfolge der API."""
+    result = []
+    for rep in (data or {}).get("reputations") or []:
+        if not isinstance(rep, dict):
+            continue
+        standing = rep.get("standing") or {}
+        entry = {
+            "faction": name_of(rep.get("faction")),
+            "standing": standing.get("name"),
+            "value": standing.get("value"),
+            "max": standing.get("max"),
+        }
+        if standing.get("renown_level") is not None:
+            entry["renown"] = standing["renown_level"]
+        paragon = rep.get("paragon")
+        if isinstance(paragon, dict):
+            entry["paragon"] = {
+                "value": paragon.get("value"),
+                "max": paragon.get("max"),
+            }
+        result.append(entry)
+    return result
