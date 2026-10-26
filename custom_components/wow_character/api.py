@@ -8,7 +8,7 @@ from urllib.parse import quote
 
 import aiohttp
 
-from .const import REGIONS, REQUEST_TIMEOUT
+from .const import REGIONS, REQUEST_TIMEOUT, TOKEN_URL
 
 
 class BattleNetError(Exception):
@@ -28,18 +28,15 @@ class BattleNetRateLimited(BattleNetError):
 
 
 class BattleNetClient:
-    """Holt ein Client-Credentials-Token und fragt die Profil-API ab."""
+    """Holt ein Client-Credentials-Token und fragt die API aller Regionen ab."""
 
     def __init__(
         self,
         session: aiohttp.ClientSession,
-        region: str,
         client_id: str,
         client_secret: str,
     ) -> None:
         self._session = session
-        self._region = region
-        self._urls = REGIONS[region]
         self._auth = aiohttp.BasicAuth(client_id, client_secret)
         self._token: str | None = None
         self._token_expires = 0.0
@@ -49,7 +46,7 @@ class BattleNetClient:
             return self._token
         try:
             async with self._session.post(
-                self._urls["token"],
+                TOKEN_URL,
                 data={"grant_type": "client_credentials"},
                 auth=self._auth,
                 timeout=aiohttp.ClientTimeout(total=REQUEST_TIMEOUT),
@@ -66,21 +63,27 @@ class BattleNetClient:
         self._token_expires = time.monotonic() + int(data.get("expires_in", 0)) - 60
         return self._token
 
+    async def validate(self) -> None:
+        """Zugangsdaten pruefen, indem ein Token geholt wird."""
+        self._token = None
+        await self._get_token()
+
     async def _get(
-        self, path: str, namespace: str, retry: bool = True
+        self, region: str, path: str, namespace: str, retry: bool = True
     ) -> dict[str, Any]:
         token = await self._get_token()
+        urls = REGIONS[region]
         try:
             async with self._session.get(
-                f"{self._urls['api']}{path}",
-                params={"namespace": namespace, "locale": self._urls["locale"]},
+                f"{urls['api']}{path}",
+                params={"namespace": namespace, "locale": urls["locale"]},
                 headers={"Authorization": f"Bearer {token}"},
                 timeout=aiohttp.ClientTimeout(total=REQUEST_TIMEOUT),
             ) as resp:
                 if resp.status == 401 and retry:
                     # Token serverseitig verfallen: einmal neu holen.
                     self._token = None
-                    return await self._get(path, namespace, retry=False)
+                    return await self._get(region, path, namespace, retry=False)
                 if resp.status == 401:
                     raise BattleNetAuthError("Token abgelehnt")
                 if resp.status == 404:
@@ -93,18 +96,22 @@ class BattleNetClient:
         except (aiohttp.ClientError, TimeoutError) as err:
             raise BattleNetError(f"{path}: {err}") from err
 
-    def _character_path(self, realm: str, character: str) -> str:
+    @staticmethod
+    def namespace(kind: str, suffix: str, region: str) -> str:
+        """z. B. ("profile", "", "eu") -> "profile-eu"."""
+        return f"{kind}{suffix}-{region}"
+
+    @staticmethod
+    def _character_path(realm: str, character: str) -> str:
         # realm ist der Slug aus der Realm-Liste, z. B. "die-aldor".
         return f"/profile/wow/character/{realm}/{quote(character.lower())}"
 
-    def namespace(self, kind: str, suffix: str) -> str:
-        """z. B. ("profile", "") -> "profile-eu", ("dynamic", "-forever") -> "dynamic-forever-eu"."""
-        return f"{kind}{suffix}-{self._region}"
-
-    async def get_realms(self, suffix: str) -> list[dict[str, Any]]:
+    async def get_realms(self, region: str, suffix: str) -> list[dict[str, Any]]:
         """Realm-Liste der Region; jeder Eintrag hat u. a. "name" und "slug"."""
         data = await self._get(
-            "/data/wow/realm/index", self.namespace("dynamic", suffix)
+            region,
+            "/data/wow/realm/index",
+            self.namespace("dynamic", suffix, region),
         )
         realms = [
             r for r in data.get("realms") or [] if r.get("slug") and r.get("name")
@@ -114,18 +121,21 @@ class BattleNetClient:
         return realms
 
     async def get_profile(
-        self, realm: str, character: str, suffix: str
+        self, region: str, realm: str, character: str, suffix: str
     ) -> dict[str, Any]:
         """Profil-Zusammenfassung: Level, Itemlevel, Klasse, Gilde usw."""
         return await self._get(
-            self._character_path(realm, character), self.namespace("profile", suffix)
+            region,
+            self._character_path(realm, character),
+            self.namespace("profile", suffix, region),
         )
 
     async def get_mythic_profile(
-        self, realm: str, character: str, suffix: str
+        self, region: str, realm: str, character: str, suffix: str
     ) -> dict[str, Any]:
         """Mythic+-Profil, nur Retail."""
         return await self._get(
+            region,
             f"{self._character_path(realm, character)}/mythic-keystone-profile",
-            self.namespace("profile", suffix),
+            self.namespace("profile", suffix, region),
         )

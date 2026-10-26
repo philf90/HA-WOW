@@ -2,32 +2,73 @@
   "config": {
     "step": {
       "user": {
-        "title": "World-of-Warcraft-Charakter",
-        "description": "Lege auf develop.battle.net einen kostenlosen API-Client an und trage Client-ID und Secret ein.",
+        "title": "Battle.net-API-Client",
+        "description": "Lege auf develop.battle.net einen kostenlosen API-Client an und trage Client-ID und Secret ein. Charaktere fügst du danach an diesem Eintrag hinzu.",
         "data": {
           "client_id": "Client-ID",
-          "client_secret": "Client-Secret",
-          "region": "Region",
-          "game_version": "Spielversion"
+          "client_secret": "Client-Secret"
         }
       },
-      "character": {
-        "title": "Charakter wählen",
-        "description": "Realm aus der Liste wählen und Charakternamen eingeben.",
+      "reauth_confirm": {
+        "title": "Battle.net API: erneut anmelden",
+        "description": "Der API-Client wurde abgelehnt. Gib eine gültige Client-ID und ein gültiges Secret ein.",
         "data": {
-          "realm": "Realm",
-          "character": "Charakter"
+          "client_id": "Client-ID",
+          "client_secret": "Client-Secret"
+        }
+      },
+      "reconfigure": {
+        "title": "Battle.net-API-Client ändern",
+        "description": "Gib die neue Client-ID oder das neue Secret ein. Deine Charaktere bleiben eingerichtet.",
+        "data": {
+          "client_id": "Client-ID",
+          "client_secret": "Client-Secret"
         }
       }
     },
     "error": {
       "invalid_auth": "Client-ID oder Secret ist ungültig.",
-      "character_not_found": "Charakter auf diesem Realm nicht gefunden. Namen prüfen; der Charakter muss sich einmal ausgeloggt haben.",
-      "cannot_connect": "Battle.net API nicht erreichbar.",
-      "realms_not_found": "Keine Realm-Liste für diese Region und Spielversion gefunden. Bei WoW Forever ist der API-Namespace eventuell noch nicht bekannt."
+      "cannot_connect": "Battle.net API nicht erreichbar."
     },
     "abort": {
-      "already_configured": "Dieser Charakter ist bereits eingerichtet."
+      "already_configured": "Dieser API-Client ist bereits eingerichtet.",
+      "reauth_successful": "Erneut angemeldet.",
+      "reconfigure_successful": "API-Client geändert."
+    }
+  },
+  "config_subentries": {
+    "character": {
+      "initiate_flow": {
+        "user": "Charakter hinzufügen"
+      },
+      "entry_type": "Charakter",
+      "step": {
+        "user": {
+          "title": "Region und Spielversion",
+          "description": "Danach wird die Realm-Liste dieser Region und Spielversion geladen.",
+          "data": {
+            "region": "Region",
+            "game_version": "Spielversion"
+          }
+        },
+        "character": {
+          "title": "Charakter wählen",
+          "description": "Realm aus der Liste wählen und Charakternamen eingeben.",
+          "data": {
+            "realm": "Realm",
+            "character": "Charakter"
+          }
+        }
+      },
+      "error": {
+        "realms_not_found": "Keine Realm-Liste für diese Region und Spielversion gefunden. Bei WoW Forever ist der API-Namespace eventuell noch nicht bekannt.",
+        "character_not_found": "Charakter auf diesem Realm nicht gefunden. Namen prüfen; der Charakter muss sich einmal ausgeloggt haben.",
+        "cannot_connect": "Battle.net API nicht erreichbar."
+      },
+      "abort": {
+        "already_configured": "Dieser Charakter ist bereits eingerichtet.",
+        "entry_not_loaded": "Der Eintrag des API-Clients ist nicht geladen. Prüfe ihn, bevor du Charaktere hinzufügst."
+      }
     }
   },
   "selector": {

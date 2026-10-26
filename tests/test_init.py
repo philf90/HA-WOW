@@ -1,75 +1,39 @@
-"""Tests fuer Einrichtungsdialog und Sensoren."""
+"""Tests fuer Start, Sensoren, Fehlertoleranz und den Umbau von Version 1."""
 
 from homeassistant import config_entries
 from homeassistant.core import HomeAssistant
-from homeassistant.data_entry_flow import FlowResultType
+from homeassistant.helpers import device_registry as dr
+from homeassistant.helpers import entity_registry as er
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.wow_character.const import DOMAIN
 
 from .conftest import (
     API,
-    CHARACTER_INPUT,
+    API2,
     MYTHIC,
     PROFILE,
-    REALMS,
-    REALMS_URL,
-    USER_INPUT,
+    UID1,
+    UID2,
+    character_subentry,
+    main_entry,
     mock_token,
 )
 
-
-def _ns(namespace: str) -> dict:
-    return {"namespace": namespace, "locale": "de_DE"}
+SECOND = character_subentry(UID2, "Zweitchar – Aegwynn", "aegwynn", "Zweitchar")
 
 
-async def _start(hass: HomeAssistant, data: dict):
-    result = await hass.config_entries.flow.async_init(
-        DOMAIN, context={"source": config_entries.SOURCE_USER}
-    )
-    assert result["type"] is FlowResultType.FORM
-    return await hass.config_entries.flow.async_configure(result["flow_id"], data)
-
-
-def _realm_options(result) -> list:
-    for key, selector in result["data_schema"].schema.items():
-        if key == "realm":
-            return selector.config["options"]
-    raise AssertionError("kein Realm-Feld")
-
-
-async def test_flow_retail(hass: HomeAssistant, aioclient_mock) -> None:
+async def test_sensors(hass: HomeAssistant, aioclient_mock) -> None:
     mock_token(aioclient_mock)
-    aioclient_mock.get(REALMS_URL, params=_ns("dynamic-eu"), json=REALMS)
     aioclient_mock.get(API, json=PROFILE)
     aioclient_mock.get(f"{API}/mythic-keystone-profile", json=MYTHIC)
-
-    result = await _start(hass, USER_INPUT)
-    assert result["type"] is FlowResultType.FORM
-    assert result["step_id"] == "character"
-    # Alphabetisch nach Anzeigename, Wert ist der Slug der API.
-    assert _realm_options(result) == [
-        {"value": "aegwynn", "label": "Aegwynn"},
-        {"value": "die-aldor", "label": "Die Aldor"},
-        {"value": "kult-der-verdammten", "label": "Kult der Verdammten"},
-    ]
-
-    result = await hass.config_entries.flow.async_configure(
-        result["flow_id"], CHARACTER_INPUT
-    )
-    assert result["type"] is FlowResultType.CREATE_ENTRY
-    assert result["title"] == "Testchar – Die Aldor"
-    assert result["data"]["realm"] == "die-aldor"
-    assert result["data"]["namespace_suffix"] == ""
-    # Profilabruf mit Namespace und Sprache.
-    _, url, _, _ = aioclient_mock.mock_calls[2]
-    assert url.path == "/profile/wow/character/die-aldor/testchar"
-    assert url.query["namespace"] == "profile-eu"
+    entry = main_entry(character_subentry())
+    entry.add_to_hass(hass)
+    assert await hass.config_entries.async_setup(entry.entry_id)
     await hass.async_block_till_done()
 
     assert hass.states.get("sensor.testchar_die_aldor_level").state == "90"
     assert hass.states.get("sensor.testchar_die_aldor_item_level").state == "701"
-    assert hass.states.get("sensor.testchar_die_aldor_mythic_rating").state == "2512.3"
     assert (
         hass.states.get("sensor.testchar_die_aldor_last_login").state
         == "2025-10-25T13:46:40+00:00"
@@ -78,107 +42,163 @@ async def test_flow_retail(hass: HomeAssistant, aioclient_mock) -> None:
     assert attrs["class"] == "Magier"
     assert attrs["guild"] == "Testgilde"
 
+    # Geraet und Entitaeten haengen am Untereintrag des Charakters.
+    (subentry_id,) = entry.subentries
+    device = dr.async_get(hass).async_get_device(identifiers={(DOMAIN, UID1)})
+    assert device.config_entries_subentries == {entry.entry_id: {subentry_id}}
+    entity = er.async_get(hass).async_get("sensor.testchar_die_aldor_level")
+    assert entity.config_subentry_id == subentry_id
+    assert entity.unique_id == f"{UID1}-level"
 
-async def test_flow_forever_probes_namespaces(
+
+async def test_failing_character_does_not_block_others(
     hass: HomeAssistant, aioclient_mock
 ) -> None:
     mock_token(aioclient_mock)
-    # Erster Kandidat ohne Realm-Liste, zweiter liefert sie.
-    aioclient_mock.get(REALMS_URL, params=_ns("dynamic-forever-eu"), status=404)
-    aioclient_mock.get(REALMS_URL, params=_ns("dynamic-camelot-eu"), json=REALMS)
-    aioclient_mock.get(API, params=_ns("profile-camelot-eu"), json=PROFILE)
-
-    result = await _start(hass, {**USER_INPUT, "game_version": "forever"})
-    assert result["step_id"] == "character"
-    result = await hass.config_entries.flow.async_configure(
-        result["flow_id"], CHARACTER_INPUT
-    )
-    assert result["type"] is FlowResultType.CREATE_ENTRY
-    assert result["data"]["namespace_suffix"] == "-camelot"
-    await hass.async_block_till_done()
-
-    # Kein Mythic+ bei Forever: Sensor wird gar nicht angelegt, kein Abruf.
-    assert hass.states.get("sensor.testchar_die_aldor_mythic_rating") is None
-    assert not any("mythic" in str(call[1]) for call in aioclient_mock.mock_calls)
-    assert hass.states.get("sensor.testchar_die_aldor_level").state == "90"
-
-
-async def test_flow_errors_step_user(hass: HomeAssistant, aioclient_mock) -> None:
-    mock_token(aioclient_mock, status=401)
-    result = await _start(hass, USER_INPUT)
-    assert result["errors"] == {"base": "invalid_auth"}
-
-    aioclient_mock.clear_requests()
-    mock_token(aioclient_mock)
-    aioclient_mock.get(REALMS_URL, status=503)
-    result = await _start(hass, USER_INPUT)
-    assert result["errors"] == {"base": "cannot_connect"}
-
-    aioclient_mock.clear_requests()
-    mock_token(aioclient_mock)
-    aioclient_mock.get(REALMS_URL, json={"realms": []})
-    result = await _start(hass, USER_INPUT)
-    assert result["errors"] == {"base": "realms_not_found"}
-
-    aioclient_mock.clear_requests()
-    mock_token(aioclient_mock)
-    aioclient_mock.get(REALMS_URL, status=404)
-    result = await _start(hass, {**USER_INPUT, "game_version": "forever"})
-    assert result["errors"] == {"base": "realms_not_found"}
-
-
-async def test_flow_character_not_found(hass: HomeAssistant, aioclient_mock) -> None:
-    mock_token(aioclient_mock)
-    aioclient_mock.get(REALMS_URL, json=REALMS)
-    aioclient_mock.get(API, status=404)
-
-    result = await _start(hass, USER_INPUT)
-    result = await hass.config_entries.flow.async_configure(
-        result["flow_id"], CHARACTER_INPUT
-    )
-    assert result["type"] is FlowResultType.FORM
-    assert result["step_id"] == "character"
-    assert result["errors"] == {"base": "character_not_found"}
-    # Realm-Liste bleibt fuer den naechsten Versuch erhalten.
-    assert len(_realm_options(result)) == 3
-
-
-async def test_no_mythic_runs_and_duplicate(
-    hass: HomeAssistant, aioclient_mock
-) -> None:
-    mock_token(aioclient_mock)
-    aioclient_mock.get(REALMS_URL, json=REALMS)
     aioclient_mock.get(API, json=PROFILE)
-    aioclient_mock.get(f"{API}/mythic-keystone-profile", status=404)
-
-    result = await _start(hass, USER_INPUT)
-    result = await hass.config_entries.flow.async_configure(
-        result["flow_id"], CHARACTER_INPUT
-    )
-    assert result["type"] is FlowResultType.CREATE_ENTRY
+    aioclient_mock.get(f"{API}/mythic-keystone-profile", json=MYTHIC)
+    aioclient_mock.get(API2, status=500)
+    entry = main_entry(character_subentry(), SECOND)
+    entry.add_to_hass(hass)
+    assert await hass.config_entries.async_setup(entry.entry_id)
     await hass.async_block_till_done()
-    # Ohne M+-Lauf: Sensor existiert, Wert unbekannt statt Fehler.
-    assert hass.states.get("sensor.testchar_die_aldor_mythic_rating").state == "unknown"
 
-    result = await _start(hass, USER_INPUT)
-    result = await hass.config_entries.flow.async_configure(
-        result["flow_id"], {**CHARACTER_INPUT, "character": "TESTCHAR"}
+    assert entry.state is config_entries.ConfigEntryState.LOADED
+    assert hass.states.get("sensor.testchar_die_aldor_level").state == "90"
+    assert hass.states.get("sensor.zweitchar_aegwynn_level").state == "unavailable"
+
+
+async def test_auth_error_starts_reauth(hass: HomeAssistant, aioclient_mock) -> None:
+    mock_token(aioclient_mock, status=401)
+    entry = main_entry(character_subentry())
+    entry.add_to_hass(hass)
+    assert await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+
+    flows = hass.config_entries.flow.async_progress_by_handler(DOMAIN)
+    assert [f["context"]["source"] for f in flows] == ["reauth"]
+    assert hass.states.get("sensor.testchar_die_aldor_level").state == "unavailable"
+
+
+async def test_remove_character(hass: HomeAssistant, aioclient_mock) -> None:
+    mock_token(aioclient_mock)
+    aioclient_mock.get(API, json=PROFILE)
+    aioclient_mock.get(f"{API}/mythic-keystone-profile", json=MYTHIC)
+    entry = main_entry(character_subentry())
+    entry.add_to_hass(hass)
+    assert await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+
+    (subentry_id,) = entry.subentries
+    hass.config_entries.async_remove_subentry(entry, subentry_id)
+    await hass.async_block_till_done()
+    assert dr.async_get(hass).async_get_device(identifiers={(DOMAIN, UID1)}) is None
+    assert er.async_get(hass).async_get("sensor.testchar_die_aldor_level") is None
+
+
+# Umbau von Version 1
+
+
+def _v1_entry(uid: str, title: str, realm: str, character: str) -> MockConfigEntry:
+    return MockConfigEntry(
+        domain=DOMAIN,
+        version=1,
+        title=title,
+        unique_id=uid,
+        data={
+            "client_id": "id",
+            "client_secret": "secret",
+            "region": "eu",
+            "game_version": "retail",
+            "realm": realm,
+            "character": character,
+            "namespace_suffix": "",
+        },
     )
-    assert result["type"] is FlowResultType.ABORT
-    assert result["reason"] == "already_configured"
 
 
-async def test_update_failure_marks_unavailable(
+def _register_v1(
+    hass: HomeAssistant, entry: MockConfigEntry, object_id: str
+) -> tuple[str, str]:
+    """Geraet und Level-Sensor so anlegen, wie Version 1 sie hinterlassen hat."""
+    device = dr.async_get(hass).async_get_or_create(
+        config_entry_id=entry.entry_id,
+        identifiers={(DOMAIN, entry.unique_id)},
+        name=entry.title,
+    )
+    entity = er.async_get(hass).async_get_or_create(
+        "sensor",
+        DOMAIN,
+        f"{entry.unique_id}-level",
+        config_entry=entry,
+        device_id=device.id,
+        suggested_object_id=f"{object_id}_level",
+    )
+    # Eigene Anpassung des Nutzers; muss den Umbau ueberstehen.
+    er.async_get(hass).async_update_entity(entity.entity_id, name="Eigener Name")
+    return entity.entity_id, device.id
+
+
+async def test_migrate_v1_entry(hass: HomeAssistant, aioclient_mock) -> None:
+    mock_token(aioclient_mock)
+    aioclient_mock.get(API, json=PROFILE)
+    aioclient_mock.get(f"{API}/mythic-keystone-profile", json=MYTHIC)
+    old = _v1_entry(UID1, "Testchar – Die Aldor", "die-aldor", "Testchar")
+    old.add_to_hass(hass)
+    entity_id, device_id = _register_v1(hass, old, "testchar_die_aldor")
+
+    assert await hass.config_entries.async_setup(old.entry_id)
+    await hass.async_block_till_done()
+
+    assert old.version == 2
+    assert old.state is config_entries.ConfigEntryState.LOADED
+    assert old.title == "Battle.net API"
+    assert old.unique_id == "id"
+    assert old.data == {"client_id": "id", "client_secret": "secret"}
+    (subentry,) = old.subentries.values()
+    assert subentry.unique_id == UID1
+    assert subentry.title == "Testchar – Die Aldor"
+    assert subentry.data["realm"] == "die-aldor"
+
+    # Entitaets-ID und unique_id bleiben, Zuordnung wechselt zum Untereintrag.
+    entity = er.async_get(hass).async_get(entity_id)
+    assert entity_id == "sensor.testchar_die_aldor_level"
+    assert entity.unique_id == f"{UID1}-level"
+    assert entity.config_subentry_id == subentry.subentry_id
+    assert entity.name == "Eigener Name"
+    # Dasselbe Geraet (gleiche ID), damit Automationen mit Geraete-ID weiterlaufen.
+    device = dr.async_get(hass).async_get_device(identifiers={(DOMAIN, UID1)})
+    assert device.id == device_id
+    assert entity.device_id == device_id
+    assert device.config_entries_subentries == {old.entry_id: {subentry.subentry_id}}
+    assert hass.states.get(entity_id).state == "90"
+
+
+async def test_migrate_merges_entries_of_same_client(
     hass: HomeAssistant, aioclient_mock
 ) -> None:
-    entry = MockConfigEntry(
-        domain=DOMAIN,
-        unique_id="eu-profile-eu-die-aldor-testchar",
-        title="Testchar – Die Aldor",
-        data={**USER_INPUT, **CHARACTER_INPUT, "namespace_suffix": ""},
-    )
-    entry.add_to_hass(hass)
     mock_token(aioclient_mock)
-    aioclient_mock.get(API, status=500)
-    assert not await hass.config_entries.async_setup(entry.entry_id)
-    assert entry.state is config_entries.ConfigEntryState.SETUP_RETRY
+    aioclient_mock.get(API, json=PROFILE)
+    aioclient_mock.get(f"{API}/mythic-keystone-profile", json=MYTHIC)
+    aioclient_mock.get(API2, json={**PROFILE, "name": "Zweitchar"})
+    aioclient_mock.get(f"{API2}/mythic-keystone-profile", json=MYTHIC)
+    first = _v1_entry(UID1, "Testchar – Die Aldor", "die-aldor", "Testchar")
+    second = _v1_entry(UID2, "Zweitchar – Aegwynn", "aegwynn", "Zweitchar")
+    first.add_to_hass(hass)
+    second.add_to_hass(hass)
+    _register_v1(hass, first, "testchar_die_aldor")
+    second_entity, second_device = _register_v1(hass, second, "zweitchar_aegwynn")
+
+    assert await hass.config_entries.async_setup(first.entry_id)
+    await hass.async_block_till_done()
+
+    entries = hass.config_entries.async_entries(DOMAIN)
+    assert entries == [first]
+    assert {s.unique_id for s in first.subentries.values()} == {UID1, UID2}
+    entity = er.async_get(hass).async_get(second_entity)
+    assert entity.config_entry_id == first.entry_id
+    assert entity.name == "Eigener Name"
+    assert hass.states.get(second_entity).state == "90"
+    device = dr.async_get(hass).async_get_device(identifiers={(DOMAIN, UID2)})
+    assert device.id == second_device
+    assert set(device.config_entries) == {first.entry_id}

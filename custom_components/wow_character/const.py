@@ -14,6 +14,13 @@ CONF_CHARACTER = "character"
 # Wird beim Einrichten ermittelt und gespeichert, z. B. "" (Retail) oder "-forever".
 CONF_NAMESPACE_SUFFIX = "namespace_suffix"
 
+# Ein Haupteintrag je API-Client, darunter ein Untereintrag je Charakter.
+SUBENTRY_CHARACTER = "character"
+MAIN_TITLE = "Battle.net API"
+
+# Globaler Token-Endpunkt; das Token gilt fuer alle Regionen ausser China.
+TOKEN_URL = "https://oauth.battle.net/token"
+
 # Profildaten aktualisiert Blizzard erst nach dem Ausloggen; haeufiger
 # abzufragen bringt nichts.
 UPDATE_INTERVAL = timedelta(minutes=15)
@@ -22,22 +29,18 @@ REQUEST_TIMEOUT = 15
 REGIONS = {
     "eu": {
         "api": "https://eu.api.blizzard.com",
-        "token": "https://eu.battle.net/oauth/token",
         "locale": "de_DE",
     },
     "us": {
         "api": "https://us.api.blizzard.com",
-        "token": "https://us.battle.net/oauth/token",
         "locale": "en_US",
     },
     "kr": {
         "api": "https://kr.api.blizzard.com",
-        "token": "https://kr.battle.net/oauth/token",
         "locale": "ko_KR",
     },
     "tw": {
         "api": "https://tw.api.blizzard.com",
-        "token": "https://tw.battle.net/oauth/token",
         "locale": "zh_TW",
     },
 }

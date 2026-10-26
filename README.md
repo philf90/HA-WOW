@@ -1,7 +1,17 @@
-# WoW Charakter – Skizze einer Home-Assistant-Integration
+# WoW Charakter
 
-Liest die Profildaten eines World-of-Warcraft-Charakters über die offizielle
-Battle.net API. Version 0.1.0, Skizze zum Weiterbauen.
+Home-Assistant-Integration für World-of-Warcraft-Charaktere. Liest die Profildaten
+über die offizielle Battle.net API. Version 0.2.0.
+
+## Aufbau
+
+- **Haupteintrag „Battle.net API“**: Client-ID und Secret eines API-Clients, einmalig.
+- **Untereintrag je Charakter**: Region, Spielversion, Realm und Name. Jeder Charakter
+  ist ein eigenes Gerät mit eigenen Sensoren. Beliebig viele Charaktere je API-Client,
+  auch aus verschiedenen Regionen und Spielversionen.
+
+Fällt die Abfrage eines Charakters aus, sind nur seine Sensoren nicht verfügbar; die
+anderen laufen weiter.
 
 ## Funktionsumfang
 
@@ -16,40 +26,60 @@ Battle.net API. Version 0.1.0, Skizze zum Weiterbauen.
 Klasse, Spezialisierung, Volk, Fraktion, Gilde und Realm stehen als Attribute am
 Level-Sensor.
 
-## Voraussetzungen
+## Installation
 
 1. Kostenlosen API-Client auf <https://develop.battle.net> anlegen, Client-ID und
    Secret notieren.
-2. Ordner `custom_components/wow_character` nach `config/custom_components/`
-   kopieren und Home Assistant neu starten.
-3. Einstellungen → Geräte & Dienste → Integration hinzufügen → „WoW Charakter“.
-   - Schritt 1: Client-ID, Secret, Region und Spielversion. Dabei wird die
-     Realm-Liste der Region geladen (`/data/wow/realm/index`).
+2. Über HACS: ⋮ → Benutzerdefinierte Repositories → `https://github.com/philf90/HA-WOW`,
+   Typ „Integration“, dann „WoW Charakter“ herunterladen. Ohne HACS: Ordner
+   `custom_components/wow_character` nach `config/custom_components/` kopieren.
+   Danach Home Assistant neu starten.
+3. Einstellungen → Geräte & Dienste → Integration hinzufügen → „WoW Charakter“:
+   Client-ID und Secret eingeben.
+4. Am Eintrag „Battle.net API“ **Charakter hinzufügen**:
+   - Schritt 1: Region und Spielversion. Dabei wird die Realm-Liste geladen
+     (`/data/wow/realm/index`).
    - Schritt 2: Realm aus der Liste wählen, Charakternamen eingeben.
-   Pro Charakter einen Eintrag anlegen.
 
-Automatisch getestet gegen Home Assistant 2026.2.3 (9 Tests). Am 26.10.2026 mit einem
-Retail-Charakter unter Home Assistant 2026.10.4 eingerichtet: Realm-Liste, Profil und
-Mythic+-Profil kamen von der echten API, ohne Fehler im Protokoll. Die regelmäßige
-Abfrage lief laut Debug-Protokoll 30 Minuten nach der Einrichtung erfolgreich
-(0,42 Sekunden), passend zum 15-Minuten-Takt. WoW Forever ist ungetestet.
+Neues Secret: am Eintrag „Battle.net API“ ⋮ → **Neu konfigurieren**. Lehnt Blizzard
+die Zugangsdaten ab, fragt Home Assistant von selbst nach neuen.
+
+## Update von 0.1.x
+
+Beim ersten Start übernimmt 0.2.0 die bisherigen Einträge (einer je Charakter)
+automatisch: Einträge mit derselben Client-ID werden zu einem Eintrag „Battle.net API“
+zusammengefasst, jeder Charakter wird ein Untereintrag. Geräte, Entitäts-IDs, eigene
+Anpassungen und Verlauf bleiben erhalten.
+
+**Vorher ein Backup anlegen.** Nach dem Umbau kann 0.1.x die Einträge nicht mehr
+lesen; ein Zurückgehen geht nur über das Backup.
+
+## Teststand
+
+- 0.2.0: 19 automatische Tests gegen Home Assistant 2026.2.3, darunter die Übernahme
+  von 0.1.x-Einträgen. Live noch nicht geprüft.
+- 0.1.x: am 26.10.2026 mit einem Retail-Charakter unter Home Assistant 2026.10.4 live
+  geprüft: Realm-Liste, Profil, Mythic+-Profil und die Abfrage alle 15 Minuten.
+- WoW Forever ist ungetestet.
+
+Seit 0.2.0 holt die Integration das Token über den globalen Endpunkt
+`https://oauth.battle.net/token` statt über einen Endpunkt je Region, wie die
+Bibliotheken `@blizzard-api/core` und `blizzard.js`.
 
 ## WoW Forever
 
 Blizzard hat den API-Namespace für Forever noch nicht dokumentiert (Start
-04.11.2026). Die Integration probiert beim Einrichten die Kandidaten aus
-`const.py` (`GAME_VERSIONS["forever"]["namespaces"]`) der Reihe nach: Der erste,
-unter dem die API eine Realm-Liste liefert, wird gespeichert. Die Kandidaten sind **unbestätigt**. Sobald Blizzard den
-Namespace nennt, dort eintragen; schlägt die Einrichtung fehl, ist das die
-wahrscheinlichste Ursache.
+04.11.2026). Beim Hinzufügen eines Forever-Charakters probiert die Integration die
+Kandidaten aus `const.py` (`GAME_VERSIONS["forever"]["namespaces"]`) der Reihe nach:
+Der erste, unter dem die API eine Realm-Liste liefert, wird gespeichert. Die
+Kandidaten sind **unbestätigt**. Sobald Blizzard den Namespace nennt, dort eintragen;
+schlägt das Hinzufügen fehl, ist das die wahrscheinlichste Ursache.
 
 ## Grenzen
 
 - Profildaten aktualisiert Blizzard erst, wenn sich der Charakter ausloggt.
   Abfrage alle 15 Minuten.
-- Client-ID und Secret werden je Charakter-Eintrag gespeichert.
-- Kein Erneut-Anmelden-Dialog, wenn das Secret ungültig wird: Eintrag löschen
-  und neu anlegen.
+- Die Region China wird nicht unterstützt.
 
 ## Tests
 
@@ -57,3 +87,7 @@ wahrscheinlichste Ursache.
 pip install pytest-homeassistant-custom-component==0.13.316
 pytest tests   # pytest.ini setzt asyncio_mode = auto
 ```
+
+## Lizenz
+
+MIT, siehe `LICENSE`.

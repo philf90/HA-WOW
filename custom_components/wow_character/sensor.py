@@ -87,12 +87,15 @@ async def async_setup_entry(
     entry: WowConfigEntry,
     async_add_entities: AddConfigEntryEntitiesCallback,
 ) -> None:
-    coordinator = entry.runtime_data
-    async_add_entities(
-        WowSensor(coordinator, description)
-        for description in SENSORS
-        if coordinator.mythic_plus or not description.mythic_plus_only
-    )
+    for subentry_id, coordinator in entry.runtime_data.coordinators.items():
+        async_add_entities(
+            (
+                WowSensor(coordinator, description)
+                for description in SENSORS
+                if coordinator.mythic_plus or not description.mythic_plus_only
+            ),
+            config_subentry_id=subentry_id,
+        )
 
 
 class WowSensor(CoordinatorEntity[WowCoordinator], SensorEntity):
@@ -104,11 +107,13 @@ class WowSensor(CoordinatorEntity[WowCoordinator], SensorEntity):
     ) -> None:
         super().__init__(coordinator)
         self.entity_description = description
-        entry = coordinator.config_entry
-        self._attr_unique_id = f"{entry.unique_id}-{description.key}"
+        # Gleiche IDs wie in Version 1 (dort die unique_id des Eintrags),
+        # damit Entitaets-IDs und Verlauf beim Umbau erhalten bleiben.
+        subentry = coordinator.subentry
+        self._attr_unique_id = f"{subentry.unique_id}-{description.key}"
         self._attr_device_info = DeviceInfo(
-            identifiers={(DOMAIN, entry.unique_id)},
-            name=entry.title,
+            identifiers={(DOMAIN, subentry.unique_id)},
+            name=subentry.title,
             manufacturer="Blizzard Entertainment",
             model=f"World of Warcraft ({coordinator.game_version})",
             entry_type=DeviceEntryType.SERVICE,
@@ -116,13 +121,15 @@ class WowSensor(CoordinatorEntity[WowCoordinator], SensorEntity):
 
     @property
     def native_value(self) -> Any:
+        if self.coordinator.data is None:
+            return None
         return self.entity_description.value_fn(self.coordinator.data)
 
     @property
     def extra_state_attributes(self) -> dict[str, Any] | None:
         # Klasse, Spezialisierung usw. nur am Level-Sensor, damit sie nicht
         # in jedem Sensor doppelt in der Datenbank landen.
-        if self.entity_description.key != "level":
+        if self.entity_description.key != "level" or self.coordinator.data is None:
             return None
         p = self.coordinator.data["profile"]
         return {

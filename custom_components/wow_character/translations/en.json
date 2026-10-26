@@ -2,32 +2,73 @@
   "config": {
     "step": {
       "user": {
-        "title": "World of Warcraft character",
-        "description": "Create a free API client at develop.battle.net and enter its client ID and secret.",
+        "title": "Battle.net API client",
+        "description": "Create a free API client at develop.battle.net and enter its client ID and secret. Add characters afterwards on this entry.",
         "data": {
           "client_id": "Client ID",
-          "client_secret": "Client secret",
-          "region": "Region",
-          "game_version": "Game version"
+          "client_secret": "Client secret"
         }
       },
-      "character": {
-        "title": "Choose character",
-        "description": "Pick the realm from the list and enter the character name.",
+      "reauth_confirm": {
+        "title": "Battle.net API: sign in again",
+        "description": "The API client was rejected. Enter a valid client ID and secret.",
         "data": {
-          "realm": "Realm",
-          "character": "Character"
+          "client_id": "Client ID",
+          "client_secret": "Client secret"
+        }
+      },
+      "reconfigure": {
+        "title": "Change Battle.net API client",
+        "description": "Enter the new client ID or secret. Your characters stay configured.",
+        "data": {
+          "client_id": "Client ID",
+          "client_secret": "Client secret"
         }
       }
     },
     "error": {
       "invalid_auth": "Client ID or secret is invalid.",
-      "character_not_found": "Character not found on this realm. Check the name; a character must have logged out once.",
-      "cannot_connect": "Battle.net API is not reachable.",
-      "realms_not_found": "No realm list found for this region and game version. For WoW Forever the API namespace may not be known yet."
+      "cannot_connect": "Battle.net API is not reachable."
     },
     "abort": {
-      "already_configured": "This character is already configured."
+      "already_configured": "This API client is already configured.",
+      "reauth_successful": "Signed in again.",
+      "reconfigure_successful": "API client updated."
+    }
+  },
+  "config_subentries": {
+    "character": {
+      "initiate_flow": {
+        "user": "Add character"
+      },
+      "entry_type": "Character",
+      "step": {
+        "user": {
+          "title": "Region and game version",
+          "description": "The realm list for this region and game version is loaded next.",
+          "data": {
+            "region": "Region",
+            "game_version": "Game version"
+          }
+        },
+        "character": {
+          "title": "Choose character",
+          "description": "Pick the realm from the list and enter the character name.",
+          "data": {
+            "realm": "Realm",
+            "character": "Character"
+          }
+        }
+      },
+      "error": {
+        "realms_not_found": "No realm list found for this region and game version. For WoW Forever the API namespace may not be known yet.",
+        "character_not_found": "Character not found on this realm. Check the name; a character must have logged out once.",
+        "cannot_connect": "Battle.net API is not reachable."
+      },
+      "abort": {
+        "already_configured": "This character is already configured.",
+        "entry_not_loaded": "The API client entry is not loaded. Check it before adding characters."
+      }
     }
   },
   "selector": {
