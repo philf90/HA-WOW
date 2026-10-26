@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="https://raw.githubusercontent.com/philf90/HA-WOW/main/assets/banner.png" alt="WoW Charakter – World of Warcraft für Home Assistant" width="100%">
+</p>
+
 # WoW Charakter
 
 [![Erstellt mit Claude Code](https://img.shields.io/badge/erstellt%20mit-Claude%20Code-D97757?logo=claude&logoColor=white)](https://claude.com/claude-code)
