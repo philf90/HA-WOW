@@ -1,7 +1,8 @@
 # Legt ein GitHub-Release an; HACS zeigt dessen Version an.
 # Start: Tag "v*" pushen oder den Workflow von Hand starten. Beim Start von Hand
 # wird der Tag aus der Version in manifest.json gebildet und mit angelegt.
-# Die Versionshinweise stehen in .github/release-notes/<tag>.md.
+# Die Versionshinweise stehen in .github/release-notes/<tag>.md. Gibt es das
+# Release schon, ersetzt ein erneuter Start nur dessen Versionshinweise.
 name: Release
 
 on:
@@ -30,12 +31,17 @@ jobs:
           test -f ".github/release-notes/$tag.md" || { echo "Versionshinweise .github/release-notes/$tag.md fehlen"; exit 1; }
           echo "tag=$tag" >> "$GITHUB_OUTPUT"
 
-      - name: Release anlegen
+      - name: Release anlegen oder Hinweise aktualisieren
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ steps.version.outputs.tag }}
         run: |
-          gh release create "$TAG" \
-            --title "WoW Charakter $TAG" \
-            --notes-file ".github/release-notes/$TAG.md" \
-            --target "$GITHUB_SHA"
+          # Gibt es das Release schon, werden nur die Versionshinweise ersetzt
+          if gh release view "$TAG" > /dev/null 2>&1; then
+            gh release edit "$TAG" --notes-file ".github/release-notes/$TAG.md"
+          else
+            gh release create "$TAG" \
+              --title "WoW Charakter $TAG" \
+              --notes-file ".github/release-notes/$TAG.md" \
+              --target "$GITHUB_SHA"
+          fi
