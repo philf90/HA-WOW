@@ -10,7 +10,7 @@
 Home-Assistant-Integration für World-of-Warcraft-Charaktere: Level, Itemlevel,
 Ausrüstung, Raid- und Mythic+-Fortschritt, Berufe, Ruf, Erfolge und mehr als
 Sensoren, dazu WoW-Marke, wöchentlicher Reset und Serverstatus. Die Daten kommen
-aus der offiziellen Battle.net API. Version 0.7.0.
+aus der offiziellen Battle.net API. Version 0.8.0.
 
 > **KI-Hinweis:** Dieses Projekt ist mit Claude Code entstanden. Code, Tests und
 > Dokumentation wurden von der KI geschrieben und mit automatischen Tests sowie in
@@ -116,6 +116,8 @@ die anderen laufen weiter.
 | Avatar, Ganzkörperbild | Bilder | 6 h | `character-media` |
 | Spezialisierung mit Heldentalenten und Talent-Code | Sensor | 1 h | `specializations` |
 | Titel (Anzahl, Liste als Attribut) | Sensor | 6 h | `titles` |
+| Level gestiegen | Ereignis | 15 min | Profil, `level` |
+| Gilde (Mitglieder; Name, Erfolgspunkte, Aktivitäten als Attribute), nur in einer Gilde | Sensor | 6 h, Aktivitäten 1 h | `/data/wow/guild/{realm}/{gilde}` und `…/activity` |
 | **Ausrüstung** | | | |
 | Ausrüstung, 18 Plätze (Kopf bis Schildhand) | Sensoren, Itemlevel; Symbol als Bild | 1 h | `equipment`; Symbol aus `media/item/{id}` |
 | Leere Sockel, Verzauberungen, Set-Fortschritt | Sensoren | 1 h | `equipment`, ausgewertet |
@@ -132,6 +134,8 @@ die anderen laufen weiter.
 | Erfolge (Anzahl, Punkte je Hauptkategorie als Attribut) | Sensor | 1 h | `achievements`; Kategorien aus `achievement-category/index` |
 | Neuer Erfolg | Ereignis | 1 h | `achievements`, `recent_events` |
 | Reittiere, Haustiere, Spielzeuge | Sensoren | 6 h | `collections/*`, Anzahl |
+| Neu gesammelt (Reittier, Haustier, Spielzeug, Titel) | Ereignis | 6 h | `collections/*`, `titles`, Vergleich zweier Abfragen |
+| Abgeschlossene Quests | Sensor | 6 h | `quests/completed`, Anzahl |
 | Spielstatistik (Werte des Statistik-Fensters) | Sensor, **zunächst aus** | 6 h | `achievements/statistics` |
 
 Mythic+-Werte gibt es nur für Retail. Hat der Charakter in der aktuellen Season
@@ -199,6 +203,37 @@ liefert z. B. zwei Fraktionen „Bilgewasserkartell“.
   lassen sich in Karten oder Templates über die `id` auswählen, z. B. 98 (Quests
   abgeschlossen) oder 60 (Tode insgesamt).
 
+### Ereignisse
+
+Ereignisse lösen nur für Neues seit dem Start von Home Assistant aus.
+
+- **Boss besiegt:** `boss`, `raid`, `difficulty`, `timestamp`.
+- **Neuer Erfolg:** `achievement`, `id`, `timestamp`, `icon` (Symbol des Erfolgs).
+- **Neu gesammelt:** Ereignistyp `mount`, `pet`, `toy` oder `title`, dazu `name`
+  und `id`. Die Integration vergleicht die Sammlungen zweier Abfragen (alle 6 h).
+  Reittiere und Spielzeuge gelten für den ganzen Account; sind mehrere
+  Charaktere eingerichtet, meldet jeder sie einmal.
+- **Level gestiegen:** `level` und `previous`.
+
+Kommen in einer Abfrage mehrere neue Einträge, löst jeder ein eigenes Ereignis aus.
+
+### Gilde
+
+Den Sensor gibt es nur für Charaktere, die beim Start von Home Assistant in einer
+Gilde sind. Zustand ist die Zahl der Mitglieder; Attribute `name`, `realm`,
+`faction`, `achievement_points`, `created` und `activities` (die zehn neuesten
+Einträge: Erfolge von Mitgliedern mit `character` und `achievement`, Bosskills
+mit `boss` und `difficulty`, je mit `type` und `timestamp`).
+
+### Symbole für Karten
+
+Aus den statischen Spieldaten, je Objekt einmal nachgeschlagen:
+
+- Level-Sensor: `class_icon` und `spec_icon`.
+- Beruf: Symbol des Berufs als Bild der Entität.
+- Raid-Fortschritt: `images` mit einem Bild je Raid.
+- Ereignis „Neuer Erfolg“: `icon`.
+
 ### Spezialisierung und Mythic+
 
 - **Spezialisierung:** Zustand ist die aktive Spezialisierung; `id`,
@@ -223,7 +258,7 @@ nicht, bleibt der englische Name. Raidnamen kommen weiterhin auf Englisch.
 ### Nicht in der Datenbank
 
 Lange Attribute speichert Home Assistant nicht im Verlauf: `tooltip`, `factions`,
-`runs`, `titles` und `statistics`. Die Werte stehen trotzdem im aktuellen Zustand.
+`runs`, `titles`, `statistics` und `activities`. Die Werte stehen trotzdem im aktuellen Zustand.
 
 ## Abfragen und Takte
 
@@ -238,6 +273,11 @@ Lange Attribute speichert Home Assistant nicht im Verlauf: `tooltip`, `factions`
   `@blizzard-api/core` und `blizzard.js`.
 - Einmal am Tag je Charakter der Status-Endpunkt (`…/status`, Feld `is_valid`),
   siehe [Ändern, Hinweise und Diagnose](#ändern-hinweise-und-diagnose).
+- Spielwelt: WoW-Marke, Reset, Season und jeder Realm werden einzeln abgefragt.
+  Fällt eine Abfrage aus, behält ihr Wert den letzten Stand; nicht verfügbar wird
+  die Spielwelt erst, wenn alle ausfallen.
+- Die Realm-Liste beim Hinzufügen zeigt keine internen Realms von Blizzard (z. B.
+  „EU1A Account Realm“, „EU4A1-INST“, „RDB EU“).
 
 ## Dashboard-Karten
 
@@ -311,6 +351,8 @@ Start Daten liefert.
 Automatische Tests laufen gegen Home Assistant 2026.2.3; live geprüft wurde unter
 Home Assistant 2026.10.4 mit Retail-Charakteren der Region EU.
 
+- **0.8.x:** 84 automatische Tests, hassfest ohne Fehler. Die Live-Prüfung steht
+  noch aus.
 - **0.7.x:** 71 automatische Tests, hassfest ohne Fehler. 0.7.0 am 27.10.2026
   über HACS installiert und live geprüft: keine Meldung der Integration im Log,
   kein Reparaturhinweis, keine Entität nicht verfügbar; alle fünf

@@ -442,6 +442,7 @@ def mock_api(
         "/specializations": SPECIALIZATIONS,
         "/titles": TITLES,
         "/achievements/statistics": GAME_STATISTICS,
+        "/quests/completed": {"quests": [{"id": 1}, {"id": 2}, {"id": 3}, {"id": 4}]},
     }
     world = {
         "/token/index": {"price": 3456789},
@@ -473,6 +474,10 @@ def mock_api(
             "assets": [{"key": "icon", "value": "https://render.example/helm.jpg"}]
         },
         "/media/item/6002": 404,
+        # Symbole fuer Karten (Beruf; Klasse, Raid und Erfolg haben hier keine ID)
+        "/media/profession/164": {
+            "assets": [{"key": "icon", "value": "https://render.example/schmied.jpg"}]
+        },
         "/connected-realm/1234": {
             "status": {"type": "UP"},
             "population": {"name": "Hoch", "type": "HIGH"},

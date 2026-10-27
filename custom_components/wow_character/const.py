@@ -58,6 +58,12 @@ DETAIL_ENDPOINTS: dict[str, tuple[str, int]] = {
     "titles": ("titles", 360),
     # Statistik-Fenster des Spiels; grosse Antwort, deshalb selten.
     "game_statistics": ("achievements/statistics", 360),
+    # Liste aller abgeschlossenen Quests; grosse Antwort, deshalb selten.
+    "quests": ("quests/completed", 360),
+    # Gilde des Charakters; {guild} steht fuer "<realm>/<gilde>" aus dem Profil.
+    # Ohne Gilde wird nichts abgefragt.
+    "guild": ("{guild}", 360),
+    "guild_activity": ("{guild}/activity", 60),
 }
 
 # Ausruestungsplaetze in der Reihenfolge des Arsenals (links, rechts, Waffen).

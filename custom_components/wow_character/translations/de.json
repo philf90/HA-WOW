@@ -260,6 +260,12 @@
       },
       "game_statistics": {
         "name": "Spielstatistik"
+      },
+      "quests_completed": {
+        "name": "Abgeschlossene Quests"
+      },
+      "guild": {
+        "name": "Gilde"
       }
     },
     "binary_sensor": {
@@ -295,6 +301,29 @@
           "event_type": {
             "state": {
               "achievement": "Neuer Erfolg"
+            }
+          }
+        }
+      },
+      "new_collectible": {
+        "name": "Neu gesammelt",
+        "state_attributes": {
+          "event_type": {
+            "state": {
+              "mount": "Reittier",
+              "pet": "Haustier",
+              "toy": "Spielzeug",
+              "title": "Titel"
+            }
+          }
+        }
+      },
+      "level_up": {
+        "name": "Level gestiegen",
+        "state_attributes": {
+          "event_type": {
+            "state": {
+              "level_up": "Level gestiegen"
             }
           }
         }

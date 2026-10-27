@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 import time
 from typing import Any
 from urllib.parse import quote
@@ -9,6 +10,15 @@ from urllib.parse import quote
 import aiohttp
 
 from .const import REGIONS, REQUEST_TIMEOUT, TOKEN_URL
+
+# Interne Realms von Blizzard in der Realm-Liste (Stand EU, Oktober 2026),
+# z. B. "EU1A Account Realm" (eu1a-account-realm), "EU4A1-INST-BFA"
+# (eu4a1instbfa), "EU Arena Pass CSBG", "RDB EU" und "zzz_RDB EU".
+_INTERNAL_REALM = re.compile(r"^(?:(?:eu|us|kr|tw)(?:\d|-arena-pass)|rdb-|zzz)")
+
+
+def is_internal_realm(slug: str) -> bool:
+    return bool(_INTERNAL_REALM.match(slug))
 
 
 class BattleNetError(Exception):
@@ -93,8 +103,14 @@ class BattleNetClient:
                 if resp.status != 200:
                     raise BattleNetError(f"{path}: HTTP {resp.status}")
                 return await resp.json()
-        except (aiohttp.ClientError, TimeoutError) as err:
-            raise BattleNetError(f"{path}: {err}") from err
+        except TimeoutError as err:
+            # TimeoutError hat keinen eigenen Text; ohne diesen Zusatz endete
+            # die Meldung im Log nach dem Pfad.
+            raise BattleNetError(
+                f"{path}: keine Antwort nach {REQUEST_TIMEOUT} s"
+            ) from err
+        except aiohttp.ClientError as err:
+            raise BattleNetError(f"{path}: {type(err).__name__} {err}".strip()) from err
 
     @staticmethod
     def namespace(kind: str, suffix: str, region: str) -> str:
@@ -114,7 +130,9 @@ class BattleNetClient:
             self.namespace("dynamic", suffix, region),
         )
         realms = [
-            r for r in data.get("realms") or [] if r.get("slug") and r.get("name")
+            r
+            for r in data.get("realms") or []
+            if r.get("slug") and r.get("name") and not is_internal_realm(r["slug"])
         ]
         if not realms:
             raise BattleNetNotFound("leere Realm-Liste")
@@ -156,6 +174,14 @@ class BattleNetClient:
         """Spieldaten im static-Namespace, z. B. "profession/164"."""
         return await self._get(
             region, f"/data/wow/{path}", self.namespace("static", suffix, region)
+        )
+
+    async def get_profile_data(
+        self, region: str, suffix: str, path: str
+    ) -> dict[str, Any]:
+        """Daten im profile-Namespace unter /data/wow, z. B. Gilden."""
+        return await self._get(
+            region, f"/data/wow/{path}", self.namespace("profile", suffix, region)
         )
 
     async def get_game_data(

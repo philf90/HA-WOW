@@ -73,6 +73,14 @@ DETAIL_KEYS: dict[str, str] = {
     "specialization": "specializations",
     "titles": "titles",
     "game_statistics": "game_statistics",
+    "quests_completed": "quests",
+    "guild": "guild",
+    "new_collectible": "mounts",
+}
+# Entitaeten, die ausser ihrem Endpunkt aus DETAIL_KEYS weitere brauchen.
+EXTRA_ENDPOINTS: dict[str, tuple[str, ...]] = {
+    "guild": ("guild_activity",),
+    "new_collectible": ("pets", "toys", "titles"),
 }
 PROFESSION_PREFIX = "profession-"
 # Ein Sensor je Ausruestungsplatz, z. B. "equipment_head".
@@ -191,6 +199,8 @@ class WowCoordinator(_CharacterMixin, DataUpdateCoordinator[dict[str, Any]]):
         # "character_changed" oder "character_invalid", solange Blizzard die
         # Daten nicht mehr diesem Charakter zuordnet; die Details warten dann.
         self.identity_problem: str | None = None
+        # Symbole von Klasse und Spezialisierung
+        self._media = MediaCache(self)
 
     async def _async_update_data(self) -> dict[str, Any]:
         args = (self.region, self.realm, self.character, self.suffix)
@@ -228,7 +238,21 @@ class WowCoordinator(_CharacterMixin, DataUpdateCoordinator[dict[str, Any]]):
 
         # Aktuelle M+-Season der Region, damit die Wertung nur fuer sie gilt.
         season_id = ((self._world.data if self._world else None) or {}).get("season_id")
-        return {"profile": profile, "mythic": mythic, "season_id": season_id}
+        await self._media.lookup(
+            [
+                ("playable-class", (profile.get("character_class") or {}).get("id")),
+                (
+                    "playable-specialization",
+                    (profile.get("active_spec") or {}).get("id"),
+                ),
+            ]
+        )
+        return {
+            "profile": profile,
+            "mythic": mythic,
+            "season_id": season_id,
+            "media_urls": self._media.urls(),
+        }
 
     async def _check_identity(self, profile: dict[str, Any]) -> None:
         """Gleicher Charakter wie beim Einrichten und laut Blizzard noch gueltig?
@@ -347,6 +371,8 @@ class WowDetailCoordinator(_CharacterMixin, DataUpdateCoordinator[dict[str, Any]
         self._item_icons: dict[int, str] = {}
         # Hauptkategorien der Erfolge: ID -> Name in der Sprache der Region.
         self._achievement_roots: dict[int, str] = {}
+        # Symbole aus den statischen Spieldaten, z. B. "profession/164" -> URL.
+        self._media = MediaCache(self)
 
     def needed_endpoints(self) -> set[str]:
         """Endpunkte mit mindestens einer aktiven oder noch nicht angelegten Entitaet."""
@@ -359,12 +385,14 @@ class WowDetailCoordinator(_CharacterMixin, DataUpdateCoordinator[dict[str, Any]
         ):
             if not entry.unique_id.startswith(prefix):
                 continue
-            endpoint = endpoint_for_key(entry.unique_id[len(prefix) :])
+            key = entry.unique_id[len(prefix) :]
+            endpoint = endpoint_for_key(key)
             if endpoint is None:
                 continue
-            registered.add(endpoint)
+            endpoints = {endpoint, *EXTRA_ENDPOINTS.get(key, ())}
+            registered |= endpoints
             if entry.disabled_by is None:
-                enabled.add(endpoint)
+                enabled |= endpoints
         needed = enabled | (set(DETAIL_ENDPOINTS) - registered)
         if not self.mythic_plus:
             needed.discard("mythic_season")
@@ -402,11 +430,23 @@ class WowDetailCoordinator(_CharacterMixin, DataUpdateCoordinator[dict[str, Any]
                     data[endpoint] = None
                     continue
                 resource = resource.format(season=season)
+            guild = None
+            if "{guild}" in resource:
+                guild = p.guild_path((self._profile.data or {}).get("profile"))
+                if guild is None:
+                    # Ohne Gilde gibt es nichts abzufragen.
+                    data[endpoint] = None
+                    continue
             attempted += 1
             try:
-                data[endpoint] = await self.client.get_character_resource(
-                    self.region, self.realm, self.character, self.suffix, resource
-                )
+                if guild is not None:
+                    data[endpoint] = await self.client.get_profile_data(
+                        self.region, self.suffix, resource.format(guild=guild)
+                    )
+                else:
+                    data[endpoint] = await self.client.get_character_resource(
+                        self.region, self.realm, self.character, self.suffix, resource
+                    )
             except BattleNetNotFound:
                 data[endpoint] = None
             except BattleNetAuthError as err:
@@ -429,7 +469,31 @@ class WowDetailCoordinator(_CharacterMixin, DataUpdateCoordinator[dict[str, Any]
         if data.get("achievements") is not None:
             await self._lookup_achievement_roots()
         data["achievement_roots"] = dict(self._achievement_roots)
+        await self._media.lookup(
+            [
+                *(("profession", i) for i in self._profession_ids(data)),
+                *(
+                    ("journal-instance", i)
+                    for i in p.raid_instances(data.get("raids")).values()
+                ),
+                *(
+                    ("achievement", a["id"])
+                    for a in p.recent_achievements(data.get("achievements"))[-5:]
+                ),
+            ]
+        )
+        data["media_urls"] = self._media.urls()
         return data
+
+    @staticmethod
+    def _profession_ids(data: dict[str, Any]) -> list[int]:
+        return list(
+            p.professions(
+                data.get("professions"),
+                data.get("profession_names"),
+                data.get("tier_names"),
+            )
+        )
 
     async def _lookup_achievement_roots(self) -> None:
         """Hauptkategorien der Erfolge einmalig nachschlagen.
@@ -510,6 +574,39 @@ class WowDetailCoordinator(_CharacterMixin, DataUpdateCoordinator[dict[str, Any]
                         self._tier_names[tier["id"]] = tier_name
 
 
+class MediaCache:
+    """Symbole aus den statischen Spieldaten, je Objekt nur einmal abgefragt.
+
+    Schluessel wie der Pfad unter /data/wow/media, z. B. "playable-class/8".
+    Faellt eine Abfrage aus, fehlt das Symbol bis zum naechsten Takt.
+    """
+
+    def __init__(self, coordinator: _CharacterMixin) -> None:
+        self._coordinator = coordinator
+        self._urls: dict[str, str] = {}
+
+    async def lookup(self, items: list[tuple[str, Any]]) -> None:
+        c = self._coordinator
+        for kind, obj_id in items:
+            key = f"{kind}/{obj_id}"
+            if not isinstance(obj_id, int) or key in self._urls:
+                continue
+            try:
+                media = await c.client.get_static_data(
+                    c.region, c.suffix, f"media/{key}"
+                )
+            except BattleNetAuthError as err:
+                raise _auth_failed(err) from err
+            except BattleNetError as err:
+                _LOGGER.debug("Symbol %s fehlt: %s", key, err)
+                continue
+            if url := p.icon_url(media):
+                self._urls[key] = url
+
+    def urls(self) -> dict[str, str]:
+        return dict(self._urls)
+
+
 class WowWorldCoordinator(DataUpdateCoordinator[dict[str, Any]]):
     """Spielwelt einer Region: WoW-Marke, Reset, M+-Season und Serverstatus.
 
@@ -556,35 +653,55 @@ class WowWorldCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             return None
 
     async def _async_update_data(self) -> dict[str, Any]:
+        """Jede Teilabfrage fuer sich: Faellt eine aus, bleibt ihr alter Wert.
+
+        Nur wenn alle ausfallen, gilt die Abfrage als gescheitert.
+        """
         now = time.monotonic()
         data: dict[str, Any] = dict(self.data or {"realms": {}})
         data["realms"] = dict(data.get("realms") or {})
-        try:
-            if self._due("token", 60, now):
-                token = await self._get("token/index")
-                price = (token or {}).get("price")
-                # Preis in Kupfer: 1 Gold = 100 Silber = 10.000 Kupfer.
-                data["token"] = price // 10000 if isinstance(price, int) else None
-                self._fetched["token"] = now
+        parts: list[tuple[str, Any]] = []
+        if self._due("token", 60, now):
+            parts.append(("token", self._token))
+        if self.mythic_plus and self._due("period", 60, now):
+            parts.append(("period", self._weekly_reset))
+        if self.mythic_plus and self._due("season", 360, now):
+            parts.append(("season", self._season))
+        realms = sorted(self.realms)
 
-            if self.mythic_plus and self._due("period", 60, now):
-                data["reset"] = await self._weekly_reset()
-                self._fetched["period"] = now
-
-            if self.mythic_plus and self._due("season", 360, now):
-                index = await self._get("mythic-keystone/season/index")
-                data["season_id"] = ((index or {}).get("current_season") or {}).get(
-                    "id"
-                )
-                self._fetched["season"] = now
-
-            for slug in sorted(self.realms):
+        errors: list[BattleNetError] = []
+        for key, fetch in parts:
+            try:
+                value = await fetch()
+            except BattleNetAuthError as err:
+                raise _auth_failed(err) from err
+            except BattleNetError as err:
+                errors.append(err)
+                _LOGGER.debug("%s: %s fehlgeschlagen: %s", self.name, key, err)
+                continue
+            data[{"period": "reset", "season": "season_id"}.get(key, key)] = value
+            self._fetched[key] = now
+        for slug in realms:
+            try:
                 data["realms"][slug] = await self._realm_status(slug)
-        except BattleNetAuthError as err:
-            raise _auth_failed(err) from err
-        except BattleNetError as err:
-            raise _update_failed(err) from err
+            except BattleNetAuthError as err:
+                raise _auth_failed(err) from err
+            except BattleNetError as err:
+                errors.append(err)
+                _LOGGER.debug("%s: Realm %s fehlgeschlagen: %s", self.name, slug, err)
+        if errors and len(errors) == len(parts) + len(realms):
+            raise _update_failed(errors[0])
         return data
+
+    async def _token(self) -> int | None:
+        token = await self._get("token/index")
+        price = (token or {}).get("price")
+        # Preis in Kupfer: 1 Gold = 100 Silber = 10.000 Kupfer.
+        return price // 10000 if isinstance(price, int) else None
+
+    async def _season(self) -> int | None:
+        index = await self._get("mythic-keystone/season/index")
+        return ((index or {}).get("current_season") or {}).get("id")
 
     async def _weekly_reset(self) -> datetime | None:
         index = await self._get("mythic-keystone/period/index")

@@ -53,7 +53,7 @@ def test_entity_keys_translated() -> None:
             d.translation_key for d in (*sensor.PROFILE_SENSORS, *sensor.DETAIL_SENSORS)
         },
         "binary_sensor": {"realm_status", "realm_queue"},
-        "event": {"boss_killed", "new_achievement"},
+        "event": {"boss_killed", "new_achievement", "new_collectible", "level_up"},
         "image": {"avatar", "full_body"},
     }
     # Ein Sensor je Ausruestungsplatz

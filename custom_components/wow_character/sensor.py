@@ -71,6 +71,7 @@ def _level_attrs(data: dict[str, Any]) -> dict[str, Any]:
     # Klasse, Spezialisierung usw. nur am Level-Sensor, damit sie nicht
     # in jedem Sensor doppelt in der Datenbank landen.
     prof = data["profile"]
+    media = data.get("media_urls") or {}
     return {
         "class": p.name_of(prof.get("character_class")),
         "spec": p.name_of(prof.get("active_spec")),
@@ -79,6 +80,13 @@ def _level_attrs(data: dict[str, Any]) -> dict[str, Any]:
         "guild": p.name_of(prof.get("guild")),
         "realm": p.name_of(prof.get("realm")),
         "title": p.active_title(prof),
+        # Symbole aus den statischen Spieldaten, fuer Karten
+        "class_icon": media.get(
+            f"playable-class/{(prof.get('character_class') or {}).get('id')}"
+        ),
+        "spec_icon": media.get(
+            f"playable-specialization/{(prof.get('active_spec') or {}).get('id')}"
+        ),
     }
 
 
@@ -140,6 +148,18 @@ PROFILE_SENSORS: tuple[WowSensorDescription, ...] = (
 # Detail-Sensoren (stuendlich bzw. alle 6 Stunden)
 
 
+def _raid_attrs(d: dict[str, Any], difficulty: str) -> dict[str, Any]:
+    attrs = p.raid_progress(d.get("raids"), difficulty)[1]
+    media = d.get("media_urls") or {}
+    # Bild je Raid aus dem Dungeonkompendium, fuer Karten
+    attrs["images"] = {
+        name: media.get(f"journal-instance/{instance_id}")
+        for name, instance_id in p.raid_instances(d.get("raids")).items()
+        if name in attrs.get("raids", {})
+    }
+    return attrs
+
+
 def _raid_sensor(key: str) -> WowSensorDescription:
     difficulty = p.RAID_DIFFICULTIES[key]
     return WowSensorDescription(
@@ -147,7 +167,7 @@ def _raid_sensor(key: str) -> WowSensorDescription:
         translation_key=key,
         state_class=SensorStateClass.MEASUREMENT,
         value_fn=lambda d: p.raid_progress(d.get("raids"), difficulty)[0],
-        attrs_fn=lambda d: p.raid_progress(d.get("raids"), difficulty)[1],
+        attrs_fn=lambda d: _raid_attrs(d, difficulty),
     )
 
 
@@ -337,6 +357,17 @@ DETAIL_SENSORS: tuple[WowSensorDescription, ...] = (
         ),
         attrs_fn=lambda d: {"statistics": p.game_statistics(d.get("game_statistics"))},
     ),
+    WowSensorDescription(
+        key="quests_completed",
+        translation_key="quests_completed",
+        state_class=SensorStateClass.MEASUREMENT,
+        # Nur die Anzahl: Die Liste umfasst tausende Quests.
+        value_fn=lambda d: (
+            _count((d.get("quests") or {}).get("quests"))
+            if d.get("quests") is not None
+            else None
+        ),
+    ),
 )
 
 
@@ -376,6 +407,9 @@ async def async_setup_entry(
             entities += [WowEquipmentSensor(detail, slot) for slot in EQUIPMENT_SLOTS]
         if detail_available(detail, "reputation"):
             entities.append(WowReputationSensor(detail))
+        # Gilde: nur fuer Charaktere, die beim Start in einer Gilde sind.
+        if p.guild_path((coordinator.data or {}).get("profile")):
+            entities.append(WowGuildSensor(detail))
         async_add_entities(entities, config_subentry_id=subentry_id)
 
     for world in runtime.worlds.values():
@@ -454,6 +488,11 @@ class WowProfessionSensor(WowCharacterEntity, SensorEntity):
         return self._info().get("skill")
 
     @property
+    def entity_picture(self) -> str | None:
+        media = (self.coordinator.data or {}).get("media_urls") or {}
+        return media.get(f"profession/{self._prof_id}")
+
+    @property
     def extra_state_attributes(self) -> dict[str, Any]:
         info = self._info()
         return {"tier": info.get("tier"), "max_skill": info.get("max_skill")}
@@ -525,6 +564,40 @@ class WowReputationSensor(WowCharacterEntity, SensorEntity):
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
         return {"factions": self._factions() or []}
+
+
+class WowGuildSensor(WowCharacterEntity, SensorEntity):
+    """Mitglieder der Gilde; Name, Erfolgspunkte und Aktivitaeten als Attribute."""
+
+    _attr_translation_key = "guild"
+    _attr_state_class = SensorStateClass.MEASUREMENT
+    # Aktivitaeten wechseln oft und sind nur fuer Karten gedacht.
+    _unrecorded_attributes = frozenset({"activities"})
+
+    def __init__(self, coordinator: WowDetailCoordinator) -> None:
+        super().__init__(coordinator, "guild")
+
+    def _guild(self) -> dict[str, Any] | None:
+        return (self.coordinator.data or {}).get("guild")
+
+    @property
+    def native_value(self) -> int | None:
+        return (self._guild() or {}).get("member_count")
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        guild = self._guild() or {}
+        created = p.timestamp(guild.get("created_timestamp"))
+        return {
+            "name": guild.get("name"),
+            "realm": p.name_of(guild.get("realm")),
+            "faction": p.name_of(guild.get("faction")),
+            "achievement_points": guild.get("achievement_points"),
+            "created": created.isoformat() if created else None,
+            "activities": p.guild_activities(
+                (self.coordinator.data or {}).get("guild_activity")
+            ),
+        }
 
 
 class WowTokenSensor(WowWorldEntity, SensorEntity):

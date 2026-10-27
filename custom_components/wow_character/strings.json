@@ -260,6 +260,12 @@
       },
       "game_statistics": {
         "name": "Game statistics"
+      },
+      "quests_completed": {
+        "name": "Completed quests"
+      },
+      "guild": {
+        "name": "Guild"
       }
     },
     "binary_sensor": {
@@ -295,6 +301,29 @@
           "event_type": {
             "state": {
               "achievement": "New achievement"
+            }
+          }
+        }
+      },
+      "new_collectible": {
+        "name": "New collectible",
+        "state_attributes": {
+          "event_type": {
+            "state": {
+              "mount": "Mount",
+              "pet": "Pet",
+              "toy": "Toy",
+              "title": "Title"
+            }
+          }
+        }
+      },
+      "level_up": {
+        "name": "Level up",
+        "state_attributes": {
+          "event_type": {
+            "state": {
+              "level_up": "Level up"
             }
           }
         }

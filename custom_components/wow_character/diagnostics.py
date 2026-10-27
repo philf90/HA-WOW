@@ -94,6 +94,11 @@ def _shrink(endpoint: str, data: Any) -> Any:
     if endpoint == "reputations":
         items = data.get("reputations") or []
         return {"count": len(items), "first": items[:3]}
+    if endpoint == "quests":
+        return {"count": len(data.get("quests") or [])}
+    if endpoint == "guild_activity":
+        items = data.get("activities") or []
+        return {"count": len(items), "first": items[:3]}
     if endpoint in ("mounts", "pets", "toys"):
         items = data.get(endpoint) or []
         return {"count": len(items), "first": items[:2]}

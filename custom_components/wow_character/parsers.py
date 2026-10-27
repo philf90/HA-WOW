@@ -114,9 +114,11 @@ def recent_achievements(achievements: dict[str, Any] | None) -> list[dict[str, A
     for event in (achievements or {}).get("recent_events") or []:
         ts = event.get("timestamp")
         if isinstance(ts, int):
+            achievement = event.get("achievement") or {}
             events.append(
                 {
-                    "achievement": name_of(event.get("achievement")),
+                    "achievement": name_of(achievement),
+                    "id": achievement.get("id"),
                     "timestamp": ts,
                 }
             )
@@ -604,3 +606,76 @@ def game_statistics(data: dict[str, Any] | None) -> list[dict[str, Any]]:
             if isinstance(sub, dict):
                 add(sub.get("statistics"), f"{cat.get('name')} / {sub.get('name')}")
     return result
+
+
+def raid_instances(raids: dict[str, Any] | None) -> dict[str, int]:
+    """Raids der neuesten Erweiterung: Name -> ID der Journal-Instanz."""
+    expansion = _current_expansion(raids) or {}
+    result = {}
+    for instance in expansion.get("instances") or []:
+        info = (instance or {}).get("instance") or {}
+        if isinstance(info.get("id"), int) and (name := name_of(info)):
+            result[name] = info["id"]
+    return result
+
+
+# Sammlungen: Endpunkt -> (Liste in der Antwort, Feld mit Name und ID).
+# Haustiere zaehlen je Exemplar (eigene "id"), Name und Art aus "species".
+COLLECTIBLES = {
+    "mounts": ("mounts", "mount"),
+    "pets": ("pets", "species"),
+    "toys": ("toys", "toy"),
+    "titles": ("titles", None),
+}
+
+
+def collectibles(
+    endpoint: str, data: dict[str, Any] | None
+) -> dict[int, dict[str, Any]]:
+    """Eintraege einer Sammlung nach eindeutiger ID, mit Name und ID des Objekts."""
+    key, inner = COLLECTIBLES[endpoint]
+    result = {}
+    for entry in (data or {}).get(key) or []:
+        if not isinstance(entry, dict):
+            continue
+        obj = entry.get(inner) if inner else entry
+        if not isinstance(obj, dict):
+            continue
+        # Haustier-Exemplare haben eine eigene ID, sonst gilt die des Objekts.
+        uid = entry.get("id") if endpoint == "pets" else obj.get("id")
+        if isinstance(uid, int):
+            result[uid] = {"name": name_of(obj), "id": obj.get("id")}
+    return result
+
+
+_GUILD_HREF = re.compile(r"/data/wow/guild/([^/?]+)/([^/?]+)")
+
+
+def guild_path(profile: dict[str, Any] | None) -> str | None:
+    """ "guild/<realm>/<gilde>" aus dem Link im Profil; None ohne Gilde."""
+    href = (((profile or {}).get("guild") or {}).get("key") or {}).get("href") or ""
+    match = _GUILD_HREF.search(href)
+    return f"guild/{match.group(1)}/{match.group(2)}" if match else None
+
+
+def guild_activities(
+    data: dict[str, Any] | None, limit: int = 10
+) -> list[dict[str, Any]]:
+    """Neueste Aktivitaeten der Gilde: Erfolge von Mitgliedern und Bosskills."""
+    result = []
+    for entry in (data or {}).get("activities") or []:
+        if not isinstance(entry, dict) or not isinstance(entry.get("timestamp"), int):
+            continue
+        item: dict[str, Any] = {
+            "type": (entry.get("activity") or {}).get("type"),
+            "timestamp": timestamp(entry["timestamp"]).isoformat(),
+        }
+        if achievement := entry.get("character_achievement"):
+            item["character"] = name_of(achievement.get("character"))
+            item["achievement"] = name_of(achievement.get("achievement"))
+        if encounter := entry.get("encounter_completed"):
+            item["boss"] = name_of(encounter.get("encounter"))
+            item["difficulty"] = (encounter.get("mode") or {}).get("name")
+        result.append(item)
+    result.sort(key=lambda i: i["timestamp"], reverse=True)
+    return result[:limit]
