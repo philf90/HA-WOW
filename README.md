@@ -351,8 +351,16 @@ Start Daten liefert.
 Automatische Tests laufen gegen Home Assistant 2026.2.3; live geprüft wurde unter
 Home Assistant 2026.10.4 mit Retail-Charakteren der Region EU.
 
-- **0.8.x:** 84 automatische Tests, hassfest ohne Fehler. Die Live-Prüfung steht
-  noch aus.
+- **0.8.x:** 84 automatische Tests, hassfest ohne Fehler. 0.8.0 am 27.10.2026
+  über HACS installiert und live geprüft: keine Meldung der Integration im Log,
+  kein Reparaturhinweis, keine Entität nicht verfügbar. Die Ereignisse „Neu
+  gesammelt“ und „Level gestiegen“ sind angelegt; ausgelöst hat noch keines, weil
+  seit dem Start nichts Neues dazukam. Symbole von Klasse, Spezialisierung und
+  Berufen sowie die Raid-Bilder kommen an. Abgeschlossene Quests: 2.479 laut
+  `quests/completed`, die Spielstatistik „Quests abgeschlossen“ (ID 98) nennt
+  2.505. Woher die 26 Quests Unterschied kommen, ist nicht geklärt; vermutlich
+  zählt die Statistik wiederholbare Quests mehrfach. Nicht live geprüft: der
+  Gilden-Sensor (kein Charakter in einer Gilde).
 - **0.7.x:** 71 automatische Tests, hassfest ohne Fehler. 0.7.0 am 27.10.2026
   über HACS installiert und live geprüft: keine Meldung der Integration im Log,
   kein Reparaturhinweis, keine Entität nicht verfügbar; alle fünf
