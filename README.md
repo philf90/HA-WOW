@@ -311,8 +311,16 @@ Start Daten liefert.
 Automatische Tests laufen gegen Home Assistant 2026.2.3; live geprüft wurde unter
 Home Assistant 2026.10.4 mit Retail-Charakteren der Region EU.
 
-- **0.7.x:** 71 automatische Tests, hassfest ohne Fehler. Die Live-Prüfung steht
-  noch aus.
+- **0.7.x:** 71 automatische Tests, hassfest ohne Fehler. 0.7.0 am 27.10.2026
+  über HACS installiert und live geprüft: keine Meldung der Integration im Log,
+  kein Reparaturhinweis, keine Entität nicht verfügbar; alle fünf
+  Spielwelt-Entitäten blieben erhalten. Am Charakter wird „Neu konfigurieren“
+  angeboten, der Dialog lädt die Realm-Liste und füllt Realm und Namen vor;
+  Geräte lassen sich löschen. Den Charakter-Eintrag hat die Integration 10 s
+  nach dem Start geschrieben, wie beim Nachtragen der ID erwartet; die ID selbst
+  ist von außen nicht auslesbar. Nicht live geprüft: die Reparaturhinweise (kein
+  Charakter umbenannt), das Speichern über „Neu konfigurieren“ und die
+  Darstellung der Symbole.
 - **0.6.x:** 52 automatische Tests. 0.6.0 am 26.10.2026 über HACS installiert und
   live geprüft: keine Fehler, alle neuen Entitäten angelegt. Leere Sockel (3),
   Verzauberungen (2) und Set (3/5, ein Bonus aktiv) stimmen mit dem Arsenal
