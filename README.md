@@ -281,7 +281,7 @@ Lange Attribute speichert Home Assistant nicht im Verlauf: `tooltip`, `factions`
 
 ## Dashboard-Karten
 
-Karten im Owlet-Stil für diese Integration liegen im Repository
+Karten im Nachtblau-Stil für diese Integration liegen im Repository
 [philf90/home-assistant](https://github.com/philf90/home-assistant) unter
 `dashboard/sonstiges/`: die Arsenal-Karte (`wow-arsenal-karte.yaml` mit
 `wow-templates.yaml`) und acht einzeln nutzbare Karten (`wow-*-karte.yaml`) für
