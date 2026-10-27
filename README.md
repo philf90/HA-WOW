@@ -12,6 +12,11 @@ Ausrüstung, Raid- und Mythic+-Fortschritt, Berufe, Ruf, Erfolge und mehr als
 Sensoren, dazu WoW-Marke, wöchentlicher Reset und Serverstatus. Die Daten kommen
 aus der offiziellen Battle.net API. Version 0.8.0.
 
+<p align="center">
+  <img src="https://raw.githubusercontent.com/philf90/HA-WOW/main/assets/vorschau-karten.png" alt="Arsenal-, Charaktere-, Berufe- und Raid-Karte im Nachtblau-Stil mit Beispieldaten" width="100%">
+</p>
+<p align="center"><sub>Arsenal, Charaktere, Berufe und Raids · Beispieldaten</sub></p>
+
 > **KI-Hinweis:** Dieses Projekt ist mit Claude Code entstanden. Code, Tests und
 > Dokumentation wurden von der KI geschrieben und mit automatischen Tests sowie in
 > einer echten Home-Assistant-Instanz geprüft; Details im Abschnitt
@@ -288,6 +293,11 @@ Karten im Nachtblau-Stil für diese Integration liegen im Repository
 Charaktere, Spielwelt, Raids, Mythic+, Berufe, Ruf, Sammlungen und Werte.
 Alle brauchen `custom:button-card`; weitere Voraussetzungen (z. B. browser_mod
 für das Arsenal-Popup) stehen im Kopf jeder Datei.
+
+<p align="center">
+  <img src="https://raw.githubusercontent.com/philf90/HA-WOW/main/assets/vorschau-galerie.png" alt="Mythic+-, Sammlungen-, Werte- und Ruhmstufen-Karte im Nachtblau-Stil mit Beispieldaten" width="100%">
+</p>
+<p align="center"><sub>Mythic+, Sammlungen &amp; Erfolge, Werte und Ruhmstufen · Beispieldaten</sub></p>
 
 ## Ändern, Hinweise und Diagnose
 
