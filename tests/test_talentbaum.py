@@ -6,8 +6,17 @@ Knoten der Heldenbaeume), hero_talent_trees und restriction_lines; IDs und
 Namen erfunden.
 """
 
+from unittest.mock import patch
+
+import pytest
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import entity_registry as er
+from homeassistant.helpers.aiohttp_client import async_get_clientsession
+from pytest_homeassistant_custom_component.test_util.aiohttp import (
+    AiohttpClientMockResponse,
+)
+
+from custom_components.wow_character.api import BattleNetClient, BattleNetRateLimited
 
 from .conftest import (
     API,
@@ -277,3 +286,90 @@ async def test_tree_keeps_specializations_needed(
     )
     detail = entry.runtime_data.details[next(iter(entry.subentries))]
     assert "specializations" in detail.needed_endpoints()
+
+
+async def _limited(method, url, data):
+    return AiohttpClientMockResponse(method, url, status=429)
+
+
+def _ok_after(times: int, body: dict):
+    """Erst times-mal 429, danach die Antwort."""
+    calls = {"n": 0}
+
+    async def respond(method, url, data):
+        calls["n"] += 1
+        if calls["n"] <= times:
+            return AiohttpClientMockResponse(method, url, status=429)
+        return AiohttpClientMockResponse(method, url, json=body)
+
+    return respond
+
+
+async def test_rate_limit_waits_and_retries(
+    hass: HomeAssistant, aioclient_mock
+) -> None:
+    """429 laut Blizzard-Doku bis zum Ende der Sekunde: eine Sekunde warten."""
+    mock_token(aioclient_mock)
+    url = f"{GAME}/media/spell/11000"
+    mock_api(aioclient_mock, {f"{API}/specializations": _specs()})
+    aioclient_mock.get(url, side_effect=_ok_after(1, _media(11000)))
+    client = BattleNetClient(async_get_clientsession(hass), "id", "secret")
+    with patch("custom_components.wow_character.api.asyncio.sleep") as sleep:
+        media = await client.get_static_data("eu", "", "media/spell/11000")
+    assert media == _media(11000)
+    sleep.assert_awaited_once_with(1)
+    assert _calls(aioclient_mock, "/media/spell/11000") == 2
+
+
+async def test_rate_limit_twice_raises(hass: HomeAssistant, aioclient_mock) -> None:
+    mock_token(aioclient_mock)
+    aioclient_mock.get(f"{GAME}/media/spell/11000", side_effect=_limited)
+    client = BattleNetClient(async_get_clientsession(hass), "id", "secret")
+    with (
+        patch("custom_components.wow_character.api.asyncio.sleep"),
+        pytest.raises(BattleNetRateLimited),
+    ):
+        await client.get_static_data("eu", "", "media/spell/11000")
+    assert _calls(aioclient_mock, "/media/spell/11000") == 2
+
+
+async def test_icons_stop_at_rate_limit(hass: HomeAssistant, aioclient_mock) -> None:
+    """Noch am Limit nach der Pause: keine weiteren Symbole bis zum naechsten Takt."""
+    _mock(aioclient_mock, **{f"{GAME}/media/spell/{i}": 500 for i in SPELLS})
+    entry = await _setup(hass, character_subentry())
+    detail = entry.runtime_data.details[next(iter(entry.subentries))]
+
+    aioclient_mock.clear_requests()
+    _mock(aioclient_mock, **{f"{GAME}/media/spell/{i}": 429 for i in SPELLS})
+    detail._fetched.clear()
+    with patch("custom_components.wow_character.api.asyncio.sleep"):
+        await detail.async_refresh()
+    # Erstes Symbol zweimal (mit Pause), danach Abbruch
+    assert _calls(aioclient_mock, "/media/spell/") == 2
+
+    aioclient_mock.clear_requests()
+    _mock(aioclient_mock)
+    detail._fetched.clear()
+    await detail.async_refresh()
+    await hass.async_block_till_done()
+    assert _calls(aioclient_mock, "/media/spell/") == len(SPELLS)
+    icons = [
+        t["icon"]
+        for n in detail.data["talent_tree"]["class_nodes"]
+        for t in n["talents"]
+    ]
+    assert all(icons)
+
+
+async def test_item_icons_stop_at_rate_limit(
+    hass: HomeAssistant, aioclient_mock
+) -> None:
+    """Auch Item-Symbole: nach erneutem 429 Abbruch bis zum naechsten Takt."""
+    mock_token(aioclient_mock)
+    limited = {f"{GAME}/media/item/{i}": 429 for i in (6001, 6002)}
+    mock_api(aioclient_mock, limited)
+    with patch("custom_components.wow_character.api.asyncio.sleep"):
+        await _setup(hass, character_subentry())
+    # Erstes Item zweimal (mit Pause), das zweite nicht mehr
+    assert _calls(aioclient_mock, "/media/item/6001") == 2
+    assert _calls(aioclient_mock, "/media/item/6002") == 0
