@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import re
 import time
 from typing import Any
@@ -79,7 +80,12 @@ class BattleNetClient:
         await self._get_token()
 
     async def _get(
-        self, region: str, path: str, namespace: str, retry: bool = True
+        self,
+        region: str,
+        path: str,
+        namespace: str,
+        retry: bool = True,
+        wait_on_limit: bool = True,
     ) -> dict[str, Any]:
         token = await self._get_token()
         urls = REGIONS[region]
@@ -98,6 +104,14 @@ class BattleNetClient:
                     raise BattleNetAuthError("Token abgelehnt")
                 if resp.status == 404:
                     raise BattleNetNotFound(path)
+                if resp.status == 429 and wait_on_limit:
+                    # Laut Blizzard-Doku ("Getting Started", Throttling): ueber
+                    # 100 Abfragen je Sekunde gibt es 429 bis zum Ende der
+                    # Sekunde. Einmal eine Sekunde warten und wiederholen.
+                    await asyncio.sleep(1)
+                    return await self._get(
+                        region, path, namespace, retry, wait_on_limit=False
+                    )
                 if resp.status == 429:
                     raise BattleNetRateLimited(path)
                 if resp.status != 200:

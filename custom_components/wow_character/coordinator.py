@@ -17,7 +17,13 @@ from homeassistant.helpers import issue_registry as ir
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
 from . import parsers as p
-from .api import BattleNetAuthError, BattleNetClient, BattleNetError, BattleNetNotFound
+from .api import (
+    BattleNetAuthError,
+    BattleNetClient,
+    BattleNetError,
+    BattleNetNotFound,
+    BattleNetRateLimited,
+)
 from .const import (
     CONF_CHARACTER,
     CONF_CHARACTER_ID,
@@ -739,6 +745,11 @@ class WowDetailCoordinator(_CharacterMixin, DataUpdateCoordinator[dict[str, Any]
                 )
             except BattleNetAuthError as err:
                 raise _auth_failed(err) from err
+            except BattleNetRateLimited as err:
+                # Auch nach einer Sekunde Pause noch am Limit: Rest beim
+                # naechsten Takt.
+                _LOGGER.debug("Symbole fuer Items: %s", err)
+                return
             except BattleNetError as err:
                 _LOGGER.debug("Symbol fuer Item %s fehlt: %s", media_id, err)
                 continue
@@ -808,6 +819,11 @@ class MediaCache:
                 )
             except BattleNetAuthError as err:
                 raise _auth_failed(err) from err
+            except BattleNetRateLimited as err:
+                # Auch nach einer Sekunde Pause noch am Limit: Rest beim
+                # naechsten Takt.
+                _LOGGER.debug("Symbole: %s", err)
+                return
             except BattleNetError as err:
                 _LOGGER.debug("Symbol %s fehlt: %s", key, err)
                 continue

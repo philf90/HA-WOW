@@ -11,7 +11,7 @@ Home-Assistant-Integration für World-of-Warcraft-Charaktere: Level, Itemlevel,
 Ausrüstung, Raid- und Mythic+-Fortschritt, Berufe, Ruf, Erfolge und mehr als
 Sensoren, dazu WoW-Marke, wöchentlicher Reset und Serverstatus. Die Daten kommen
 aus der offiziellen Battle.net API. Unterstützt Retail, WoW Classic (Era,
-Progression, Anniversary) und ist für WoW Forever vorbereitet. Version 0.14.0.
+Progression, Anniversary) und ist für WoW Forever vorbereitet. Version 0.14.1.
 
 <p align="center">
   <img src="https://raw.githubusercontent.com/philf90/HA-WOW/main/assets/vorschau-karten.png" alt="Arsenal-, Charaktere-, Berufe- und Raid-Karte im Nachtblau-Stil mit Beispieldaten" width="100%">
@@ -352,6 +352,11 @@ Lange Attribute speichert Home Assistant nicht im Verlauf: `tooltip`, `factions`
   zum Neuladen nicht mehr ab (seit 0.11.3).
 - Ereignisse lösen nur für Einträge aus, die nach dem Start von Home Assistant
   dazukommen.
+- Abfragelimit: Blizzard erlaubt laut Doku („Getting Started“, Throttling)
+  100 Abfragen je Sekunde und meldet darüber HTTP 429 bis zum Ende der Sekunde.
+  Bei 429 wartet die Integration eine Sekunde und fragt einmal erneut (seit
+  0.14.1). Kommt dann wieder 429, bricht sie das Nachschlagen von Symbolen ab
+  und holt den Rest beim nächsten Takt.
 - Talentbaum (seit 0.13.0): Den Baum der Spezialisierung lädt die Integration
   einmal je Start und Spezialisierung, die Symbole einmal je Talent, erst nach
   dem Anlegen der Entitäten (bei einer Klasse rund 100 Abfragen, einmalig). Ist
@@ -576,7 +581,14 @@ Automatische Tests laufen gegen Home Assistant 2026.2.3; live geprüft wurde unt
 Home Assistant 2026.10.4 mit Retail-Charakteren der Region EU, seit 0.11.2 auch
 mit einem Classic-Era-Charakter (siehe [WoW Classic](#wow-classic)).
 
-- **0.14.x:** 177 automatische Tests. 0.14.0: 3 Tests für die Karte
+- **0.14.x:** 181 automatische Tests. 0.14.1: 4 Tests für das Abfragelimit
+  (429, eine Sekunde Pause, dann Antwort; zweimal 429 ergibt einen Fehler;
+  Symbole der Talente und der Items brechen nach erneutem 429 bis zum
+  nächsten Takt ab). Gegenprobe: vier Fehler einzeln eingebaut, jedes Mal
+  schlug mindestens ein Test fehl. Anlass: Nach jedem Neustart fehlten
+  andere Talent-Symbole (Clambo 7, dann 9), also kein dauerhaftes Fehlen bei
+  Blizzard; dass es 429 war, ist nicht belegt, weil gescheiterte Symbole nur
+  im Debug-Log stehen. 0.14.0: 3 Tests für die Karte
   „WoW Talentbaum“ (Datei wird ausgeliefert; mit Frontend als Modul geladen,
   Version im Pfad; ohne Frontend nicht). Gegenprobe: drei Fehler einzeln
   eingebaut, jedes Mal schlug mindestens ein Test fehl. Die Karte selbst
