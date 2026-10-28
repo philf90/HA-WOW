@@ -1,0 +1,32 @@
+# Verbindliche PR-Vorlage: prueft Beschreibung und Version bei jedem neuen
+# Stand und jeder Aenderung der Beschreibung. Verbindlich wird sie erst als
+# Pflicht-Pruefung im Branch-Schutz von main (Einstellung bei GitHub).
+name: PR-Vorlage
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened]
+
+permissions:
+  contents: read
+
+jobs:
+  vorlage:
+    name: PR-Vorlage
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Beschreibung und Version pruefen
+        env:
+          # Als Umgebungsvariable, nie direkt im Skript: Die Beschreibung ist
+          # fremder Text und koennte sonst Shell-Code einschleusen.
+          PR_BODY: ${{ github.event.pull_request.body }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: python3 .github/scripts/pruefe_pr.py

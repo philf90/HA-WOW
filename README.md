@@ -441,7 +441,9 @@ haben, wie bei [Classic](#wow-classic).
 Automatische Tests laufen gegen Home Assistant 2026.2.3; live geprüft wurde unter
 Home Assistant 2026.10.4 mit Retail-Charakteren der Region EU.
 
-- **0.10.x:** 102 automatische Tests, darunter 8 für die Jägerbegleiter: Werte
+- **0.10.x:** 131 automatische Tests. Seit 0.10.0 dazu 29 Tests für die
+  Konsistenz des Repos und die PR-Vorlage (ohne neue Version, weil nur Tests
+  und Prüfungen dazukamen). 0.10.0: 102 Tests, darunter 8 für die Jägerbegleiter: Werte
   und Attribute, kein Sensor für Nicht-Jäger (404) und bei gescheiterter erster
   Abfrage, Namespace in allen drei Classic-Versionen und Forever, keine Abfrage
   bei deaktiviertem Sensor, gekürzte Diagnose. Gegenprobe: jede der sechs
@@ -520,6 +522,19 @@ pytest tests   # pytest.ini setzt asyncio_mode = auto
 
 Dieselben Schritte laufen bei jedem Push und Pull Request im Workflow
 „Pruefung“, zusammen mit hassfest und der HACS-Prüfung.
+
+`tests/test_repo_konsistenz.py` prüft, dass Version, README (auch die Testzahl
+oben im Teststand), Versionshinweise, Übersetzungen und Endpunkte zusammenpassen.
+Die Testzahl im README stimmt nur, wenn jede Änderung an den Tests sie mit
+nachzieht.
+
+**Pull Requests** folgen der Vorlage `.github/pull_request_template.md`. Der
+Workflow „PR-Vorlage“ prüft bei jedem neuen Stand und jeder Änderung der
+Beschreibung, dass alle Abschnitte ausgefüllt und alle Punkte der Checkliste
+angekreuzt sind (nicht Zutreffendes mit „entfällt: <Grund>“). Ändert ein PR die
+Integration, verlangt er eine neue Version in `manifest.json` und
+Versionshinweise dazu. Lokal: `PR_BODY="$(cat beschreibung.md)" python3
+.github/scripts/pruefe_pr.py`.
 
 ## KI-Hinweis
 
