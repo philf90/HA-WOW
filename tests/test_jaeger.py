@@ -175,3 +175,70 @@ async def test_disabled_sensor_skips_endpoint(
     )
     detail = entry.runtime_data.details[next(iter(entry.subentries))]
     assert "hunter_pets" not in detail.needed_endpoints()
+
+
+def _hunter_pet_calls(aioclient_mock) -> int:
+    return sum(
+        1 for call in aioclient_mock.mock_calls if "/hunter-pets" in str(call[1])
+    )
+
+
+async def test_non_hunter_queried_once(hass: HomeAssistant, aioclient_mock) -> None:
+    """404 heisst laut Doku: kein Jaeger. Danach keine Abfrage bis zum Neuladen."""
+    mock_token(aioclient_mock)
+    mock_api(aioclient_mock)
+    entry = await _setup(hass, character_subentry())
+    assert _hunter_pet_calls(aioclient_mock) == 1
+
+    detail = entry.runtime_data.details[next(iter(entry.subentries))]
+    assert "hunter_pets" not in detail.needed_endpoints()
+    # Alle Abstaende zuruecksetzen: Jeder andere Endpunkt waere wieder faellig.
+    detail._fetched.clear()
+    await detail.async_refresh()
+    await hass.async_block_till_done()
+    assert _hunter_pet_calls(aioclient_mock) == 1
+    assert detail.last_update_success
+
+
+async def test_hunter_keeps_querying_after_404(
+    hass: HomeAssistant, aioclient_mock
+) -> None:
+    """Lieferte der Endpunkt schon Begleiter, ist ein spaeteres 404 nicht endgueltig."""
+    mock_token(aioclient_mock)
+    mock_api(aioclient_mock, {f"{API}/hunter-pets": HUNTER_PETS})
+    entry = await _setup(hass, character_subentry())
+    detail = entry.runtime_data.details[next(iter(entry.subentries))]
+    entity_id = _eid(hass, f"{UID1}-hunter_pets")
+    assert hass.states.get(entity_id).state == "3"
+
+    # Kurzer Fehler der API: zweimal hintereinander 404
+    for _ in range(2):
+        aioclient_mock.clear_requests()
+        mock_token(aioclient_mock)
+        mock_api(aioclient_mock, {f"{API}/hunter-pets": 404})
+        detail._fetched.clear()
+        await detail.async_refresh()
+        await hass.async_block_till_done()
+        assert _hunter_pet_calls(aioclient_mock) == 1
+        assert "hunter_pets" in detail.needed_endpoints()
+
+    # Danach wieder Daten: Der Sensor zeigt sie, weil weiter abgefragt wird.
+    aioclient_mock.clear_requests()
+    mock_token(aioclient_mock)
+    mock_api(aioclient_mock, {f"{API}/hunter-pets": HUNTER_PETS})
+    detail._fetched.clear()
+    await detail.async_refresh()
+    await hass.async_block_till_done()
+    assert _hunter_pet_calls(aioclient_mock) == 1
+    assert hass.states.get(entity_id).state == "3"
+
+
+async def test_failed_first_query_is_retried(
+    hass: HomeAssistant, aioclient_mock
+) -> None:
+    """Ein Fehler (kein 404) sagt nichts ueber die Klasse: weiter abfragen."""
+    mock_token(aioclient_mock)
+    mock_api(aioclient_mock, {f"{API}/hunter-pets": 500})
+    entry = await _setup(hass, character_subentry())
+    detail = entry.runtime_data.details[next(iter(entry.subentries))]
+    assert "hunter_pets" in detail.needed_endpoints()

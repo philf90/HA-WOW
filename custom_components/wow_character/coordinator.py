@@ -29,6 +29,7 @@ from .const import (
     DETAIL_INTERVAL,
     DOMAIN,
     GAME_VERSIONS,
+    NOT_FOUND_IS_FINAL,
     NOT_FOUND_LIMIT,
     STATUS_INTERVAL,
     UPDATE_INTERVAL,
@@ -376,6 +377,11 @@ class WowDetailCoordinator(_CharacterMixin, DataUpdateCoordinator[dict[str, Any]
         self._profile = profile
         self._world = world
         self._fetched: dict[str, float] = {}
+        # Endpunkte aus NOT_FOUND_IS_FINAL, die 404 meldeten, z. B. hunter_pets
+        # fuer Nicht-Jaeger; bis zum Neuladen nicht mehr abgefragt.
+        self._absent: set[str] = set()
+        # Endpunkte, die seit dem Start schon Daten lieferten.
+        self._delivered: set[str] = set()
         # Beruf-ID -> Name aus den statischen Spieldaten (Sprache der Region).
         self._profession_names: dict[int, str] = {}
         # Stufen-ID -> Name, aus derselben Abfrage wie die Berufsnamen.
@@ -409,7 +415,9 @@ class WowDetailCoordinator(_CharacterMixin, DataUpdateCoordinator[dict[str, Any]
         needed = enabled | (set(DETAIL_ENDPOINTS) - registered)
         if not self.mythic_plus:
             needed.discard("mythic_season")
-        return {e for e in needed if self.supports_endpoint(e)}
+        return {
+            e for e in needed if self.supports_endpoint(e) and e not in self._absent
+        }
 
     def _season_id(self) -> int | None:
         """Aktuelle M+-Season aus der Spielwelt, sonst die hoechste des Charakters."""
@@ -461,6 +469,10 @@ class WowDetailCoordinator(_CharacterMixin, DataUpdateCoordinator[dict[str, Any]
                         self.region, self.realm, self.character, self.suffix, resource
                     )
             except BattleNetNotFound:
+                # Lieferte der Endpunkt seit dem Start schon Daten, gilt ein
+                # 404 nicht als endgueltig (z. B. kurzer Fehler der API).
+                if endpoint in NOT_FOUND_IS_FINAL and endpoint not in self._delivered:
+                    self._absent.add(endpoint)
                 data[endpoint] = None
             except BattleNetAuthError as err:
                 raise _auth_failed(err) from err
@@ -469,6 +481,8 @@ class WowDetailCoordinator(_CharacterMixin, DataUpdateCoordinator[dict[str, Any]
                 failed += 1
                 _LOGGER.debug("%s: %s fehlgeschlagen: %s", self.name, endpoint, err)
                 continue
+            if data[endpoint] is not None:
+                self._delivered.add(endpoint)
             self._fetched[endpoint] = now
         if attempted and failed == attempted:
             raise UpdateFailed(

@@ -11,7 +11,7 @@ Home-Assistant-Integration für World-of-Warcraft-Charaktere: Level, Itemlevel,
 Ausrüstung, Raid- und Mythic+-Fortschritt, Berufe, Ruf, Erfolge und mehr als
 Sensoren, dazu WoW-Marke, wöchentlicher Reset und Serverstatus. Die Daten kommen
 aus der offiziellen Battle.net API. Unterstützt Retail, WoW Classic (Era,
-Progression, Anniversary) und ist für WoW Forever vorbereitet. Version 0.10.0.
+Progression, Anniversary) und ist für WoW Forever vorbereitet. Version 0.10.1.
 
 <p align="center">
   <img src="https://raw.githubusercontent.com/philf90/HA-WOW/main/assets/vorschau-karten.png" alt="Arsenal-, Charaktere-, Berufe- und Raid-Karte im Nachtblau-Stil mit Beispieldaten" width="100%">
@@ -126,7 +126,7 @@ die anderen laufen weiter.
 | Titel (Anzahl, Liste als Attribut) | Sensor | 6 h | `titles` |
 | Level gestiegen | Ereignis | 15 min | Profil, `level` |
 | Gilde (Mitglieder; Name, Erfolgspunkte, Aktivitäten als Attribute), nur in einer Gilde | Sensor | 6 h, Aktivitäten 1 h | `/data/wow/guild/{realm}/{gilde}` und `…/activity` |
-| Jägerbegleiter (Anzahl; beschworener, aktive und alle Begleiter als Attribute), nur für Jäger | Sensor | 6 h | `hunter-pets` |
+| Jägerbegleiter (Anzahl; beschworener, aktive und alle Begleiter als Attribute), nur für Jäger | Sensor | 6 h; für Nicht-Jäger einmal je Start | `hunter-pets` |
 | **Ausrüstung** | | | |
 | Ausrüstung, 18 Plätze (Kopf bis Schildhand) | Sensoren, Itemlevel; Symbol als Bild | 1 h | `equipment`; Symbol aus `media/item/{id}` |
 | Leere Sockel, Verzauberungen, Set-Fortschritt | Sensoren | 1 h | `equipment`, ausgewertet |
@@ -239,6 +239,15 @@ mit `boss` und `difficulty`, je mit `type` und `timestamp`).
 Den Sensor gibt es nur, wenn die API beim Start Begleiter liefert. Für andere
 Klassen meldet sie laut Blizzard-Doku 404; scheitert die erste Abfrage, entsteht
 der Sensor beim nächsten Neuladen. Zustand ist die Zahl der Begleiter.
+
+Klassenprüfung (seit 0.10.1): Meldet die API für einen Charakter 404, ist er
+laut Doku kein Jäger, und die Integration fragt den Endpunkt bis zum nächsten
+Neuladen nicht mehr ab (vorher alle 6 Stunden). Eine Klassen-ID nennt die Doku
+nicht; die Prüfung stützt sich deshalb auf diese Antwort statt auf eine ID.
+Hat der Endpunkt seit dem Start schon Begleiter geliefert, gilt ein späterer 404
+nicht als endgültig, damit der Sensor eines Jägers bei einem kurzen Fehler der
+API nicht stehen bleibt. Andere Fehler (z. B. keine Antwort) führen zu einem
+erneuten Versuch.
 Attribute: `summoned` (Name des beschworenen Begleiters), `active` (Namen der
 aktiven Begleiter) und `pets`, je Begleiter `name`, `level`, `creature`,
 `creature_id`, `slot`, `active` und `summoned`. Die Feldnamen der API stammen aus
@@ -441,7 +450,11 @@ haben, wie bei [Classic](#wow-classic).
 Automatische Tests laufen gegen Home Assistant 2026.2.3; live geprüft wurde unter
 Home Assistant 2026.10.4 mit Retail-Charakteren der Region EU.
 
-- **0.10.x:** 131 automatische Tests. Seit 0.10.0 dazu 29 Tests für die
+- **0.10.x:** 134 automatische Tests. 0.10.1: 3 Tests für die Klassenprüfung
+  der Jägerbegleiter (Nicht-Jäger nur einmal abgefragt, spätere 404 bei einem
+  Jäger sind nicht endgültig, auch zweimal hintereinander, Fehler ohne 404
+  werden wiederholt); Gegenprobe: fünf Fehler einzeln eingebaut, jedes Mal
+  schlug mindestens ein Test fehl. Seit 0.10.0 dazu 29 Tests für die
   Konsistenz des Repos und die PR-Vorlage (ohne neue Version, weil nur Tests
   und Prüfungen dazukamen). 0.10.0: 102 Tests, darunter 8 für die Jägerbegleiter: Werte
   und Attribute, kein Sensor für Nicht-Jäger (404) und bei gescheiterter erster
