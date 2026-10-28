@@ -11,7 +11,7 @@ Home-Assistant-Integration für World-of-Warcraft-Charaktere: Level, Itemlevel,
 Ausrüstung, Raid- und Mythic+-Fortschritt, Berufe, Ruf, Erfolge und mehr als
 Sensoren, dazu WoW-Marke, wöchentlicher Reset und Serverstatus. Die Daten kommen
 aus der offiziellen Battle.net API. Unterstützt Retail, WoW Classic (Era,
-Progression, Anniversary) und ist für WoW Forever vorbereitet. Version 0.14.1.
+Progression, Anniversary) und ist für WoW Forever vorbereitet. Version 0.15.0.
 
 <p align="center">
   <img src="https://raw.githubusercontent.com/philf90/HA-WOW/main/assets/vorschau-karten.png" alt="Arsenal-, Charaktere-, Berufe- und Raid-Karte im Nachtblau-Stil mit Beispieldaten" width="100%">
@@ -387,7 +387,9 @@ Gilde. Sie zeigen die Spielversion und passen sich an: Was eine Version nicht
 liefert (bei Classic z. B. Raids, Mythic+ und Sammlungen), fällt weg oder wird
 als Hinweis genannt.
 Alle brauchen `custom:button-card`; weitere Voraussetzungen (z. B. browser_mod
-für das Arsenal-Popup) stehen im Kopf jeder Datei.
+für das Arsenal-Popup) stehen im Kopf jeder Datei. Die Arsenal-Karte liefert
+die Integration seit 0.15.0 auch selbst mit, ohne diese Voraussetzungen (siehe
+[Karte „WoW Arsenal“](#karte-wow-arsenal-seit-0150)).
 
 <p align="center">
   <img src="https://raw.githubusercontent.com/philf90/HA-WOW/main/assets/vorschau-galerie.png" alt="Mythic+-, Sammlungen-, Werte- und Ruhmstufen-Karte im Nachtblau-Stil mit Beispieldaten" width="100%">
@@ -398,6 +400,35 @@ für das Arsenal-Popup) stehen im Kopf jeder Datei.
   <img src="https://raw.githubusercontent.com/philf90/HA-WOW/main/assets/vorschau-pvp-gilde.png" alt="PvP- und Gilden-Karte im Nachtblau-Stil für Retail, Classic Anniversary und Classic Era mit Beispieldaten" width="100%">
 </p>
 <p align="center"><sub>PvP und Gilde in Retail, PvP in Classic Anniversary, Gilde in Classic Era · Beispieldaten</sub></p>
+
+### Karte „WoW Arsenal“ (seit 0.15.0)
+
+Die Arsenal-Karte aus `wow-arsenal-karte.yaml` als eigene Karte der Integration,
+im selben Aufbau und Nachtblau-Stil, aber ohne `custom:button-card`, browser_mod
+und Dashboard-Templates. Wie die Karte „WoW Talentbaum“ lädt Home Assistant sie
+mit dem Frontend.
+
+```yaml
+type: custom:wow-arsenal-card
+entity: sensor.mein_charakter_level   # eine beliebige Entität des Charakters
+```
+
+- Kopf mit Avatar, Symbol der Spezialisierung, Name, Titel, Spielversion,
+  Stufe, Volk, Spezialisierung und Klasse; Pillen für Itemlevel, Mythic+-Wertung
+  (sonst `api_rating`), Fraktion, Realm und Gilde.
+- Ganzkörperbild mit den 18 Plätzen in der Reihenfolge des Arsenals: Symbol mit
+  Rand in der Qualitätsfarbe, Itemlevel daneben (ohne Itemlevel leer), ein
+  Amber-Punkt bei leerem Sockel, leere Plätze gestrichelt.
+- Mit der Maus zeigt ein Platz den Item-Tooltip; Antippen öffnet ihn als
+  Fenster in der Karte (Escape oder ✕ schließt), browser_mod ist nicht nötig.
+- Kennzahlen: Raid in der höchsten Schwierigkeit mit Kills, Erfolgspunkte,
+  Reittiere und Ehrenstufe, ohne Ehrenstufe die ehrenhaften Siege. Es erscheinen
+  nur Kennzahlen, deren Entität es gibt; Classic Era zeigt deshalb von selbst
+  weniger.
+- Die Karte findet die Entitäten über das Gerät des Charakters und die
+  Übersetzungsschlüssel der Integration. Anders als die YAML-Karte braucht sie
+  kein Präfix und funktioniert mit jeder Sprache der Oberfläche; ihre eigenen
+  Texte gibt es auf Deutsch und Englisch.
 
 ### Karte „WoW Talentbaum“ (seit 0.14.0)
 
@@ -581,6 +612,14 @@ Automatische Tests laufen gegen Home Assistant 2026.2.3; live geprüft wurde unt
 Home Assistant 2026.10.4 mit Retail-Charakteren der Region EU, seit 0.11.2 auch
 mit einem Classic-Era-Charakter (siehe [WoW Classic](#wow-classic)).
 
+- **0.15.x:** 182 automatische Tests. 0.15.0: Der Test zur Auslieferung prüft
+  beide Karten, der Test zum Laden im Frontend beide Module. Gegenprobe: drei
+  Fehler einzeln eingebaut, jedes Mal schlug mindestens ein Test fehl. Die
+  Karte „WoW Arsenal“ selbst (JavaScript) ist nicht automatisch getestet:
+  Gezeichnet in Chromium mit erfundenen Daten (Retail Deutsch, Classic Era
+  Englisch, leere Plätze, leere Sockel, Tooltip mit Maus, Fenster per Antippen,
+  Schließen mit Escape), 400 und 600 Pixel breit, ohne Fehler in der Konsole.
+  **Nicht live geprüft:** die Karte in Home Assistant.
 - **0.14.x:** 181 automatische Tests. 0.14.1: 4 Tests für das Abfragelimit
   (429, eine Sekunde Pause, dann Antwort; zweimal 429 ergibt einen Fehler;
   Symbole der Talente und der Items brechen nach erneutem 429 bis zum
