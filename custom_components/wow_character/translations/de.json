@@ -272,6 +272,9 @@
       },
       "guild": {
         "name": "Gilde"
+      },
+      "hunter_pets": {
+        "name": "Jägerbegleiter"
       }
     },
     "binary_sensor": {

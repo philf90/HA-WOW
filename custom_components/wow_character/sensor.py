@@ -446,6 +446,13 @@ async def async_setup_entry(
         # Gilde: nur fuer Charaktere, die beim Start in einer Gilde sind.
         if p.guild_path((coordinator.data or {}).get("profile")):
             entities.append(WowGuildSensor(detail))
+        # Jaegerbegleiter: nur wenn die API beim Start Begleiter liefert;
+        # fuer andere Klassen meldet sie 404.
+        if (
+            detail_available(detail, "hunter_pets")
+            and (detail.data or {}).get("hunter_pets") is not None
+        ):
+            entities.append(WowHunterPetsSensor(detail))
         async_add_entities(entities, config_subentry_id=subentry_id)
 
     for world in runtime.worlds.values():
@@ -606,6 +613,36 @@ class WowReputationSensor(WowCharacterEntity, SensorEntity):
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
         return {"factions": self._factions() or []}
+
+
+class WowHunterPetsSensor(WowCharacterEntity, SensorEntity):
+    """Anzahl der Begleiter eines Jaegers; Liste und aktive Begleiter als Attribute."""
+
+    _attr_translation_key = "hunter_pets"
+    _attr_state_class = SensorStateClass.MEASUREMENT
+    # Der Stall kann viele Begleiter fassen; die Liste nicht in die Datenbank.
+    _unrecorded_attributes = frozenset({"pets"})
+
+    def __init__(self, coordinator: WowDetailCoordinator) -> None:
+        super().__init__(coordinator, "hunter_pets")
+
+    def _pets(self) -> list[dict[str, Any]] | None:
+        data = (self.coordinator.data or {}).get("hunter_pets")
+        return p.hunter_pets(data) if data is not None else None
+
+    @property
+    def native_value(self) -> int | None:
+        return _count(self._pets())
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        pets = self._pets() or []
+        summoned = next((pet["name"] for pet in pets if pet["summoned"]), None)
+        return {
+            "summoned": summoned,
+            "active": [pet["name"] for pet in pets if pet["active"]],
+            "pets": pets,
+        }
 
 
 class WowGuildSensor(WowCharacterEntity, SensorEntity):

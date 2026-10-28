@@ -194,6 +194,9 @@
       },
       "toys": {
         "default": "mdi:teddy-bear"
+      },
+      "hunter_pets": {
+        "default": "mdi:paw"
       }
     }
   }

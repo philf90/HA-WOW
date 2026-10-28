@@ -443,6 +443,8 @@ def mock_api(
         "/titles": TITLES,
         "/achievements/statistics": GAME_STATISTICS,
         "/quests/completed": {"quests": [{"id": 1}, {"id": 2}, {"id": 3}, {"id": 4}]},
+        # Testchar ist Magier: Fuer Nicht-Jaeger meldet die API laut Doku 404.
+        "/hunter-pets": 404,
     }
     world = {
         "/token/index": {"price": 3456789},

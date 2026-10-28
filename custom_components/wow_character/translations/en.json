@@ -272,6 +272,9 @@
       },
       "guild": {
         "name": "Guild"
+      },
+      "hunter_pets": {
+        "name": "Hunter pets"
       }
     },
     "binary_sensor": {

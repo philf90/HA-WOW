@@ -679,3 +679,28 @@ def guild_activities(
         result.append(item)
     result.sort(key=lambda i: i["timestamp"], reverse=True)
     return result[:limit]
+
+
+def hunter_pets(data: dict[str, Any] | None) -> list[dict[str, Any]]:
+    """Begleiter eines Jaegers in der Reihenfolge der API.
+
+    Felder wie in den Typdefinitionen von @blizzard-api/wow und
+    @blizzard-api/classic-wow; is_active und is_summoned sind dort optional.
+    """
+    result = []
+    for pet in (data or {}).get("hunter_pets") or []:
+        if not isinstance(pet, dict):
+            continue
+        creature = pet.get("creature") or {}
+        result.append(
+            {
+                "name": pet.get("name"),
+                "level": pet.get("level"),
+                "creature": name_of(creature),
+                "creature_id": creature.get("id"),
+                "slot": pet.get("slot"),
+                "active": bool(pet.get("is_active")),
+                "summoned": bool(pet.get("is_summoned")),
+            }
+        )
+    return result

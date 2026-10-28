@@ -76,6 +76,7 @@ DETAIL_KEYS: dict[str, str] = {
     "quests_completed": "quests",
     "guild": "guild",
     "new_collectible": "mounts",
+    "hunter_pets": "hunter_pets",
 }
 # Entitaeten, die ausser ihrem Endpunkt aus DETAIL_KEYS weitere brauchen.
 EXTRA_ENDPOINTS: dict[str, tuple[str, ...]] = {
