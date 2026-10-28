@@ -596,7 +596,11 @@ class WowProfessionSensor(WowCharacterEntity, SensorEntity):
 
 
 class WowEquipmentSensor(WowCharacterEntity, SensorEntity):
-    """Item auf einem Ausruestungsplatz: Itemlevel, Symbol als Bild."""
+    """Item auf einem Ausruestungsplatz: Itemlevel, Symbol als Bild.
+
+    Classic Era nennt je Item kein Itemlevel; ausserhalb von Retail zeigt der
+    Sensor dann den Namen des Items.
+    """
 
     # Tooltip-Zeilen fuer Karten; aendern sich nur mit dem Item und bleiben
     # aus der Datenbank (18 Plaetze je Charakter).
@@ -619,8 +623,12 @@ class WowEquipmentSensor(WowCharacterEntity, SensorEntity):
         return p.equipment(data.get("equipment")).get(self._slot, {})
 
     @property
-    def native_value(self) -> int | None:
-        return self._item().get("level")
+    def native_value(self) -> int | str | None:
+        item = self._item()
+        level = item.get("level")
+        if level is None and not self.coordinator.is_retail:
+            return item.get("name")
+        return level
 
     @property
     def entity_picture(self) -> str | None:
