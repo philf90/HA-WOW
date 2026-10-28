@@ -345,8 +345,11 @@ Lange Attribute speichert Home Assistant nicht im Verlauf: `tooltip`, `factions`
 Karten im Nachtblau-Stil für diese Integration liegen im Repository
 [philf90/home-assistant](https://github.com/philf90/home-assistant) unter
 `dashboard/sonstiges/`: die Arsenal-Karte (`wow-arsenal-karte.yaml` mit
-`wow-templates.yaml`) und acht einzeln nutzbare Karten (`wow-*-karte.yaml`) für
-Charaktere, Spielwelt, Raids, Mythic+, Berufe, Ruf, Sammlungen und Werte.
+`wow-templates.yaml`) und zehn einzeln nutzbare Karten (`wow-*-karte.yaml`) für
+Charaktere, Spielwelt, Raids, Mythic+, Berufe, Ruf, Sammlungen, Werte, PvP und
+Gilde. Sie zeigen die Spielversion und passen sich an: Was eine Version nicht
+liefert (bei Classic z. B. Raids, Mythic+ und Sammlungen), fällt weg oder wird
+als Hinweis genannt.
 Alle brauchen `custom:button-card`; weitere Voraussetzungen (z. B. browser_mod
 für das Arsenal-Popup) stehen im Kopf jeder Datei.
 
@@ -354,6 +357,11 @@ für das Arsenal-Popup) stehen im Kopf jeder Datei.
   <img src="https://raw.githubusercontent.com/philf90/HA-WOW/main/assets/vorschau-galerie.png" alt="Mythic+-, Sammlungen-, Werte- und Ruhmstufen-Karte im Nachtblau-Stil mit Beispieldaten" width="100%">
 </p>
 <p align="center"><sub>Mythic+, Sammlungen &amp; Erfolge, Werte und Ruhmstufen · Beispieldaten</sub></p>
+
+<p align="center">
+  <img src="https://raw.githubusercontent.com/philf90/HA-WOW/main/assets/vorschau-pvp-gilde.png" alt="PvP- und Gilden-Karte im Nachtblau-Stil für Retail, Classic Anniversary und Classic Era mit Beispieldaten" width="100%">
+</p>
+<p align="center"><sub>PvP und Gilde in Retail, PvP in Classic Anniversary, Gilde in Classic Era · Beispieldaten</sub></p>
 
 ## Ändern, Hinweise und Diagnose
 
