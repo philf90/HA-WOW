@@ -99,6 +99,10 @@ def _shrink(endpoint: str, data: Any) -> Any:
     if endpoint == "guild_activity":
         items = data.get("activities") or []
         return {"count": len(items), "first": items[:3]}
+    if endpoint == "guild_roster":
+        # Grosse Gilden haben hunderte Mitglieder.
+        items = data.get("members") or []
+        return {"count": len(items), "first": items[:3]}
     if endpoint == "hunter_pets":
         # Der Stall eines Jaegers kann viele Begleiter fassen.
         items = data.get("hunter_pets") or []

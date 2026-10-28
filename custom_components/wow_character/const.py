@@ -64,6 +64,12 @@ DETAIL_ENDPOINTS: dict[str, tuple[str, int]] = {
     # Ohne Gilde wird nichts abgefragt.
     "guild": ("{guild}", 360),
     "guild_activity": ("{guild}/activity", 60),
+    # Mitgliederliste der Gilde; Klassen nur als ID, Namen aus playable-class.
+    "guild_roster": ("{guild}/roster", 360),
+    # Aussehen: Geschlecht und Transmog als Attribute am Level-Sensor.
+    "appearance": ("appearance", 360),
+    # Wertung je PvP-Bracket; {bracket} aus PVP_BRACKETS, je Bracket eine Abfrage.
+    "pvp_brackets": ("pvp-bracket/{bracket}", 60),
     # Nur Jaeger; fuer andere Klassen meldet die API laut Doku 404.
     "hunter_pets": ("hunter-pets", 360),
 }
@@ -73,6 +79,12 @@ DETAIL_ENDPOINTS: dict[str, tuple[str, int]] = {
 # error." Die Klasse aendert sich nie; nach dem ersten 404 wird der Endpunkt bis
 # zum Neuladen nicht mehr abgefragt. Eine Klassen-ID nennt die Doku nicht.
 NOT_FOUND_IS_FINAL = ("hunter_pets",)
+
+# Bracket-Bezeichner fuer pvp-bracket/{bracket}, nur belegte: "3v3" ist das
+# Beispiel der Classic-Doku, "2v2", "3v3" und "rbg" nennen die Typdefinitionen
+# von @blizzard-api/wow 4.1.4. Sensoren entstehen nur fuer Brackets, die beim
+# Start Daten liefern.
+PVP_BRACKETS = ("2v2", "3v3", "rbg")
 
 # Ausruestungsplaetze in der Reihenfolge des Arsenals (links, rechts, Waffen).
 # Bezeichner wie im Feld "slot.type" der Ausruestungs-Seite; dieselbe Liste
@@ -131,13 +143,17 @@ CLASSIC_ENDPOINTS = (
     "game_statistics",
     "guild",
     "guild_activity",
+    "guild_roster",
     "hunter_pets",
+    "appearance",
+    "pvp_brackets",
 )
 # Statische Spieldaten, die die Integration nachschlaegt und die Blizzard fuer
-# Classic nennt (Doku "World of Warcraft Classic Game Data APIs"). Symbole von
+# Classic nennt (Doku "World of Warcraft Classic Game Data APIs");
+# playable-class liefert die Klassennamen der Gildenmitglieder. Symbole von
 # Spezialisierungen, Berufen, Raids und Erfolgen sowie Erfolgskategorien
 # fehlen dort.
-CLASSIC_STATIC = ("media/playable-class", "media/item")
+CLASSIC_STATIC = ("media/playable-class", "media/item", "playable-class")
 
 # Namespaces: "dynamic{suffix}-{region}" fuer die Realm-Liste,
 # "profile{suffix}-{region}" fuer Charaktere, z. B. "profile-eu".

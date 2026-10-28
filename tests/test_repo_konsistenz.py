@@ -87,6 +87,7 @@ def test_endpoint_wiring() -> None:
     used |= {
         coordinator.endpoint_for_key(f"{coordinator.PROFESSION_PREFIX}1"),
         coordinator.endpoint_for_key(f"{coordinator.EQUIPMENT_PREFIX}head"),
+        coordinator.endpoint_for_key(f"{coordinator.PVP_BRACKET_PREFIX}3v3"),
     }
     assert used <= endpoints, used - endpoints
     assert endpoints <= used, f"abgefragt, aber ohne Entitaet: {endpoints - used}"
@@ -111,8 +112,10 @@ def test_unrecorded_attributes_documented() -> None:
     section = README.split("### Nicht in der Datenbank", 1)[1].split("\n## ", 1)[0]
     names = set()
     for path in BASE.glob("*.py"):
+        # frozenset({...}) oder Erweiterung einer Elternklasse: ... | {...}
         for group in re.findall(
-            r"_unrecorded_attributes = frozenset\(\{([^}]*)\}\)", path.read_text()
+            r"_unrecorded_attributes = (?:frozenset\(|\S+ \| )\{([^}]*)\}",
+            path.read_text(),
         ):
             names |= set(re.findall(r'"(\w+)"', group))
     assert names, "keine _unrecorded_attributes gefunden"

@@ -275,6 +275,9 @@
       },
       "hunter_pets": {
         "name": "Hunter pets"
+      },
+      "pvp_bracket": {
+        "name": "PvP rating {bracket}"
       }
     },
     "binary_sensor": {

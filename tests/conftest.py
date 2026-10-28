@@ -414,6 +414,23 @@ REPUTATIONS = {
 }
 
 
+# Felder wie in den Typdefinitionen von @blizzard-api/wow 4.1.4; Werte erfunden.
+APPEARANCE = {
+    "gender": {"type": "FEMALE", "name": "Weiblich"},
+    "items": [
+        {"id": 7001, "slot": {"type": "HEAD", "name": "Kopf"}, "enchant": 0},
+        {"id": 7002, "slot": {"type": "MAIN_HAND", "name": "Waffenhand"}, "enchant": 5},
+    ],
+}
+PVP_3V3 = {
+    "bracket": {"id": 1, "type": "ARENA_3v3"},
+    "rating": 1850,
+    "season": {"id": 40},
+    "season_match_statistics": {"played": 120, "won": 70, "lost": 50},
+    "weekly_match_statistics": {"played": 10, "won": 6, "lost": 4},
+}
+
+
 def mock_api(
     aioclient_mock: AiohttpClientMocker,
     override: dict | None = None,
@@ -445,6 +462,11 @@ def mock_api(
         "/quests/completed": {"quests": [{"id": 1}, {"id": 2}, {"id": 3}, {"id": 4}]},
         # Testchar ist Magier: Fuer Nicht-Jaeger meldet die API laut Doku 404.
         "/hunter-pets": 404,
+        "/appearance": APPEARANCE,
+        # Nur 3v3 gespielt; fuer die anderen Brackets 404.
+        "/pvp-bracket/2v2": 404,
+        "/pvp-bracket/3v3": PVP_3V3,
+        "/pvp-bracket/rbg": 404,
     }
     world = {
         "/token/index": {"price": 3456789},

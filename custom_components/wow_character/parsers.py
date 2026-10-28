@@ -704,3 +704,97 @@ def hunter_pets(data: dict[str, Any] | None) -> list[dict[str, Any]]:
             }
         )
     return result
+
+
+def roster_class_ids(roster: dict[str, Any] | None) -> list[int]:
+    """Klassen-IDs der Gildenmitglieder, jede einmal, sortiert."""
+    ids = {
+        class_id
+        for member in (roster or {}).get("members") or []
+        if isinstance(member, dict)
+        and isinstance(
+            class_id := (
+                (member.get("character") or {}).get("playable_class") or {}
+            ).get("id"),
+            int,
+        )
+    }
+    return sorted(ids)
+
+
+def guild_members(
+    roster: dict[str, Any] | None, class_names: dict[int, str] | None = None
+) -> list[dict[str, Any]]:
+    """Mitglieder nach Rang (0 zuerst) und Name.
+
+    Felder wie in den Typdefinitionen von @blizzard-api/classic-wow 4.2.0 und
+    @blizzard-api/wow 4.1.4: character mit name, level und playable_class (nur
+    ID); rank als Zahl. Namen der Raenge liefert die API nicht.
+    """
+    class_names = class_names or {}
+    result = []
+    for member in (roster or {}).get("members") or []:
+        if not isinstance(member, dict):
+            continue
+        character = member.get("character") or {}
+        class_id = (character.get("playable_class") or {}).get("id")
+        result.append(
+            {
+                "name": character.get("name"),
+                "level": character.get("level"),
+                "class": class_names.get(class_id),
+                "class_id": class_id,
+                "rank": member.get("rank"),
+            }
+        )
+    result.sort(
+        key=lambda m: (
+            m["rank"] if isinstance(m["rank"], int) else 999,
+            str(m["name"] or ""),
+        )
+    )
+    return result
+
+
+def pvp_bracket(data: dict[str, Any] | None) -> dict[str, Any]:
+    """Wertung und Spiele eines PvP-Brackets.
+
+    Felder wie in den Typdefinitionen von @blizzard-api/wow 4.1.4
+    (CharacterPvpBracketStatisticsResponse); fuer Classic gibt es keine.
+    """
+    data = data or {}
+    season = data.get("season_match_statistics") or {}
+    weekly = data.get("weekly_match_statistics") or {}
+    return {
+        "rating": data.get("rating"),
+        "season_played": season.get("played"),
+        "season_won": season.get("won"),
+        "season_lost": season.get("lost"),
+        "weekly_played": weekly.get("played"),
+        "weekly_won": weekly.get("won"),
+        "weekly_lost": weekly.get("lost"),
+        "season_id": (data.get("season") or {}).get("id"),
+    }
+
+
+def appearance(data: dict[str, Any] | None) -> dict[str, Any]:
+    """Geschlecht und Transmog aus dem Aussehen.
+
+    Felder wie in den Typdefinitionen von @blizzard-api/wow 4.1.4
+    (CharacterAppearanceResponse); fuer Classic gibt es keine. Je Gegenstand
+    nur, was die API nennt: Platz, ID und Verzauberung, keinen Namen.
+    """
+    data = data or {}
+    return {
+        "gender": name_of(data.get("gender")),
+        "transmog": [
+            {
+                "slot": (item.get("slot") or {}).get("type"),
+                "slot_name": (item.get("slot") or {}).get("name"),
+                "id": item.get("id"),
+                "enchant": item.get("enchant"),
+            }
+            for item in data.get("items") or []
+            if isinstance(item, dict)
+        ],
+    }

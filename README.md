@@ -11,7 +11,7 @@ Home-Assistant-Integration für World-of-Warcraft-Charaktere: Level, Itemlevel,
 Ausrüstung, Raid- und Mythic+-Fortschritt, Berufe, Ruf, Erfolge und mehr als
 Sensoren, dazu WoW-Marke, wöchentlicher Reset und Serverstatus. Die Daten kommen
 aus der offiziellen Battle.net API. Unterstützt Retail, WoW Classic (Era,
-Progression, Anniversary) und ist für WoW Forever vorbereitet. Version 0.10.2.
+Progression, Anniversary) und ist für WoW Forever vorbereitet. Version 0.11.0.
 
 <p align="center">
   <img src="https://raw.githubusercontent.com/philf90/HA-WOW/main/assets/vorschau-karten.png" alt="Arsenal-, Charaktere-, Berufe- und Raid-Karte im Nachtblau-Stil mit Beispieldaten" width="100%">
@@ -117,6 +117,7 @@ die anderen laufen weiter.
 |---|---|---|---|
 | **Profil** | | | |
 | Level (Klasse, Spezialisierung, Volk, Fraktion, Gilde, Realm, Titel als Attribute) | Sensor | 15 min | Profil, `level` |
+| Geschlecht und Transmog (Attribute am Level-Sensor) | Attribute | 6 h | `appearance` |
 | Itemlevel (angelegt, Durchschnitt) | Sensoren | 15 min | Profil, `equipped_item_level`, `average_item_level` |
 | Erfahrungspunkte | Sensor | 15 min | Profil, `experience` |
 | Erfolgspunkte | Sensor | 15 min | Profil, `achievement_points` |
@@ -125,7 +126,7 @@ die anderen laufen weiter.
 | Spezialisierung mit Heldentalenten und Talent-Code | Sensor | 1 h | `specializations` |
 | Titel (Anzahl, Liste als Attribut) | Sensor | 6 h | `titles` |
 | Level gestiegen | Ereignis | 15 min | Profil, `level` |
-| Gilde (Mitglieder; Name, Erfolgspunkte, Aktivitäten als Attribute), nur in einer Gilde | Sensor | 6 h, Aktivitäten 1 h | `/data/wow/guild/{realm}/{gilde}` und `…/activity` |
+| Gilde (Mitglieder; Name, Erfolgspunkte, Aktivitäten und Mitgliederliste als Attribute), nur in einer Gilde | Sensor | 6 h, Aktivitäten 1 h | `/data/wow/guild/{realm}/{gilde}`, `…/activity` und `…/roster`; Klassennamen aus `playable-class/{id}` |
 | Jägerbegleiter (Anzahl; beschworener, aktive und alle Begleiter als Attribute), nur für Jäger | Sensor | 6 h; für Nicht-Jäger einmal je Start | `hunter-pets` |
 | **Ausrüstung** | | | |
 | Ausrüstung, 18 Plätze (Kopf bis Schildhand) | Sensoren, Itemlevel; Symbol als Bild | 1 h | `equipment`; Symbol aus `media/item/{id}` |
@@ -137,6 +138,7 @@ die anderen laufen weiter.
 | Mythic+-Wertung der aktuellen Season (Farbe, Season, `api_rating` als Attribute) | Sensor | 15 min | Mythic+-Profil, `current_mythic_rating` |
 | Höchster Mythic+-Schlüssel (beste Läufe als Attribut), Läufe in Zeit | Sensoren | 1 h | `mythic-keystone-profile/season/{aktuelle Season}` |
 | Ehrenstufe, ehrenhafte Siege | Sensoren | 1 h | `pvp-summary` |
+| PvP-Wertung je Bracket (2v2, 3v3, RBG), nur Brackets mit Daten beim Start | Sensoren | 1 h | `pvp-bracket/{bracket}` |
 | Beruf (je Beruf, Stufe als Attribut) | Sensor | 6 h | `professions`; Namen aus `profession/{id}` |
 | Ruf (Anzahl der Fraktionen, je Fraktion Stufe und Fortschritt als Attribut) | Sensor | 6 h | `reputations` |
 | **Erfolge und Sammlungen** | | | |
@@ -230,9 +232,28 @@ Kommen in einer Abfrage mehrere neue Einträge, löst jeder ein eigenes Ereignis
 
 Den Sensor gibt es nur für Charaktere, die beim Start von Home Assistant in einer
 Gilde sind. Zustand ist die Zahl der Mitglieder; Attribute `name`, `realm`,
-`faction`, `achievement_points`, `created` und `activities` (die zehn neuesten
+`faction`, `achievement_points`, `created`, `activities` (die zehn neuesten
 Einträge: Erfolge von Mitgliedern mit `character` und `achievement`, Bosskills
-mit `boss` und `difficulty`, je mit `type` und `timestamp`).
+mit `boss` und `difficulty`, je mit `type` und `timestamp`) und `members` (seit
+0.11.0): je Mitglied `name`, `level`, `class`, `class_id` und `rank`, sortiert
+nach Rang (0 zuerst) und Name. Die Mitgliederliste nennt die Klasse nur als ID;
+den Namen schlägt die Integration einmal je Klasse in `playable-class/{id}` nach,
+klappt das nicht, bleibt `class` leer. Namen der Ränge liefert die API nicht.
+
+### Aussehen und PvP-Brackets
+
+- **Aussehen** (seit 0.11.0, am Level-Sensor): `gender` und `transmog`, je
+  Gegenstand `slot`, `slot_name`, `id` und `enchant`. Die API nennt keine
+  Gegenstandsnamen, und ob `id` die Item-ID ist, ist nicht dokumentiert; die
+  Integration gibt die Werte deshalb unverändert weiter. Der Endpunkt wird nur
+  abgefragt, solange der Level-Sensor aktiv ist.
+- **PvP-Wertung je Bracket** (seit 0.11.0): Zustand ist die Wertung; Attribute
+  `season_played`, `season_won`, `season_lost`, `weekly_played`, `weekly_won`,
+  `weekly_lost` und `season_id`. Abgefragt werden die Brackets `2v2`, `3v3` und
+  `rbg` (`3v3` nennt die Classic-Doku als Beispiel, alle drei die
+  Typdefinitionen von `@blizzard-api/wow`); einen Sensor gibt es für jedes, das
+  beim Start Daten liefert. `5v5` aus Classic ist nirgends dokumentiert und
+  fehlt deshalb.
 
 ### Jägerbegleiter
 
@@ -289,7 +310,7 @@ nicht, bleibt der englische Name. Raidnamen kommen weiterhin auf Englisch.
 ### Nicht in der Datenbank
 
 Lange Attribute speichert Home Assistant nicht im Verlauf: `tooltip`, `factions`,
-`runs`, `titles`, `statistics`, `activities` und `pets`. Die Werte stehen trotzdem im aktuellen Zustand.
+`runs`, `titles`, `statistics`, `activities`, `pets`, `members` und `transmog`. Die Werte stehen trotzdem im aktuellen Zustand.
 
 ## Abfragen und Takte
 
@@ -380,11 +401,13 @@ steckt, ändert Blizzard mit der Zeit; der Namespace bleibt.
 | Status-Prüfung (Reparaturhinweise) | ja | `status` |
 | Ausrüstung, leere Sockel, Verzauberungen, Set | ja | `equipment`; Symbole aus `media/item/{id}` |
 | Ehrenstufe, ehrenhafte Siege | ja | `pvp-summary` |
+| PvP-Wertung je Bracket | ja | `pvp-bracket/{bracket}` |
+| Geschlecht und Transmog am Level-Sensor | ja | `appearance` |
 | Charakterwerte (zunächst aus) | ja | `statistics` |
 | Erfolge, Neuer Erfolg, Spielstatistik | ja | `achievements`, `achievements/statistics` |
 | Spezialisierung | ja | `specializations` |
 | Avatar, Ganzkörperbild | ja | `character-media` |
-| Gilde | ja | `/data/wow/guild/{realm}/{gilde}`, `…/activity` |
+| Gilde mit Mitgliederliste | ja | `/data/wow/guild/{realm}/{gilde}`, `…/activity`, `…/roster`; Klassennamen aus `playable-class/{id}` |
 | Jägerbegleiter, nur für Jäger | ja | `hunter-pets` |
 | Server, Warteschlange, Bevölkerung je Realm | ja | `realm/{slug}`, `connected-realm/{id}` |
 | WoW-Marke | nur wenn die API beim Start einen Preis liefert; sonst bis zum Neuladen keine weitere Abfrage | `token/index` |
@@ -392,6 +415,7 @@ steckt, ändert Blizzard mit der Zeit; der Namespace bleibt.
 | Raids, Boss besiegt, Mythic+, wöchentlicher Reset | nein, nicht in der Doku | – |
 | Berufe, Ruf, Titel, Quests, Sammlungen, Neu gesammelt | nein, nicht in der Doku | – |
 | Symbole von Spezialisierung und Erfolgen, deutsche Erfolgskategorien | nein, nicht in der Doku | – |
+| Auktionshaus | nein, bewusst weggelassen: laut Doku oft über 10 MB je Abfrage, nur Item-IDs ohne Namen | – |
 
 **Was die Antworten enthalten, sagt die Doku nicht** (sie nennt Endpunkte und
 Parameter, keine Antwortfelder). Die Integration liest Classic deshalb wie
@@ -452,6 +476,16 @@ haben, wie bei [Classic](#wow-classic).
 Automatische Tests laufen gegen Home Assistant 2026.2.3; live geprüft wurde unter
 Home Assistant 2026.10.4 mit Retail-Charakteren der Region EU.
 
+- **0.11.x:** 149 automatische Tests, darunter 6 neue für Aussehen,
+  PvP-Brackets und Gildenmitglieder (Attribute am Level-Sensor und deren
+  Aktualisierung, keine Abfrage des Aussehens ohne Level-Sensor, Sensor nur für
+  Brackets mit Daten, alter Stand bei einem Fehler, Namespaces in Classic,
+  Klassennamen je Klasse einmal nachgeschlagen) und die Mitgliederliste im
+  bestehenden Gilden-Test. Gegenprobe: neun Fehler einzeln eingebaut, jedes Mal
+  schlug mindestens ein Test fehl; dabei fiel auf, dass die Testdaten die
+  Sortierung nach Rang nicht prüften, das ist behoben. **Nicht live geprüft:**
+  Die Felder stammen aus den Typdefinitionen (für Aussehen und PvP-Brackets nur
+  Retail), nicht aus echten Antworten.
 - **0.10.x:** 143 automatische Tests. Seit 0.10.2 dazu 6 Tests für die
   PR-Vorlage: „Keine: <Grund>“ unter „Belege“ gilt auch als Listenpunkt
   („- Keine: …“), ohne Grund weiter nicht; Gegenprobe: vier Fehler einzeln

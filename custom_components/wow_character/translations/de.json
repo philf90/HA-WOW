@@ -275,6 +275,9 @@
       },
       "hunter_pets": {
         "name": "Jägerbegleiter"
+      },
+      "pvp_bracket": {
+        "name": "PvP-Wertung {bracket}"
       }
     },
     "binary_sensor": {
