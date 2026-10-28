@@ -11,7 +11,7 @@ Home-Assistant-Integration für World-of-Warcraft-Charaktere: Level, Itemlevel,
 Ausrüstung, Raid- und Mythic+-Fortschritt, Berufe, Ruf, Erfolge und mehr als
 Sensoren, dazu WoW-Marke, wöchentlicher Reset und Serverstatus. Die Daten kommen
 aus der offiziellen Battle.net API. Unterstützt Retail, WoW Classic (Era,
-Progression, Anniversary) und ist für WoW Forever vorbereitet. Version 0.12.1.
+Progression, Anniversary) und ist für WoW Forever vorbereitet. Version 0.12.2.
 
 <p align="center">
   <img src="https://raw.githubusercontent.com/philf90/HA-WOW/main/assets/vorschau-karten.png" alt="Arsenal-, Charaktere-, Berufe- und Raid-Karte im Nachtblau-Stil mit Beispieldaten" width="100%">
@@ -404,13 +404,16 @@ für das Arsenal-Popup) stehen im Kopf jeder Datei.
 - **Diagnose:** Einstellungen → Geräte & Dienste → WoW Charakter → ⋮ →
   **Diagnose herunterladen** liefert die API-Antworten ohne Client-ID und Secret.
   Damit lassen sich Feldnamen prüfen, wenn ein Wert fehlt. Vergebene Talente
-  stehen dort mit IDs und Rang, ohne Tooltip-Texte. Verweist das aktive Loadout
-  auf einen Talentbaum (Retail), lädt die Diagnose beim Herunterladen diesen Baum
-  einmal (`talent-tree/{id}/playable-specialization/{specId}` oder, je nach
-  Verweis, `talent-tree/{id}`) und zeigt je Knoten
-  ID, Zeile, Spalte, Art, Zahl der Ränge, Talente und Verbindungen (seit 0.12.1).
-  Damit lässt sich prüfen, ob die IDs der vergebenen Talente die Knoten des Baums
-  sind; die Doku sagt das nicht.
+  stehen dort mit IDs und Rang, ohne Tooltip-Texte. Beim Herunterladen lädt die
+  Diagnose einmal den Talentbaum des aktiven Loadouts (Retail, seit 0.12.1) und
+  zeigt je Knoten ID, Zeile, Spalte, Art, Zahl der Ränge, Talente und
+  Verbindungen. Seit 0.12.2 nimmt sie den Baum der Spezialisierung
+  (`selected_spec_talent_tree`, Endpunkt `talent-tree/{id}/playable-specialization/{specId}`)
+  und nur ohne diesen Verweis den Klassenbaum (`talent-tree/{id}`). Der
+  Klassenbaum enthält die Knoten aller Spezialisierungen der Klasse, teils auf
+  denselben Plätzen, und Verbindungen nur bei den Heldentalenten (echte Antwort
+  vom 28.10.2026). Live geprüft am selben Tag: Die IDs der vergebenen Talente
+  sind die Knoten-IDs des Baums; bei Wahlknoten zeigt die Talent-ID die Wahl.
 
 ## WoW Classic
 
@@ -527,13 +530,18 @@ Automatische Tests laufen gegen Home Assistant 2026.2.3; live geprüft wurde unt
 Home Assistant 2026.10.4 mit Retail-Charakteren der Region EU, seit 0.11.2 auch
 mit einem Classic-Era-Charakter (siehe [WoW Classic](#wow-classic)).
 
-- **0.12.x:** 166 automatische Tests. 0.12.1: 4 Tests für die Diagnose
+- **0.12.x:** 166 automatische Tests. 0.12.2: Die Diagnose-Tests nutzen die
+  Verweise wie in der echten Antwort und prüfen, dass der Baum der
+  Spezialisierung Vorrang hat und der Klassenbaum nur ohne ihn geladen wird;
+  Gegenprobe: zwei Fehler einzeln eingebaut, jedes Mal schlug mindestens ein
+  Test fehl. 0.12.1: 4 Tests für die Diagnose
   (Talentbaum des aktiven Loadouts mit Knoten, Wahlknoten, Heldentalenten und
   Schwellen, ohne Tooltip-Texte; Verweis ohne Spezialisierung; Fehler der
   Abfrage; keine Abfrage ohne Verweis),
   ein bestehender Test prüft die vergebenen Talente jetzt mit IDs statt Anzahl.
-  Gegenprobe: sechs Fehler einzeln eingebaut, jedes Mal schlug mindestens ein
-  Test fehl. **Nicht live geprüft:** Aufbau der echten Antwort von `talent-tree`. 0.12.0: 4 Tests für den Sensor „Talente“
+  Gegenprobe: acht Fehler einzeln eingebaut, jedes Mal schlug mindestens ein
+  Test fehl. Live geprüft mit einem Retail-Charakter: Die Knoten-IDs passen
+  (siehe Diagnose unter [Ändern, Hinweise und Diagnose](#ändern-hinweise-und-diagnose)). 0.12.0: 4 Tests für den Sensor „Talente“
   (Baum mit den meisten Punkten, nur die aktive Gruppe, Punkte und Talente je
   Baum, Aktualisierung ohne Sensor „Spezialisierung“; Gleichstand; kein Sensor
   ohne Punkte; kein Sensor in Retail). Gegenprobe: sieben Fehler einzeln
