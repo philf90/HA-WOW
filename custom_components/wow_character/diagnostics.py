@@ -166,6 +166,13 @@ def _shrink(endpoint: str, data: Any) -> Any:
             ],
             "first": categories[:1],
         }
+    if endpoint == "talent_tree":
+        # Aufbereiteter Baum fuer den Sensor; Knoten nur als Anzahl, der
+        # Baum selbst steht gekuerzt unter "talent_tree" des Charakters.
+        return {
+            k: (len(v) if k.endswith("_nodes") and isinstance(v, list) else v)
+            for k, v in data.items()
+        }
     if endpoint == "specializations":
         # Talentlisten mit Tooltips sind lang; IDs und Rang reichen zur Pruefung.
         return {

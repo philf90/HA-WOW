@@ -348,6 +348,15 @@ DETAIL_SENSORS: tuple[WowSensorDescription, ...] = (
         },
     ),
     WowSensorDescription(
+        key="talent_tree",
+        translation_key="talent_tree",
+        # Fuer die Karte "WoW Talentbaum"; Retail (talent-tree in den Spieldaten).
+        value_fn=lambda d: (d.get("talent_tree") or {}).get("name"),
+        attrs_fn=lambda d: {
+            k: v for k, v in (d.get("talent_tree") or {}).items() if k != "name"
+        },
+    ),
+    WowSensorDescription(
         key="talents",
         translation_key="talents",
         # Talentpunkte je Baum gibt es nur in Classic (specialization_groups).
@@ -515,9 +524,20 @@ class WowSensor(WowCharacterEntity, SensorEntity):
     """Sensor aus dem Profil- oder Detail-Coordinator eines Charakters."""
 
     entity_description: WowSensorDescription
-    # Lange Listen fuer Karten (M+-Laeufe, Titel, Statistik-Fenster, Talente);
-    # nur die Sensoren mit diesen Attributen sind betroffen.
-    _unrecorded_attributes = frozenset({"runs", "titles", "statistics", "trees"})
+    # Lange Listen fuer Karten (M+-Laeufe, Titel, Statistik-Fenster, Talente,
+    # Talentbaum); nur die Sensoren mit diesen Attributen sind betroffen.
+    _unrecorded_attributes = frozenset(
+        {
+            "runs",
+            "titles",
+            "statistics",
+            "trees",
+            "class_nodes",
+            "spec_nodes",
+            "hero_nodes",
+            "gates",
+        }
+    )
 
     def __init__(
         self,

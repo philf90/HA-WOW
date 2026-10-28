@@ -378,7 +378,11 @@ async def test_diagnostics_talent_tree(hass: HomeAssistant, aioclient_mock) -> N
     mock_token(aioclient_mock)
     mock_api(
         aioclient_mock,
-        {f"{API}/specializations": _with_tree_link(), f"{GAME}/{TREE_PATH}": TREE},
+        {
+            f"{API}/specializations": _with_tree_link(),
+            f"{GAME}/{TREE_PATH}": TREE,
+            **{f"{GAME}/media/spell/{i}": 404 for i in (300, 301, 302)},
+        },
     )
     entry = await _setup(hass, character_subentry())
     diag = await async_get_config_entry_diagnostics(hass, entry)

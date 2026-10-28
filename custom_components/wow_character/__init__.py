@@ -112,6 +112,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: WowConfigEntry) -> bool:
     # Classic Era, fragen die Detail-Coordinators bis zum Neuladen nicht ab.
     for detail in runtime.details.values():
         detail.entities_ready = True
+        # Symbole des Talentbaums laedt erst dieser Lauf (siehe _talent_tree).
+        if (detail.data or {}).get("talent_tree") is not None:
+            entry.async_create_background_task(
+                hass, detail.async_request_refresh(), f"{detail.name} Symbole"
+            )
     _remove_stale(hass, entry)
     runtime.config_snapshot = config_snapshot(entry)
     # Charakter hinzugefuegt oder entfernt, Zugangsdaten geaendert: neu laden.

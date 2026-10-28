@@ -171,6 +171,9 @@
       "talents": {
         "default": "mdi:file-tree"
       },
+      "talent_tree": {
+        "default": "mdi:family-tree"
+      },
       "stat_crit": {
         "default": "mdi:chart-bar"
       },
