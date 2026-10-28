@@ -11,7 +11,7 @@ Home-Assistant-Integration für World-of-Warcraft-Charaktere: Level, Itemlevel,
 Ausrüstung, Raid- und Mythic+-Fortschritt, Berufe, Ruf, Erfolge und mehr als
 Sensoren, dazu WoW-Marke, wöchentlicher Reset und Serverstatus. Die Daten kommen
 aus der offiziellen Battle.net API. Unterstützt Retail, WoW Classic (Era,
-Progression, Anniversary) und ist für WoW Forever vorbereitet. Version 0.9.0.
+Progression, Anniversary) und ist für WoW Forever vorbereitet. Version 0.10.0.
 
 <p align="center">
   <img src="https://raw.githubusercontent.com/philf90/HA-WOW/main/assets/vorschau-karten.png" alt="Arsenal-, Charaktere-, Berufe- und Raid-Karte im Nachtblau-Stil mit Beispieldaten" width="100%">
@@ -126,6 +126,7 @@ die anderen laufen weiter.
 | Titel (Anzahl, Liste als Attribut) | Sensor | 6 h | `titles` |
 | Level gestiegen | Ereignis | 15 min | Profil, `level` |
 | Gilde (Mitglieder; Name, Erfolgspunkte, Aktivitäten als Attribute), nur in einer Gilde | Sensor | 6 h, Aktivitäten 1 h | `/data/wow/guild/{realm}/{gilde}` und `…/activity` |
+| Jägerbegleiter (Anzahl; beschworener, aktive und alle Begleiter als Attribute), nur für Jäger | Sensor | 6 h | `hunter-pets` |
 | **Ausrüstung** | | | |
 | Ausrüstung, 18 Plätze (Kopf bis Schildhand) | Sensoren, Itemlevel; Symbol als Bild | 1 h | `equipment`; Symbol aus `media/item/{id}` |
 | Leere Sockel, Verzauberungen, Set-Fortschritt | Sensoren | 1 h | `equipment`, ausgewertet |
@@ -233,6 +234,19 @@ Gilde sind. Zustand ist die Zahl der Mitglieder; Attribute `name`, `realm`,
 Einträge: Erfolge von Mitgliedern mit `character` und `achievement`, Bosskills
 mit `boss` und `difficulty`, je mit `type` und `timestamp`).
 
+### Jägerbegleiter
+
+Den Sensor gibt es nur, wenn die API beim Start Begleiter liefert. Für andere
+Klassen meldet sie laut Blizzard-Doku 404; scheitert die erste Abfrage, entsteht
+der Sensor beim nächsten Neuladen. Zustand ist die Zahl der Begleiter.
+Attribute: `summoned` (Name des beschworenen Begleiters), `active` (Namen der
+aktiven Begleiter) und `pets`, je Begleiter `name`, `level`, `creature`,
+`creature_id`, `slot`, `active` und `summoned`. Die Feldnamen der API stammen aus
+den Typdefinitionen von `@blizzard-api/wow` 4.1.4 und `@blizzard-api/classic-wow`
+4.2.0; dort sind `is_active` und `is_summoned` optional, fehlen sie, gilt der
+Begleiter als nicht aktiv bzw. nicht beschworen. Gilt für alle Spielversionen;
+die Classic-Doku nennt den Endpunkt ebenfalls.
+
 ### Symbole für Karten
 
 Aus den statischen Spieldaten, je Objekt einmal nachgeschlagen:
@@ -266,7 +280,7 @@ nicht, bleibt der englische Name. Raidnamen kommen weiterhin auf Englisch.
 ### Nicht in der Datenbank
 
 Lange Attribute speichert Home Assistant nicht im Verlauf: `tooltip`, `factions`,
-`runs`, `titles`, `statistics` und `activities`. Die Werte stehen trotzdem im aktuellen Zustand.
+`runs`, `titles`, `statistics`, `activities` und `pets`. Die Werte stehen trotzdem im aktuellen Zustand.
 
 ## Abfragen und Takte
 
@@ -360,6 +374,7 @@ steckt, ändert Blizzard mit der Zeit; der Namespace bleibt.
 | Spezialisierung | ja | `specializations` |
 | Avatar, Ganzkörperbild | ja | `character-media` |
 | Gilde | ja | `/data/wow/guild/{realm}/{gilde}`, `…/activity` |
+| Jägerbegleiter, nur für Jäger | ja | `hunter-pets` |
 | Server, Warteschlange, Bevölkerung je Realm | ja | `realm/{slug}`, `connected-realm/{id}` |
 | WoW-Marke | nur wenn die API einen Preis liefert | `token/index` |
 | Klassen-Symbol (`class_icon`) | ja | `media/playable-class/{id}` |
@@ -426,6 +441,13 @@ haben, wie bei [Classic](#wow-classic).
 Automatische Tests laufen gegen Home Assistant 2026.2.3; live geprüft wurde unter
 Home Assistant 2026.10.4 mit Retail-Charakteren der Region EU.
 
+- **0.10.x:** 102 automatische Tests, darunter 8 für die Jägerbegleiter: Werte
+  und Attribute, kein Sensor für Nicht-Jäger (404) und bei gescheiterter erster
+  Abfrage, Namespace in allen drei Classic-Versionen und Forever, keine Abfrage
+  bei deaktiviertem Sensor, gekürzte Diagnose. Gegenprobe: jede der sechs
+  Schutzmaßnahmen einzeln entfernt, jedes Mal schlug mindestens ein Test fehl.
+  **Nicht live geprüft:** Kein Jäger unter den Test-Charakteren; die Feldnamen
+  stammen aus den Typdefinitionen, nicht aus einer echten Antwort.
 - **0.9.x:** 94 automatische Tests, darunter 10 für Classic: Namespaces aller
   drei Classic-Versionen beim Hinzufügen, nur dokumentierte Endpunkte und
   Symbole, keine Sensoren ohne Wert, Zusatzplätze der Ausrüstung, Name des

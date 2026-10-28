@@ -64,6 +64,8 @@ DETAIL_ENDPOINTS: dict[str, tuple[str, int]] = {
     # Ohne Gilde wird nichts abgefragt.
     "guild": ("{guild}", 360),
     "guild_activity": ("{guild}/activity", 60),
+    # Nur Jaeger; fuer andere Klassen meldet die API laut Doku 404.
+    "hunter_pets": ("hunter-pets", 360),
 }
 
 # Ausruestungsplaetze in der Reihenfolge des Arsenals (links, rechts, Waffen).
@@ -123,6 +125,7 @@ CLASSIC_ENDPOINTS = (
     "game_statistics",
     "guild",
     "guild_activity",
+    "hunter_pets",
 )
 # Statische Spieldaten, die die Integration nachschlaegt und die Blizzard fuer
 # Classic nennt (Doku "World of Warcraft Classic Game Data APIs"). Symbole von
