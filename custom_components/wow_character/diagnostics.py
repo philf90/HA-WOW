@@ -2,15 +2,137 @@
 
 from __future__ import annotations
 
+import re
 from typing import Any
 
 from homeassistant.components.diagnostics import async_redact_data
 from homeassistant.core import HomeAssistant
 
+from .api import BattleNetError
 from .const import CONF_CLIENT_ID, CONF_CLIENT_SECRET
-from .coordinator import WowConfigEntry
+from .coordinator import WowConfigEntry, WowDetailCoordinator
 
 TO_REDACT = {CONF_CLIENT_ID, CONF_CLIENT_SECRET}
+
+# Verweis des aktiven Loadouts auf seinen Talentbaum (Retail), z. B.
+# ".../data/wow/talent-tree/790/playable-specialization/64?namespace=...".
+# Die Doku nennt das Format nicht; ohne Spezialisierung ist es der Endpunkt
+# "Talent Tree Nodes" (talent-tree/{id}) mit talent_nodes.
+_TALENT_TREE_HREF = re.compile(
+    r"/data/wow/(talent-tree/\d+(?:/playable-specialization/\d+)?)"
+)
+
+
+def _selected_talents(talents: Any) -> list[dict[str, Any]]:
+    """Vergebene Talente ohne Tooltip-Texte: IDs und Rang zum Abgleich mit dem Baum."""
+    result = []
+    for talent in talents if isinstance(talents, list) else []:
+        if not isinstance(talent, dict):
+            continue
+        tooltip = talent.get("tooltip") or {}
+        result.append(
+            {
+                "id": talent.get("id"),
+                "rank": talent.get("rank"),
+                "default_points": talent.get("default_points"),
+                "talent_id": (tooltip.get("talent") or {}).get("id"),
+                "spell_id": (
+                    (tooltip.get("spell_tooltip") or {}).get("spell") or {}
+                ).get("id"),
+            }
+        )
+    return result
+
+
+def _tree_nodes(nodes: Any) -> list[dict[str, Any]]:
+    """Knoten eines Talentbaums ohne Tooltip-Texte: Lage, Raenge, Verbindungen."""
+    result = []
+    for node in nodes if isinstance(nodes, list) else []:
+        if not isinstance(node, dict):
+            continue
+        ranks = [r for r in node.get("ranks") or [] if isinstance(r, dict)]
+        talents = []
+        for rank in ranks:
+            tooltips = [rank.get("tooltip"), *(rank.get("choice_of_tooltips") or [])]
+            for tooltip in tooltips:
+                if not isinstance(tooltip, dict):
+                    continue
+                spell = (tooltip.get("spell_tooltip") or {}).get("spell") or {}
+                entry = {
+                    "talent_id": (tooltip.get("talent") or {}).get("id"),
+                    "spell_id": spell.get("id"),
+                    "name": spell.get("name"),
+                }
+                if entry not in talents:
+                    talents.append(entry)
+        result.append(
+            {
+                "id": node.get("id"),
+                "row": node.get("display_row"),
+                "col": node.get("display_col"),
+                "type": (node.get("node_type") or {}).get("type"),
+                "ranks": len(ranks),
+                "default_points": next(
+                    (r["default_points"] for r in ranks if "default_points" in r), None
+                ),
+                "talents": talents,
+                "unlocks": node.get("unlocks"),
+                "locked_by": node.get("locked_by"),
+            }
+        )
+    return result
+
+
+def _talent_tree_path(specs: Any) -> str | None:
+    """Pfad des Talentbaums zum aktiven Loadout der aktiven Spezialisierung."""
+    if not isinstance(specs, dict):
+        return None
+    active = (specs.get("active_specialization") or {}).get("id")
+    for spec in specs.get("specializations") or []:
+        if (
+            not isinstance(spec, dict)
+            or (spec.get("specialization") or {}).get("id") != active
+        ):
+            continue
+        for loadout in spec.get("loadouts") or []:
+            if not isinstance(loadout, dict) or not loadout.get("is_active"):
+                continue
+            tree = loadout.get("selected_class_talent_tree") or {}
+            match = _TALENT_TREE_HREF.search((tree.get("key") or {}).get("href") or "")
+            return match.group(1) if match else None
+    return None
+
+
+async def _talent_tree(detail: WowDetailCoordinator) -> dict[str, Any] | None:
+    """Talentbaum der aktiven Spezialisierung, nur fuer die Diagnose abgefragt.
+
+    Dient dem Abgleich, ob die IDs der vergebenen Talente die Knoten-IDs des
+    Baums sind; die Doku sagt das nicht.
+    """
+    path = _talent_tree_path((detail.data or {}).get("specializations"))
+    if path is None or not detail.supports_static(path):
+        return None
+    try:
+        tree = await detail.client.get_static_data(detail.region, detail.suffix, path)
+    except BattleNetError as err:
+        return {"path": path, "error": repr(err)}
+    return {
+        "path": path,
+        "name": tree.get("name"),
+        "class_talent_nodes": _tree_nodes(tree.get("class_talent_nodes")),
+        "spec_talent_nodes": _tree_nodes(tree.get("spec_talent_nodes")),
+        "talent_nodes": _tree_nodes(tree.get("talent_nodes")),
+        "hero_talent_trees": [
+            {
+                "id": hero.get("id"),
+                "name": hero.get("name"),
+                "nodes": _tree_nodes(hero.get("hero_talent_nodes")),
+            }
+            for hero in tree.get("hero_talent_trees") or []
+            if isinstance(hero, dict)
+        ],
+        "restriction_lines": tree.get("restriction_lines"),
+    }
 
 
 def _shrink(endpoint: str, data: Any) -> Any:
@@ -39,7 +161,7 @@ def _shrink(endpoint: str, data: Any) -> Any:
             "first": categories[:1],
         }
     if endpoint == "specializations":
-        # Talentlisten mit Tooltips sind lang; Anzahl reicht zur Pruefung.
+        # Talentlisten mit Tooltips sind lang; IDs und Rang reichen zur Pruefung.
         return {
             **{k: v for k, v in data.items() if k != "specializations"},
             "specializations": [
@@ -47,7 +169,7 @@ def _shrink(endpoint: str, data: Any) -> Any:
                     **{k: v for k, v in spec.items() if k != "loadouts"},
                     "loadouts": [
                         {
-                            k: (len(v) if k.endswith("_talents") else v)
+                            k: (_selected_talents(v) if k.endswith("_talents") else v)
                             for k, v in loadout.items()
                         }
                         for loadout in spec.get("loadouts") or []
@@ -128,6 +250,7 @@ async def async_get_config_entry_diagnostics(
                 for endpoint, value in (detail.data or {}).items()
             },
             "needed_endpoints": sorted(detail.needed_endpoints()),
+            "talent_tree": await _talent_tree(detail),
         }
     return {
         "entry": async_redact_data(dict(entry.data), TO_REDACT),

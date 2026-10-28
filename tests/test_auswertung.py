@@ -11,6 +11,7 @@ from .conftest import (
     API,
     EQUIPMENT,
     GAME,
+    SPECIALIZATIONS,
     UID1,
     character_subentry,
     mock_api,
@@ -214,8 +215,16 @@ async def test_diagnostics_new_endpoints(hass: HomeAssistant, aioclient_mock) ->
     details = diag["characters"]["Testchar – Die Aldor"]["details"]
     assert details["achievements"]["category_progress"][0]["points"] == 2000
     frost = details["specializations"]["specializations"][1]
-    # Talentlisten nur als Anzahl
-    assert frost["loadouts"][1]["selected_class_talents"] == 1
+    # Talentlisten ohne Tooltip-Texte, mit IDs und Rang
+    assert frost["loadouts"][1]["selected_class_talents"] == [
+        {
+            "id": 1,
+            "rank": 1,
+            "default_points": None,
+            "talent_id": None,
+            "spell_id": None,
+        }
+    ]
     assert frost["loadouts"][1]["talent_loadout_code"] == "CODE123"
     assert details["titles"]["count"] == 2
     assert details["tier_names"] == {2872: "Neue Schmiedekunst (deutsch)"}
@@ -254,3 +263,195 @@ async def test_achievement_index_once(hass: HomeAssistant, aioclient_mock) -> No
     urls = [str(call[1]) for call in aioclient_mock.mock_calls]
     assert any("/achievements" in u for u in urls)
     assert not any("achievement-category" in u for u in urls)
+
+
+# Aufbau laut Typdefinitionen von @blizzard-api/wow 4.1.4 (Loadout,
+# TalentTreeResponse); IDs und Namen erfunden.
+TREE_PATH = "talent-tree/790/playable-specialization/64"
+TREE = {
+    "id": 790,
+    "name": "Magier",
+    "class_talent_nodes": [
+        {
+            "id": 100,
+            "display_row": 1,
+            "display_col": 5,
+            "node_type": {"id": 0, "type": "ACTIVE"},
+            "ranks": [
+                {
+                    "rank": 1,
+                    "default_points": 1,
+                    "tooltip": {
+                        "talent": {"id": 200},
+                        "spell_tooltip": {
+                            "spell": {"id": 300, "name": "Talent A"},
+                            "description": "Lange Beschreibung",
+                        },
+                    },
+                }
+            ],
+            "unlocks": [101],
+        },
+        {
+            "id": 101,
+            "display_row": 2,
+            "display_col": 5,
+            "node_type": {"id": 2, "type": "CHOICE"},
+            "ranks": [
+                {
+                    "rank": 1,
+                    "choice_of_tooltips": [
+                        {
+                            "talent": {"id": 201},
+                            "spell_tooltip": {"spell": {"id": 301, "name": "Wahl 1"}},
+                        },
+                        {
+                            "talent": {"id": 202},
+                            "spell_tooltip": {"spell": {"id": 302, "name": "Wahl 2"}},
+                        },
+                    ],
+                }
+            ],
+            "locked_by": [100],
+        },
+    ],
+    "spec_talent_nodes": [],
+    "hero_talent_trees": [
+        {
+            "id": 39,
+            "name": "Frostfeuer",
+            "hero_talent_nodes": [
+                {
+                    "id": 110,
+                    "display_row": 1,
+                    "display_col": 1,
+                    "node_type": {"id": 0, "type": "PASSIVE"},
+                    "ranks": [{"rank": 1}, {"rank": 2}],
+                }
+            ],
+        }
+    ],
+    "restriction_lines": [
+        {"required_points": 8, "restricted_row": 5, "is_for_class": True}
+    ],
+}
+
+
+def _with_tree_link() -> dict:
+    specs = {
+        **SPECIALIZATIONS,
+        "specializations": list(SPECIALIZATIONS["specializations"]),
+    }
+    frost = specs["specializations"][1]
+    active = {
+        **frost["loadouts"][1],
+        "selected_class_talent_tree": {
+            "key": {"href": f"{GAME}/{TREE_PATH}?namespace=static-11.2.5_63660-eu"},
+            "name": "Magier",
+        },
+        "selected_class_talents": [
+            {
+                "id": 100,
+                "rank": 1,
+                "default_points": 1,
+                "tooltip": {
+                    "talent": {"id": 200},
+                    "spell_tooltip": {
+                        "spell": {"id": 300, "name": "Talent A"},
+                        "description": "Lange Beschreibung",
+                    },
+                },
+            }
+        ],
+    }
+    specs["specializations"][1] = {**frost, "loadouts": [frost["loadouts"][0], active]}
+    return specs
+
+
+async def test_diagnostics_talent_tree(hass: HomeAssistant, aioclient_mock) -> None:
+    """Diagnose laedt den Talentbaum des aktiven Loadouts, ohne Tooltip-Texte."""
+    mock_token(aioclient_mock)
+    mock_api(
+        aioclient_mock,
+        {f"{API}/specializations": _with_tree_link(), f"{GAME}/{TREE_PATH}": TREE},
+    )
+    entry = await _setup(hass, character_subentry())
+    diag = await async_get_config_entry_diagnostics(hass, entry)
+    char = diag["characters"]["Testchar – Die Aldor"]
+
+    frost = char["details"]["specializations"]["specializations"][1]
+    assert frost["loadouts"][1]["selected_class_talents"] == [
+        {"id": 100, "rank": 1, "default_points": 1, "talent_id": 200, "spell_id": 300}
+    ]
+    tree = char["talent_tree"]
+    assert tree["path"] == TREE_PATH
+    first, choice = tree["class_talent_nodes"]
+    assert first == {
+        "id": 100,
+        "row": 1,
+        "col": 5,
+        "type": "ACTIVE",
+        "ranks": 1,
+        "default_points": 1,
+        "talents": [{"talent_id": 200, "spell_id": 300, "name": "Talent A"}],
+        "unlocks": [101],
+        "locked_by": None,
+    }
+    assert [t["talent_id"] for t in choice["talents"]] == [201, 202]
+    assert choice["locked_by"] == [100]
+    hero = tree["hero_talent_trees"][0]
+    assert (hero["name"], hero["nodes"][0]["ranks"]) == ("Frostfeuer", 2)
+    assert tree["restriction_lines"][0]["required_points"] == 8
+    assert "Lange Beschreibung" not in str(char)
+
+
+async def test_diagnostics_talent_tree_error(
+    hass: HomeAssistant, aioclient_mock
+) -> None:
+    """Scheitert die Abfrage, steht der Fehler in der Diagnose; sie bricht nicht ab."""
+    mock_token(aioclient_mock)
+    mock_api(
+        aioclient_mock,
+        {f"{API}/specializations": _with_tree_link(), f"{GAME}/{TREE_PATH}": 500},
+    )
+    entry = await _setup(hass, character_subentry())
+    diag = await async_get_config_entry_diagnostics(hass, entry)
+    tree = diag["characters"]["Testchar – Die Aldor"]["talent_tree"]
+    assert tree["path"] == TREE_PATH
+    assert "error" in tree
+
+
+async def test_diagnostics_without_tree_link(
+    hass: HomeAssistant, aioclient_mock
+) -> None:
+    """Ohne Verweis im Loadout (z. B. Classic) keine Abfrage."""
+    mock_token(aioclient_mock)
+    mock_api(aioclient_mock)
+    entry = await _setup(hass, character_subentry())
+    diag = await async_get_config_entry_diagnostics(hass, entry)
+    assert diag["characters"]["Testchar – Die Aldor"]["talent_tree"] is None
+    assert not any(
+        "/talent-tree/" in str(call[1]) for call in aioclient_mock.mock_calls
+    )
+
+
+async def test_diagnostics_talent_tree_nodes_endpoint(
+    hass: HomeAssistant, aioclient_mock
+) -> None:
+    """Verweis ohne Spezialisierung: Endpunkt "Talent Tree Nodes" mit talent_nodes."""
+    mock_token(aioclient_mock)
+    specs = _with_tree_link()
+    loadout = specs["specializations"][1]["loadouts"][1]
+    loadout["selected_class_talent_tree"] = {
+        "key": {"href": f"{GAME}/talent-tree/790?namespace=static-eu"}
+    }
+    nodes = {"id": 790, "talent_nodes": TREE["class_talent_nodes"]}
+    mock_api(
+        aioclient_mock,
+        {f"{API}/specializations": specs, f"{GAME}/talent-tree/790": nodes},
+    )
+    entry = await _setup(hass, character_subentry())
+    diag = await async_get_config_entry_diagnostics(hass, entry)
+    tree = diag["characters"]["Testchar – Die Aldor"]["talent_tree"]
+    assert tree["path"] == "talent-tree/790"
+    assert [n["id"] for n in tree["talent_nodes"]] == [100, 101]
