@@ -304,3 +304,61 @@ def test_parse_classic_world_keys() -> None:
         ("eu", ""),
         "realm-classic-z-status",
     )
+
+
+def _token_calls(aioclient_mock) -> int:
+    return sum(
+        1 for call in aioclient_mock.mock_calls if "/token/index" in str(call[1])
+    )
+
+
+async def _refresh_world(hass: HomeAssistant, world) -> None:
+    # Alle Abstaende zuruecksetzen: Jede Teilabfrage waere wieder faellig.
+    world._fetched.clear()
+    await world.async_refresh()
+    await hass.async_block_till_done()
+
+
+async def test_classic_without_token_stops_asking(
+    hass: HomeAssistant, aioclient_mock
+) -> None:
+    """Kein Preis beim Start: kein Sensor, danach keine Abfrage bis zum Neuladen."""
+    mock_token(aioclient_mock)
+    mock_api(aioclient_mock, {f"{GAME}/token/index": 404})
+    entry = await _setup(hass, _classic_subentry())
+    world = entry.runtime_data.worlds[("eu", "-classic1x")]
+    assert _eid(hass, "sensor", f"{WORLD}-token") is None
+    assert _token_calls(aioclient_mock) == 1
+
+    await _refresh_world(hass, world)
+    assert _token_calls(aioclient_mock) == 1
+    # Die Realms werden weiter abgefragt.
+    assert world.last_update_success
+    assert world.data["realms"]["die-aldor"]["status"] == "UP"
+
+
+async def test_classic_with_token_keeps_asking(
+    hass: HomeAssistant, aioclient_mock
+) -> None:
+    mock_token(aioclient_mock)
+    mock_api(aioclient_mock)
+    entry = await _setup(hass, _classic_subentry())
+    world = entry.runtime_data.worlds[("eu", "-classic1x")]
+    assert _eid(hass, "sensor", f"{WORLD}-token")
+
+    await _refresh_world(hass, world)
+    assert _token_calls(aioclient_mock) == 2
+
+
+async def test_retail_token_asked_even_without_price(
+    hass: HomeAssistant, aioclient_mock
+) -> None:
+    """Retail legt den Sensor immer an und fragt deshalb weiter ab."""
+    mock_token(aioclient_mock)
+    mock_api(aioclient_mock, {f"{GAME}/token/index": 404})
+    entry = await _setup(hass, character_subentry())
+    world = entry.runtime_data.worlds[("eu", "")]
+    assert _eid(hass, "sensor", "id-world-eu-token")
+
+    await _refresh_world(hass, world)
+    assert _token_calls(aioclient_mock) == 2
