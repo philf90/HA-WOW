@@ -168,6 +168,9 @@
       "specialization": {
         "default": "mdi:account-star"
       },
+      "talents": {
+        "default": "mdi:file-tree"
+      },
       "stat_crit": {
         "default": "mdi:chart-bar"
       },

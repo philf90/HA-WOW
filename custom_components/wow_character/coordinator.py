@@ -73,6 +73,7 @@ DETAIL_KEYS: dict[str, str] = {
     "item_set": "equipment",
     "achievements": "achievements",
     "specialization": "specializations",
+    "talents": "specializations",
     "titles": "titles",
     "game_statistics": "game_statistics",
     "quests_completed": "quests",

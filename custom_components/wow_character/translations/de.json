@@ -261,6 +261,9 @@
       "specialization": {
         "name": "Spezialisierung"
       },
+      "talents": {
+        "name": "Talente"
+      },
       "titles": {
         "name": "Titel"
       },

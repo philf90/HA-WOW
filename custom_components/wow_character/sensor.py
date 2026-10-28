@@ -68,6 +68,14 @@ def _mythic_attrs(data: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def _talents_attrs(data: dict[str, Any]) -> dict[str, Any]:
+    talents = p.talents(data.get("specializations")) or {}
+    return {
+        "total_points": talents.get("total_points"),
+        "trees": talents.get("trees") or [],
+    }
+
+
 def _level_attrs(data: dict[str, Any]) -> dict[str, Any]:
     # Klasse, Spezialisierung usw. nur am Level-Sensor, damit sie nicht
     # in jedem Sensor doppelt in der Datenbank landen.
@@ -96,6 +104,8 @@ class WowSensorDescription(SensorEntityDescription):
     value_fn: Callable[[dict[str, Any]], Any]
     attrs_fn: Callable[[dict[str, Any]], dict[str, Any]] | None = None
     mythic_plus_only: bool = False
+    # Nur ausserhalb von Retail, wo die Antwort das Feld laut Typen nicht hat.
+    non_retail_only: bool = False
 
 
 PROFILE_SENSORS: tuple[WowSensorDescription, ...] = (
@@ -338,6 +348,14 @@ DETAIL_SENSORS: tuple[WowSensorDescription, ...] = (
         },
     ),
     WowSensorDescription(
+        key="talents",
+        translation_key="talents",
+        # Talentpunkte je Baum gibt es nur in Classic (specialization_groups).
+        non_retail_only=True,
+        value_fn=lambda d: (p.talents(d.get("specializations")) or {}).get("name"),
+        attrs_fn=_talents_attrs,
+    ),
+    WowSensorDescription(
         key="titles",
         translation_key="titles",
         state_class=SensorStateClass.MEASUREMENT,
@@ -426,6 +444,7 @@ async def async_setup_entry(
             WowSensor(detail, d)
             for d in DETAIL_SENSORS
             if (detail.mythic_plus or not d.mythic_plus_only)
+            and not (d.non_retail_only and detail.is_retail)
             and detail_available(detail, d.key)
             and has_value(detail, d)
         ]
@@ -496,9 +515,9 @@ class WowSensor(WowCharacterEntity, SensorEntity):
     """Sensor aus dem Profil- oder Detail-Coordinator eines Charakters."""
 
     entity_description: WowSensorDescription
-    # Lange Listen fuer Karten (M+-Laeufe, Titel, Statistik-Fenster); nur
-    # die Sensoren mit diesen Attributen sind betroffen.
-    _unrecorded_attributes = frozenset({"runs", "titles", "statistics"})
+    # Lange Listen fuer Karten (M+-Laeufe, Titel, Statistik-Fenster, Talente);
+    # nur die Sensoren mit diesen Attributen sind betroffen.
+    _unrecorded_attributes = frozenset({"runs", "titles", "statistics", "trees"})
 
     def __init__(
         self,
