@@ -578,6 +578,58 @@ def specialization(data: dict[str, Any] | None) -> dict[str, Any]:
     }
 
 
+def talents(data: dict[str, Any] | None) -> dict[str, Any] | None:
+    """Talentbaeume der aktiven Gruppe (Classic): Punkte und Talente je Baum.
+
+    Felder laut @blizzard-api/classic-wow 4.2.0 (SpecializationGroup) und einer
+    Classic-Era-Antwort; Retail kennt specialization_groups nicht. Die Antwort
+    nennt nur Baeume mit Punkten. name: Baum mit den meisten Punkten, bei
+    Gleichstand alle diese Baeume.
+    """
+    groups = [
+        g
+        for g in (data or {}).get("specialization_groups") or []
+        if isinstance(g, dict)
+    ]
+    group = next((g for g in groups if g.get("is_active")), None)
+    if group is None:
+        return None
+    trees = []
+    for spec in group.get("specializations") or []:
+        if not isinstance(spec, dict):
+            continue
+        points = spec.get("spent_points")
+        if not isinstance(points, int):
+            continue
+        trees.append(
+            {
+                "name": spec.get("specialization_name"),
+                "points": points,
+                "talents": [
+                    {
+                        "name": name_of(tooltip.get("spell")),
+                        "rank": t.get("talent_rank"),
+                        "description": clean_text(tooltip.get("description")),
+                    }
+                    for t in spec.get("talents") or []
+                    if isinstance(t, dict)
+                    and isinstance(tooltip := t.get("spell_tooltip") or {}, dict)
+                ],
+            }
+        )
+    most = max((t["points"] for t in trees), default=0)
+    if most <= 0:
+        return None
+    names = [
+        t["name"] for t in trees if t["points"] == most and isinstance(t["name"], str)
+    ]
+    return {
+        "name": " / ".join(names) or None,
+        "total_points": sum(t["points"] for t in trees),
+        "trees": trees,
+    }
+
+
 def titles(data: dict[str, Any] | None) -> list[str]:
     return [name for t in (data or {}).get("titles") or [] if (name := name_of(t))]
 

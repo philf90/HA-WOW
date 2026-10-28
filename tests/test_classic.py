@@ -317,6 +317,116 @@ async def test_equipment_without_item_level(
     assert neck.state == "unknown"
 
 
+# Aufbau wie die Classic-Era-Antwort vom 28.10.2026 und die Typen von
+# @blizzard-api/classic-wow 4.2.0; Namen und Werte erfunden.
+def _talent(name: str, rank: int) -> dict:
+    return {
+        "talent": {"id": 1},
+        "spell_tooltip": {
+            "spell": {"name": name, "id": 2},
+            "description": f"{name}: Beschreibung.",
+            "cast_time": "Passiv",
+        },
+        "talent_rank": rank,
+    }
+
+
+def _specializations(*trees: tuple[str, int, list]) -> dict:
+    return {
+        "specialization_groups": [
+            {
+                "is_active": True,
+                "specializations": [
+                    {"specialization_name": name, "spent_points": points, "talents": t}
+                    for name, points, t in trees
+                ],
+            },
+            # Nicht aktive Gruppe: zaehlt nicht.
+            {
+                "is_active": False,
+                "specializations": [
+                    {
+                        "specialization_name": "Inaktiv",
+                        "spent_points": 30,
+                        "talents": [],
+                    }
+                ],
+            },
+        ],
+        "specializations": [],
+    }
+
+
+async def test_classic_talents(hass: HomeAssistant, aioclient_mock) -> None:
+    mock_token(aioclient_mock)
+    specs = _specializations(
+        ("Baum A", 5, [_talent("Talent 1", 5)]),
+        ("Baum B", 3, [_talent("Talent 2", 2), _talent("Talent 3", 1)]),
+    )
+    mock_api(aioclient_mock, {f"{API}/specializations": specs})
+    entry = await _setup(hass, _classic_subentry())
+
+    state = hass.states.get(_eid(hass, "sensor", f"{UID}-talents"))
+    assert state.state == "Baum A"
+    assert state.attributes["total_points"] == 8
+    trees = state.attributes["trees"]
+    assert [(t["name"], t["points"]) for t in trees] == [("Baum A", 5), ("Baum B", 3)]
+    assert trees[1]["talents"][0] == {
+        "name": "Talent 2",
+        "rank": 2,
+        "description": "Talent 2: Beschreibung.",
+    }
+    # Aufbau von Retail fehlt: kein Sensor "Spezialisierung".
+    assert _eid(hass, "sensor", f"{UID}-specialization") is None
+
+    # Der Talent-Sensor allein haelt den Endpunkt aktuell.
+    detail = entry.runtime_data.details[next(iter(entry.subentries))]
+    assert "specializations" in detail.needed_endpoints()
+    aioclient_mock.clear_requests()
+    mock_token(aioclient_mock)
+    specs = _specializations(("Baum A", 5, []), ("Baum B", 6, []))
+    mock_api(aioclient_mock, {f"{API}/specializations": specs})
+    detail._fetched.clear()
+    await detail.async_refresh()
+    await hass.async_block_till_done()
+    assert hass.states.get(_eid(hass, "sensor", f"{UID}-talents")).state == "Baum B"
+
+
+async def test_classic_talents_tie(hass: HomeAssistant, aioclient_mock) -> None:
+    mock_token(aioclient_mock)
+    specs = _specializations(("Baum A", 4, []), ("Baum B", 4, []), ("Baum C", 1, []))
+    mock_api(aioclient_mock, {f"{API}/specializations": specs})
+    await _setup(hass, _classic_subentry())
+
+    state = hass.states.get(_eid(hass, "sensor", f"{UID}-talents"))
+    assert state.state == "Baum A / Baum B"
+
+
+async def test_classic_without_talent_points_no_sensor(
+    hass: HomeAssistant, aioclient_mock
+) -> None:
+    mock_token(aioclient_mock)
+    # Baum ohne Punkte, wie vor dem ersten Talentpunkt denkbar.
+    specs = _specializations(("Baum A", 0, []))
+    mock_api(aioclient_mock, {f"{API}/specializations": specs})
+    await _setup(hass, _classic_subentry())
+
+    assert _eid(hass, "sensor", f"{UID}-talents") is None
+
+
+async def test_retail_has_no_talents_sensor(
+    hass: HomeAssistant, aioclient_mock
+) -> None:
+    """Retail kennt laut Typen keine Talentpunkte je Baum; auch kein leerer Sensor."""
+    mock_token(aioclient_mock)
+    mock_api(aioclient_mock)
+    await _setup(hass, character_subentry())
+
+    uid = "eu-profile-eu-die-aldor-testchar"
+    assert _eid(hass, "sensor", f"{uid}-specialization")
+    assert _eid(hass, "sensor", f"{uid}-talents") is None
+
+
 def _detail_calls(aioclient_mock, path: str) -> int:
     return sum(
         1

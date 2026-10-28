@@ -11,7 +11,7 @@ Home-Assistant-Integration für World-of-Warcraft-Charaktere: Level, Itemlevel,
 Ausrüstung, Raid- und Mythic+-Fortschritt, Berufe, Ruf, Erfolge und mehr als
 Sensoren, dazu WoW-Marke, wöchentlicher Reset und Serverstatus. Die Daten kommen
 aus der offiziellen Battle.net API. Unterstützt Retail, WoW Classic (Era,
-Progression, Anniversary) und ist für WoW Forever vorbereitet. Version 0.11.3.
+Progression, Anniversary) und ist für WoW Forever vorbereitet. Version 0.12.0.
 
 <p align="center">
   <img src="https://raw.githubusercontent.com/philf90/HA-WOW/main/assets/vorschau-karten.png" alt="Arsenal-, Charaktere-, Berufe- und Raid-Karte im Nachtblau-Stil mit Beispieldaten" width="100%">
@@ -124,6 +124,7 @@ die anderen laufen weiter.
 | Letzter Login | Zeitstempel | 15 min | Profil, `last_login_timestamp` |
 | Avatar, Ganzkörperbild | Bilder | 6 h | `character-media` |
 | Spezialisierung mit Heldentalenten und Talent-Code | Sensor | 1 h | `specializations` |
+| Talente (Baum mit den meisten Punkten; Punkte und Talente je Baum), nur außerhalb von Retail | Sensor | 1 h | `specializations` |
 | Titel (Anzahl, Liste als Attribut) | Sensor | 6 h | `titles` |
 | Level gestiegen | Ereignis | 15 min | Profil, `level` |
 | Gilde (Mitglieder; Name, Erfolgspunkte, Aktivitäten und Mitgliederliste als Attribute), nur in einer Gilde | Sensor | 6 h, Aktivitäten 1 h | `/data/wow/guild/{realm}/{gilde}`, `…/activity` und `…/roster`; Klassennamen aus `playable-class/{id}` |
@@ -301,6 +302,13 @@ Aus den statischen Spieldaten, je Objekt einmal nachgeschlagen:
   `hero_talents` (aktiver Heldentalentbaum), `loadout_code` (Talent-Code des
   aktiven Loadouts zum Importieren im Spiel) und `specializations` (alle der
   Klasse).
+- **Talente** (seit 0.12.0, nur außerhalb von Retail): Classic liefert die
+  Talente als Punkte je Baum (`specialization_groups`), Retail laut
+  Typdefinitionen nicht. Zustand ist der Baum mit den meisten Punkten der aktiven
+  Gruppe, bei Gleichstand alle diese Bäume („Elementar / Verstärkung“).
+  Attribute: `total_points` und `trees`, je Baum `name`, `points` und `talents`
+  (je Talent `name`, `rank`, `description`). Die Antwort nennt nur Bäume mit
+  Punkten; ohne Punkte beim Start gibt es keinen Sensor.
 - **Mythic+-Läufe:** Der Sensor „Höchster Mythic+-Schlüssel“ hat `best_runs`
   (Kurzform je Dungeon) und `runs`: je Lauf `dungeon`, `dungeon_id`, `level`,
   `timed`, `duration` (Sekunden), `completed`, `rating`, `color`, `affixes` und
@@ -319,7 +327,8 @@ nicht, bleibt der englische Name. Raidnamen kommen weiterhin auf Englisch.
 ### Nicht in der Datenbank
 
 Lange Attribute speichert Home Assistant nicht im Verlauf: `tooltip`, `factions`,
-`runs`, `titles`, `statistics`, `activities`, `pets`, `members` und `transmog`. Die Werte stehen trotzdem im aktuellen Zustand.
+`runs`, `titles`, `statistics`, `activities`, `pets`, `members`, `transmog` und
+`trees`. Die Werte stehen trotzdem im aktuellen Zustand.
 
 ## Abfragen und Takte
 
@@ -426,6 +435,7 @@ steckt, ändert Blizzard mit der Zeit; der Namespace bleibt.
 | Charakterwerte (zunächst aus) | ja | `statistics` |
 | Erfolge, Neuer Erfolg, Spielstatistik | ja | `achievements`, `achievements/statistics` |
 | Spezialisierung | ja | `specializations` |
+| Talente (Punkte je Baum) | ja | `specializations` |
 | Avatar, Ganzkörperbild | ja | `character-media` |
 | Gilde mit Mitgliederliste | ja | `/data/wow/guild/{realm}/{gilde}`, `…/activity`, `…/roster`; Klassennamen aus `playable-class/{id}` |
 | Namen der Transmog-Gegenstände | ja, wenn die IDs belegt Item-IDs sind | `item/{id}` |
@@ -465,7 +475,7 @@ in der Ausrüstung und die IDs die Item-IDs. Erfolge, Spielstatistik, PvP-Bracke
 und die WoW-Marke liefern nichts, dafür entstehen keine Entitäten. Die Ausrüstung
 nennt je Item kein Itemlevel. Die Talente kommen anders aufgebaut als in Retail
 (`specialization_groups`); einen Sensor „Spezialisierung“ gibt es deshalb in
-Classic Era nicht. Das Profil verweist auch auf `titles` und `reputations`; die
+Classic Era nicht, dafür seit 0.12.0 den Sensor „Talente“. Das Profil verweist auch auf `titles` und `reputations`; die
 Classic-Doku nennt beide nicht, die Integration fragt sie nicht ab.
 Fällt ein Sensor bei einem späteren Start weg, bleibt er als „nicht mehr
 bereitgestellt“ stehen und lässt sich löschen.
@@ -494,8 +504,8 @@ haben, wie bei [Classic](#wow-classic).
   kennt je Season nur den besten Lauf je Dungeon, und die Woche hat nur Start und
   Ende.
 - WoW Forever ist ungetestet.
-- WoW Classic ist nur automatisch getestet, nicht mit echten Antworten der API
-  (siehe [Teststand](#teststand)). Raids, Mythic+, Berufe, Ruf, Titel, Quests und
+- WoW Classic ist nur mit einem Classic-Era-Charakter live geprüft, Progression
+  und Anniversary nur automatisch (siehe [WoW Classic](#wow-classic)). Raids, Mythic+, Berufe, Ruf, Titel, Quests und
   Sammlungen gibt es für Classic nicht, weil die Classic-API sie nicht anbietet.
   Einen wöchentlichen Reset liefert die Classic-API ebenfalls nicht.
 - Das Logo zeigt Home Assistant ab 2026.3 aus dem Ordner `brand/` der
@@ -510,6 +520,14 @@ Automatische Tests laufen gegen Home Assistant 2026.2.3; live geprüft wurde unt
 Home Assistant 2026.10.4 mit Retail-Charakteren der Region EU, seit 0.11.2 auch
 mit einem Classic-Era-Charakter (siehe [WoW Classic](#wow-classic)).
 
+- **0.12.x:** 162 automatische Tests. 0.12.0: 4 Tests für den Sensor „Talente“
+  (Baum mit den meisten Punkten, nur die aktive Gruppe, Punkte und Talente je
+  Baum, Aktualisierung ohne Sensor „Spezialisierung“; Gleichstand; kein Sensor
+  ohne Punkte; kein Sensor in Retail). Gegenprobe: sieben Fehler einzeln
+  eingebaut, jedes Mal schlug mindestens ein Test fehl; dabei fiel auf, dass
+  der Endpunkt ohne Zuordnung des Sensors nach dem Start nicht mehr abgefragt
+  würde, das prüft jetzt ein Test. **Nicht live geprüft:** Progression und
+  Anniversary; dort nennen nur die Typdefinitionen `specialization_groups`.
 - **0.11.x:** 158 automatische Tests. 0.11.3: 3 neue Tests (Ausrüstung ohne
   Itemlevel zeigt außerhalb von Retail den Namen, in Retail nicht; Endpunkte ohne
   Entität werden nach dem Start nicht mehr abgefragt, Endpunkte mit Entität
