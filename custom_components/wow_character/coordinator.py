@@ -395,6 +395,9 @@ class WowDetailCoordinator(_CharacterMixin, DataUpdateCoordinator[dict[str, Any]
         self._tier_names: dict[int, str] = {}
         # Medien-ID eines Items -> URL des Symbols; Symbole aendern sich nicht.
         self._item_icons: dict[int, str] = {}
+        # Brackets mit Sensor; setzt sensor.py beim Anlegen, None bis dahin.
+        # Brackets ohne Sensor werden bis zum Neuladen nicht abgefragt.
+        self.pvp_bracket_sensors: set[str] | None = None
         # Klassen-ID -> Name fuer die Gildenmitglieder (Sprache der Region).
         self._class_names: dict[int, str] = {}
         # Hauptkategorien der Erfolge: ID -> Name in der Sprache der Region.
@@ -424,6 +427,9 @@ class WowDetailCoordinator(_CharacterMixin, DataUpdateCoordinator[dict[str, Any]
         needed = enabled | (set(DETAIL_ENDPOINTS) - registered)
         if not self.mythic_plus:
             needed.discard("mythic_season")
+        if self.pvp_bracket_sensors == set():
+            # Kein Bracket mit Sensor: nichts abzufragen.
+            needed.discard("pvp_brackets")
         return {
             e for e in needed if self.supports_endpoint(e) and e not in self._absent
         }
@@ -526,12 +532,16 @@ class WowDetailCoordinator(_CharacterMixin, DataUpdateCoordinator[dict[str, Any]
         return data
 
     async def _pvp_brackets(self, resource: str) -> dict[str, Any]:
-        """Je Bracket aus PVP_BRACKETS die Antwort; None, wenn die API 404 meldet.
+        """Je Bracket die Antwort; None, wenn die API 404 meldet.
 
-        Andere Fehler gelten fuer den ganzen Endpunkt (alter Stand bleibt).
+        Vor dem Anlegen der Sensoren alle aus PVP_BRACKETS, danach nur die mit
+        Sensor. Andere Fehler gelten fuer den ganzen Endpunkt (alter Stand bleibt).
         """
         result: dict[str, Any] = {}
+        wanted = self.pvp_bracket_sensors
         for bracket in PVP_BRACKETS:
+            if wanted is not None and bracket not in wanted:
+                continue
             try:
                 result[bracket] = await self.client.get_character_resource(
                     self.region,
