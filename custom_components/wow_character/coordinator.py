@@ -162,8 +162,20 @@ class _CharacterMixin:
         return GAME_VERSIONS[self.game_version]["mythic_plus"]
 
     @property
-    def is_forever(self) -> bool:
-        return self.game_version == "forever"
+    def is_retail(self) -> bool:
+        return self.game_version == "retail"
+
+    def supports_endpoint(self, endpoint: str) -> bool:
+        """Kennt die Spielversion diesen Detail-Endpunkt (laut Blizzard-Doku)?"""
+        known = GAME_VERSIONS[self.game_version]["endpoints"]
+        return known is None or endpoint in known
+
+    def supports_static(self, path: str) -> bool:
+        """Kennt die Spielversion diese statischen Spieldaten, z. B. "media/item/1"?"""
+        known = GAME_VERSIONS[self.game_version]["static"]
+        return known is None or any(
+            path == kind or path.startswith(f"{kind}/") for kind in known
+        )
 
 
 class WowCoordinator(_CharacterMixin, DataUpdateCoordinator[dict[str, Any]]):
@@ -396,7 +408,7 @@ class WowDetailCoordinator(_CharacterMixin, DataUpdateCoordinator[dict[str, Any]
         needed = enabled | (set(DETAIL_ENDPOINTS) - registered)
         if not self.mythic_plus:
             needed.discard("mythic_season")
-        return needed
+        return {e for e in needed if self.supports_endpoint(e)}
 
     def _season_id(self) -> int | None:
         """Aktuelle M+-Season aus der Spielwelt, sonst die hoechste des Charakters."""
@@ -501,7 +513,9 @@ class WowDetailCoordinator(_CharacterMixin, DataUpdateCoordinator[dict[str, Any]
         Die Erfolge-Seite mischt Haupt- und Unterkategorien und nennt sie auf
         Englisch. Faellt das Nachschlagen aus, bleiben alle Kategorien.
         """
-        if self._achievement_roots:
+        if self._achievement_roots or not self.supports_static(
+            "achievement-category/index"
+        ):
             return
         try:
             index = await self.client.get_static_data(
@@ -528,7 +542,11 @@ class WowDetailCoordinator(_CharacterMixin, DataUpdateCoordinator[dict[str, Any]
         """
         for item in p.equipment(equipment).values():
             media_id = item["media_id"]
-            if not isinstance(media_id, int) or media_id in self._item_icons:
+            if (
+                not isinstance(media_id, int)
+                or media_id in self._item_icons
+                or not self.supports_static(f"media/item/{media_id}")
+            ):
                 continue
             try:
                 media = await self.client.get_static_data(
@@ -553,7 +571,11 @@ class WowDetailCoordinator(_CharacterMixin, DataUpdateCoordinator[dict[str, Any]
         for group in ("primaries", "secondaries"):
             for entry in (professions or {}).get(group) or []:
                 prof_id = (entry.get("profession") or {}).get("id")
-                if not isinstance(prof_id, int) or prof_id in self._profession_names:
+                if (
+                    not isinstance(prof_id, int)
+                    or prof_id in self._profession_names
+                    or not self.supports_static(f"profession/{prof_id}")
+                ):
                     continue
                 try:
                     static = await self.client.get_static_data(
@@ -589,7 +611,11 @@ class MediaCache:
         c = self._coordinator
         for kind, obj_id in items:
             key = f"{kind}/{obj_id}"
-            if not isinstance(obj_id, int) or key in self._urls:
+            if (
+                not isinstance(obj_id, int)
+                or key in self._urls
+                or not c.supports_static(f"media/{key}")
+            ):
                 continue
             try:
                 media = await c.client.get_static_data(
@@ -624,7 +650,7 @@ class WowWorldCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         region: str,
         suffix: str,
         realms: set[str],
-        mythic_plus: bool,
+        game_version: str,
     ) -> None:
         super().__init__(
             hass,
@@ -637,7 +663,8 @@ class WowWorldCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self.region = region
         self.suffix = suffix
         self.realms = set(realms)
-        self.mythic_plus = mythic_plus
+        self.game_version = game_version
+        self.mythic_plus: bool = GAME_VERSIONS[game_version]["mythic_plus"]
         self._fetched: dict[str, float] = {}
         # Realm-Slug -> (Anzeigename, ID des verbundenen Realms)
         self._realm_info: dict[str, tuple[str, int]] = {}

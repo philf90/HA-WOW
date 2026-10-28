@@ -372,12 +372,37 @@ DETAIL_SENSORS: tuple[WowSensorDescription, ...] = (
 
 
 def detail_available(coordinator: WowDetailCoordinator, key: str) -> bool:
-    """Fuer Forever nur Entitaeten anlegen, deren Endpunkt Daten liefert."""
-    if not coordinator.is_forever:
+    """Entitaet anlegen? Nie fuer Endpunkte, die die Spielversion nicht kennt.
+
+    Ausserhalb von Retail (Forever, Classic) nur, wenn der Endpunkt beim Start
+    Daten liefert oder noch nicht abgefragt werden konnte.
+    """
+    endpoint = endpoint_for_key(key)
+    if endpoint is not None and not coordinator.supports_endpoint(endpoint):
+        return False
+    if coordinator.is_retail:
         return True
     data = coordinator.data or {}
-    endpoint = endpoint_for_key(key)
     return endpoint not in data or data[endpoint] is not None
+
+
+def has_value(
+    coordinator: WowCoordinator | WowDetailCoordinator,
+    description: WowSensorDescription,
+) -> bool:
+    """Ausserhalb von Retail nur Sensoren anlegen, die beim Start einen Wert haben.
+
+    Blizzard dokumentiert keine Antwortfelder; fuer Forever und Classic ist
+    nicht belegt, welche Felder von Retail es dort gibt. Ohne Antwort (Abfrage
+    gescheitert oder Endpunkt noch nicht abgefragt) wird der Sensor angelegt.
+    """
+    data = coordinator.data
+    if coordinator.is_retail or data is None:
+        return True
+    endpoint = endpoint_for_key(description.key)
+    if endpoint is not None and endpoint not in data:
+        return True
+    return description.value_fn(data) is not None
 
 
 async def async_setup_entry(
@@ -391,20 +416,31 @@ async def async_setup_entry(
         entities: list[SensorEntity] = [
             WowSensor(coordinator, d)
             for d in PROFILE_SENSORS
-            if coordinator.mythic_plus or not d.mythic_plus_only
+            if (coordinator.mythic_plus or not d.mythic_plus_only)
+            and has_value(coordinator, d)
         ]
         entities += [
             WowSensor(detail, d)
             for d in DETAIL_SENSORS
             if (detail.mythic_plus or not d.mythic_plus_only)
             and detail_available(detail, d.key)
+            and has_value(detail, d)
         ]
         # Berufe: je Beruf ein Sensor, angelegt aus der ersten Antwort.
         for prof_id in _professions(detail):
             entities.append(WowProfessionSensor(detail, prof_id))
         # Ausruestung: alle Plaetze, auch leere, damit Karten feste IDs haben.
+        # Ausserhalb von Retail bekommen weitere Plaetze der ersten Antwort
+        # einen eigenen Sensor mit dem Namen des Platzes aus der API; welche
+        # Plaetze Classic liefert, ist nicht dokumentiert.
         if detail_available(detail, f"{EQUIPMENT_PREFIX}head"):
-            entities += [WowEquipmentSensor(detail, slot) for slot in EQUIPMENT_SLOTS]
+            items = _items(detail.data or {}) or {}
+            extra = (
+                [] if detail.is_retail else sorted(items.keys() - {*EQUIPMENT_SLOTS})
+            )
+            entities += [
+                WowEquipmentSensor(detail, slot) for slot in (*EQUIPMENT_SLOTS, *extra)
+            ]
         if detail_available(detail, "reputation"):
             entities.append(WowReputationSensor(detail))
         # Gilde: nur fuer Charaktere, die beim Start in einer Gilde sind.
@@ -509,7 +545,13 @@ class WowEquipmentSensor(WowCharacterEntity, SensorEntity):
         key = f"{EQUIPMENT_PREFIX}{slot.lower()}"
         super().__init__(coordinator, key)
         self._slot = slot
-        self._attr_translation_key = key
+        if slot in EQUIPMENT_SLOTS:
+            self._attr_translation_key = key
+        else:
+            self._attr_translation_key = "equipment_other"
+            self._attr_translation_placeholders = {
+                "slot": self._item().get("slot_name") or slot
+            }
 
     def _item(self) -> dict[str, Any]:
         data = self.coordinator.data or {}

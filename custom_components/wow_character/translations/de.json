@@ -93,7 +93,10 @@
     "game_version": {
       "options": {
         "retail": "Retail",
-        "forever": "WoW Forever"
+        "forever": "WoW Forever",
+        "classic_era": "WoW Classic Era",
+        "classic_progression": "WoW Classic Progression (derzeit Mists of Pandaria)",
+        "classic_anniversary": "WoW Classic Anniversary (derzeit Burning Crusade)"
       }
     }
   },
@@ -236,6 +239,9 @@
       },
       "equipment_off_hand": {
         "name": "Ausrüstung Schildhand"
+      },
+      "equipment_other": {
+        "name": "Ausrüstung {slot}"
       },
       "reputation": {
         "name": "Ruf"

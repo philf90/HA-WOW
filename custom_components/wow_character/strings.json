@@ -93,7 +93,10 @@
     "game_version": {
       "options": {
         "retail": "Retail",
-        "forever": "WoW Forever"
+        "forever": "WoW Forever",
+        "classic_era": "WoW Classic Era",
+        "classic_progression": "WoW Classic Progression (currently Mists of Pandaria)",
+        "classic_anniversary": "WoW Classic Anniversary (currently Burning Crusade)"
       }
     }
   },
@@ -236,6 +239,9 @@
       },
       "equipment_off_hand": {
         "name": "Equipment off hand"
+      },
+      "equipment_other": {
+        "name": "Equipment {slot}"
       },
       "reputation": {
         "name": "Reputation"
