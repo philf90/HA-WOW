@@ -67,6 +67,12 @@ DETAIL_ENDPOINTS: dict[str, tuple[str, int]] = {
     # Nur Jaeger; fuer andere Klassen meldet die API laut Doku 404.
     "hunter_pets": ("hunter-pets", 360),
 }
+# Endpunkte, bei denen ein 404 laut Blizzard-Doku etwas Dauerhaftes ueber den
+# Charakter sagt. hunter-pets: "If the character is a hunter, returns a summary
+# of the character's hunter pets. Otherwise, returns an HTTP 404 Not Found
+# error." Die Klasse aendert sich nie; nach dem ersten 404 wird der Endpunkt bis
+# zum Neuladen nicht mehr abgefragt. Eine Klassen-ID nennt die Doku nicht.
+NOT_FOUND_IS_FINAL = ("hunter_pets",)
 
 # Ausruestungsplaetze in der Reihenfolge des Arsenals (links, rechts, Waffen).
 # Bezeichner wie im Feld "slot.type" der Ausruestungs-Seite; dieselbe Liste
