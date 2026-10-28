@@ -456,14 +456,18 @@ async def async_setup_entry(
             and (detail.data or {}).get("hunter_pets") is not None
         ):
             entities.append(WowHunterPetsSensor(detail))
-        # PvP-Brackets: je Bracket mit Daten beim Start ein Sensor.
-        if detail_available(detail, f"{PVP_BRACKET_PREFIX}3v3"):
-            brackets = (detail.data or {}).get("pvp_brackets") or {}
-            entities += [
-                WowPvpBracketSensor(detail, bracket)
-                for bracket, value in brackets.items()
-                if value is not None
-            ]
+        # PvP-Brackets: je Bracket mit Daten beim Start ein Sensor. Brackets
+        # ohne Sensor fragt der Detail-Coordinator danach nicht mehr ab.
+        brackets = (detail.data or {}).get("pvp_brackets") or {}
+        detail.pvp_bracket_sensors = (
+            {bracket for bracket, value in brackets.items() if value is not None}
+            if detail_available(detail, f"{PVP_BRACKET_PREFIX}3v3")
+            else set()
+        )
+        entities += [
+            WowPvpBracketSensor(detail, bracket)
+            for bracket in sorted(detail.pvp_bracket_sensors)
+        ]
         async_add_entities(entities, config_subentry_id=subentry_id)
 
     for world in runtime.worlds.values():

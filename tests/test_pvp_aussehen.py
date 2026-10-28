@@ -125,7 +125,7 @@ async def test_pvp_bracket_sensors(hass: HomeAssistant, aioclient_mock) -> None:
 async def test_pvp_bracket_error_keeps_old_value(
     hass: HomeAssistant, aioclient_mock
 ) -> None:
-    """Fehler ohne 404 bei einem Bracket: alter Stand bleibt fuer alle."""
+    """Fehler ohne 404 bei einem Bracket mit Sensor: alter Stand bleibt."""
     mock_token(aioclient_mock)
     mock_api(aioclient_mock)
     entry = await _setup(hass)
@@ -133,10 +133,62 @@ async def test_pvp_bracket_error_keeps_old_value(
 
     aioclient_mock.clear_requests()
     mock_token(aioclient_mock)
-    mock_api(aioclient_mock, {f"{API}/pvp-bracket/2v2": 500})
+    mock_api(aioclient_mock, {f"{API}/pvp-bracket/3v3": 500})
     detail._fetched.clear()
     await detail.async_refresh()
     await hass.async_block_till_done()
+    assert _calls(aioclient_mock, "/pvp-bracket/3v3") == 1
+    state = hass.states.get(_eid(hass, "sensor", "pvp_bracket_3v3"))
+    assert state.state == "1850"
+
+
+async def _refresh_detail(hass: HomeAssistant, entry, aioclient_mock, override=None):
+    """Alle Abstaende zuruecksetzen und neu abfragen; zaehlt nur diese Runde."""
+    aioclient_mock.clear_requests()
+    mock_token(aioclient_mock)
+    mock_api(aioclient_mock, override)
+    detail = entry.runtime_data.details[next(iter(entry.subentries))]
+    detail._fetched.clear()
+    await detail.async_refresh()
+    await hass.async_block_till_done()
+    return detail
+
+
+async def test_brackets_without_sensor_not_asked_again(
+    hass: HomeAssistant, aioclient_mock
+) -> None:
+    """2v2 und rbg ohne Sensor (404 beim Start): danach keine Abfrage mehr."""
+    mock_token(aioclient_mock)
+    mock_api(aioclient_mock)
+    entry = await _setup(hass)
+    await _refresh_detail(hass, entry, aioclient_mock)
+    assert _calls(aioclient_mock, "/pvp-bracket/3v3") == 1
+    assert _calls(aioclient_mock, "/pvp-bracket/2v2") == 0
+    assert _calls(aioclient_mock, "/pvp-bracket/rbg") == 0
+
+
+async def test_no_pvp_no_bracket_queries(hass: HomeAssistant, aioclient_mock) -> None:
+    """Kein Bracket mit Daten beim Start: Endpunkt faellt bis zum Neuladen weg."""
+    mock_token(aioclient_mock)
+    mock_api(aioclient_mock, {f"{API}/pvp-bracket/3v3": 404})
+    entry = await _setup(hass)
+    assert _calls(aioclient_mock, "/pvp-bracket/") == 3
+    detail = await _refresh_detail(hass, entry, aioclient_mock)
+    assert "pvp_brackets" not in detail.needed_endpoints()
+    assert _calls(aioclient_mock, "/pvp-bracket/") == 0
+    assert detail.last_update_success
+
+
+async def test_bracket_with_sensor_asked_after_404(
+    hass: HomeAssistant, aioclient_mock
+) -> None:
+    """Bracket mit Sensor: ein spaeterer 404 beendet die Abfrage nicht."""
+    mock_token(aioclient_mock)
+    mock_api(aioclient_mock)
+    entry = await _setup(hass)
+    await _refresh_detail(hass, entry, aioclient_mock, {f"{API}/pvp-bracket/3v3": 404})
+    await _refresh_detail(hass, entry, aioclient_mock)
+    assert _calls(aioclient_mock, "/pvp-bracket/3v3") == 1
     state = hass.states.get(_eid(hass, "sensor", "pvp_bracket_3v3"))
     assert state.state == "1850"
 
