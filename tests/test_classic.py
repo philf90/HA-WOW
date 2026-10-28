@@ -289,6 +289,68 @@ async def test_retail_keeps_fixed_equipment_slots(
     assert _eid(hass, "sensor", f"{uid}-equipment_extra_slot") is None
 
 
+@pytest.mark.parametrize(
+    ("subentry", "uid", "expected"),
+    [
+        # Classic Era nennt je Item kein Itemlevel (Antwort vom 28.10.2026).
+        (_classic_subentry(), UID, "Testhelm"),
+        # Retail bleibt beim Itemlevel; fehlt es, bleibt der Zustand leer.
+        (character_subentry(), "eu-profile-eu-die-aldor-testchar", "unknown"),
+    ],
+)
+async def test_equipment_without_item_level(
+    hass: HomeAssistant, aioclient_mock, subentry, uid: str, expected: str
+) -> None:
+    mock_token(aioclient_mock)
+    items = [
+        {k: v for k, v in item.items() if k != "level"}
+        for item in EQUIPMENT["equipped_items"]
+    ]
+    mock_api(aioclient_mock, {f"{API}/equipment": {"equipped_items": items}})
+    await _setup(hass, subentry)
+
+    head = hass.states.get(_eid(hass, "sensor", f"{uid}-equipment_head"))
+    assert head.state == expected
+    assert head.attributes["name"] == "Testhelm"
+    # Leerer Platz: weder Itemlevel noch Name.
+    neck = hass.states.get(_eid(hass, "sensor", f"{uid}-equipment_neck"))
+    assert neck.state == "unknown"
+
+
+def _detail_calls(aioclient_mock, path: str) -> int:
+    return sum(
+        1
+        for call in aioclient_mock.mock_calls
+        if str(call[1]).startswith(f"{API}{path}?")
+    )
+
+
+async def test_endpoint_without_entity_not_queried_again(
+    hass: HomeAssistant, aioclient_mock
+) -> None:
+    """Classic Era kennt keine Erfolge (404): ohne Entitaet keine weitere Abfrage."""
+    mock_token(aioclient_mock)
+    mock_api(
+        aioclient_mock,
+        {f"{API}/achievements": 404, f"{API}/achievements/statistics": 404},
+    )
+    entry = await _setup(hass, _classic_subentry())
+    assert _eid(hass, "sensor", f"{UID}-achievements") is None
+    assert _eid(hass, "sensor", f"{UID}-game_statistics") is None
+    assert _eid(hass, "event", f"{UID}-new_achievement") is None
+    paths = ("/achievements", "/achievements/statistics", "/equipment")
+    assert [_detail_calls(aioclient_mock, path) for path in paths] == [1, 1, 1]
+
+    detail = entry.runtime_data.details[next(iter(entry.subentries))]
+    # Alle Abstaende zuruecksetzen: Jeder Endpunkt waere wieder faellig.
+    detail._fetched.clear()
+    await detail.async_refresh()
+    await hass.async_block_till_done()
+    assert detail.last_update_success
+    # Die Ausruestung hat Sensoren und wird weiter abgefragt.
+    assert [_detail_calls(aioclient_mock, path) for path in paths] == [1, 1, 2]
+
+
 def test_parse_classic_world_keys() -> None:
     assert _parse_world_key("eu-classic1x-token") == (("eu", "-classic1x"), "token")
     assert _parse_world_key("us-classic-realm-x-status") == (

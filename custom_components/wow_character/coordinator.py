@@ -398,6 +398,10 @@ class WowDetailCoordinator(_CharacterMixin, DataUpdateCoordinator[dict[str, Any]
         # Brackets mit Sensor; setzt sensor.py beim Anlegen, None bis dahin.
         # Brackets ohne Sensor werden bis zum Neuladen nicht abgefragt.
         self.pvp_bracket_sensors: set[str] | None = None
+        # True, sobald alle Plattformen ihre Entitaeten angelegt haben (setzt
+        # __init__.py). Danach entsteht bis zum Neuladen keine neue Entitaet;
+        # Endpunkte ohne Entitaet werden nicht mehr abgefragt.
+        self.entities_ready = False
         # Item-ID -> Name fuer den Transmog (Sprache der Region).
         self._transmog_names: dict[int, str] = {}
         # Klassen-ID -> Name fuer die Gildenmitglieder (Sprache der Region).
@@ -408,7 +412,11 @@ class WowDetailCoordinator(_CharacterMixin, DataUpdateCoordinator[dict[str, Any]
         self._media = MediaCache(self)
 
     def needed_endpoints(self) -> set[str]:
-        """Endpunkte mit mindestens einer aktiven oder noch nicht angelegten Entitaet."""
+        """Endpunkte mit mindestens einer aktiven Entitaet.
+
+        Vor dem Anlegen der Entitaeten zaehlen auch Endpunkte, fuer die noch
+        keine Entitaet existiert: Ob sie entsteht, haengt an der Antwort.
+        """
         ent_reg = er.async_get(self.hass)
         prefix = f"{self.subentry.unique_id}-"
         registered: set[str] = set()
@@ -426,7 +434,9 @@ class WowDetailCoordinator(_CharacterMixin, DataUpdateCoordinator[dict[str, Any]
             registered |= endpoints
             if entry.disabled_by is None:
                 enabled |= endpoints
-        needed = enabled | (set(DETAIL_ENDPOINTS) - registered)
+        needed = set(enabled)
+        if not self.entities_ready:
+            needed |= set(DETAIL_ENDPOINTS) - registered
         if not self.mythic_plus:
             needed.discard("mythic_season")
         if self.pvp_bracket_sensors == set():

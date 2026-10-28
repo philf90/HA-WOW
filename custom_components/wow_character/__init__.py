@@ -108,6 +108,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: WowConfigEntry) -> bool:
     entry.runtime_data = runtime
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
+    # Die Entitaeten stehen fest: Endpunkte ohne Entitaet, z. B. Erfolge in
+    # Classic Era, fragen die Detail-Coordinators bis zum Neuladen nicht ab.
+    for detail in runtime.details.values():
+        detail.entities_ready = True
     _remove_stale(hass, entry)
     runtime.config_snapshot = config_snapshot(entry)
     # Charakter hinzugefuegt oder entfernt, Zugangsdaten geaendert: neu laden.

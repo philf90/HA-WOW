@@ -236,9 +236,23 @@ async def test_hunter_keeps_querying_after_404(
 async def test_failed_first_query_is_retried(
     hass: HomeAssistant, aioclient_mock
 ) -> None:
-    """Ein Fehler (kein 404) sagt nichts ueber die Klasse: weiter abfragen."""
+    """Ein Fehler (kein 404) sagt nichts ueber die Klasse.
+
+    Ohne Sensor braucht die Antwort bis zum Neuladen niemand; danach wird der
+    Endpunkt wieder abgefragt und der Sensor entsteht.
+    """
     mock_token(aioclient_mock)
     mock_api(aioclient_mock, {f"{API}/hunter-pets": 500})
     entry = await _setup(hass, character_subentry())
     detail = entry.runtime_data.details[next(iter(entry.subentries))]
-    assert "hunter_pets" in detail.needed_endpoints()
+    assert "hunter_pets" not in detail._absent
+    assert _eid(hass, f"{UID1}-hunter_pets") is None
+    assert "hunter_pets" not in detail.needed_endpoints()
+
+    aioclient_mock.clear_requests()
+    mock_token(aioclient_mock)
+    mock_api(aioclient_mock, {f"{API}/hunter-pets": HUNTER_PETS})
+    assert await hass.config_entries.async_reload(entry.entry_id)
+    await hass.async_block_till_done()
+    assert _hunter_pet_calls(aioclient_mock) == 1
+    assert hass.states.get(_eid(hass, f"{UID1}-hunter_pets")).state == "3"

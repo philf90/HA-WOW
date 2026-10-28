@@ -11,7 +11,7 @@ Home-Assistant-Integration für World-of-Warcraft-Charaktere: Level, Itemlevel,
 Ausrüstung, Raid- und Mythic+-Fortschritt, Berufe, Ruf, Erfolge und mehr als
 Sensoren, dazu WoW-Marke, wöchentlicher Reset und Serverstatus. Die Daten kommen
 aus der offiziellen Battle.net API. Unterstützt Retail, WoW Classic (Era,
-Progression, Anniversary) und ist für WoW Forever vorbereitet. Version 0.11.2.
+Progression, Anniversary) und ist für WoW Forever vorbereitet. Version 0.11.3.
 
 <p align="center">
   <img src="https://raw.githubusercontent.com/philf90/HA-WOW/main/assets/vorschau-karten.png" alt="Arsenal-, Charaktere-, Berufe- und Raid-Karte im Nachtblau-Stil mit Beispieldaten" width="100%">
@@ -129,7 +129,7 @@ die anderen laufen weiter.
 | Gilde (Mitglieder; Name, Erfolgspunkte, Aktivitäten und Mitgliederliste als Attribute), nur in einer Gilde | Sensor | 6 h, Aktivitäten 1 h | `/data/wow/guild/{realm}/{gilde}`, `…/activity` und `…/roster`; Klassennamen aus `playable-class/{id}` |
 | Jägerbegleiter (Anzahl; beschworener, aktive und alle Begleiter als Attribute), nur für Jäger | Sensor | 6 h; für Nicht-Jäger einmal je Start | `hunter-pets` |
 | **Ausrüstung** | | | |
-| Ausrüstung, 18 Plätze (Kopf bis Schildhand) | Sensoren, Itemlevel; Symbol als Bild | 1 h | `equipment`; Symbol aus `media/item/{id}` |
+| Ausrüstung, 18 Plätze (Kopf bis Schildhand) | Sensoren, Itemlevel (ohne Itemlevel außerhalb von Retail der Name des Items); Symbol als Bild | 1 h | `equipment`; Symbol aus `media/item/{id}` |
 | Leere Sockel, Verzauberungen, Set-Fortschritt | Sensoren | 1 h | `equipment`, ausgewertet |
 | Leben, Primärwert, Krit, Tempo, Meisterschaft, Vielseitigkeit | Sensoren, **zunächst aus** | 1 h | `statistics` |
 | **Fortschritt** | | | |
@@ -171,7 +171,9 @@ Je Region ein Gerät „WoW-Spielwelt EU“ (bzw. US, KR, TW):
 ### Ausrüstung
 
 Die Ausrüstungs-Sensoren gibt es für alle Plätze, auch leere, damit Karten feste
-Entitäten haben. Attribute: `name`, `item_id`, `quality` (z. B. `EPIC`),
+Entitäten haben. Zustand ist das Itemlevel. Classic Era nennt je Item kein
+Itemlevel; außerhalb von Retail zeigt der Sensor dann den Namen des Items (seit
+0.11.3), leere Plätze bleiben „unbekannt“. Attribute: `name`, `item_id`, `quality` (z. B. `EPIC`),
 `quality_name`, `enchantments`, `sockets` (je Sockel `type` und `gem`, leer ohne
 Edelstein), `set` und `tooltip`. Das Symbol schlägt die Integration einmal je Item
 nach.
@@ -322,7 +324,10 @@ Lange Attribute speichert Home Assistant nicht im Verlauf: `tooltip`, `factions`
 ## Abfragen und Takte
 
 - Ein Endpunkt wird nur abgefragt, wenn mindestens eine seiner Entitäten
-  aktiviert ist.
+  aktiviert ist. Beim Start fragt die Integration alle Endpunkte einmal ab, weil
+  manche Entitäten nur entstehen, wenn Daten kommen. Endpunkte, für die dabei
+  keine Entitäten entstanden sind (z. B. Erfolge in Classic Era), fragt sie bis
+  zum Neuladen nicht mehr ab (seit 0.11.3).
 - Ereignisse lösen nur für Einträge aus, die nach dem Start von Home Assistant
   dazukommen.
 - Berufs-Sensoren entstehen aus der ersten Antwort; ein neu gelernter Beruf
@@ -450,6 +455,18 @@ Daten liefert:
 
 Kommt ein Wert erst später dazu (z. B. erste Erfolge, ein belegter
 Zusatzplatz), erscheint sein Sensor nach dem nächsten Neuladen der Integration.
+Bis dahin fragt die Integration Endpunkte ohne Entität nicht ab (seit 0.11.3).
+
+**Live geprüft mit Classic Era** (28.10.2026, ein Charakter auf Stufe 10, EU):
+Namespace `profile-classic1x-eu`, Profil, Ausrüstung, Verzauberungen,
+`pvp-summary`, `statistics`, `specializations`, `character-media` und
+`appearance` antworten. In `appearance` sind die Platz-Bezeichner dieselben wie
+in der Ausrüstung und die IDs die Item-IDs. Erfolge, Spielstatistik, PvP-Brackets
+und die WoW-Marke liefern nichts, dafür entstehen keine Entitäten. Die Ausrüstung
+nennt je Item kein Itemlevel. Die Talente kommen anders aufgebaut als in Retail
+(`specialization_groups`); einen Sensor „Spezialisierung“ gibt es deshalb in
+Classic Era nicht. Das Profil verweist auch auf `titles` und `reputations`; die
+Classic-Doku nennt beide nicht, die Integration fragt sie nicht ab.
 Fällt ein Sensor bei einem späteren Start weg, bleibt er als „nicht mehr
 bereitgestellt“ stehen und lässt sich löschen.
 
@@ -490,9 +507,16 @@ haben, wie bei [Classic](#wow-classic).
 ## Teststand
 
 Automatische Tests laufen gegen Home Assistant 2026.2.3; live geprüft wurde unter
-Home Assistant 2026.10.4 mit Retail-Charakteren der Region EU.
+Home Assistant 2026.10.4 mit Retail-Charakteren der Region EU, seit 0.11.2 auch
+mit einem Classic-Era-Charakter (siehe [WoW Classic](#wow-classic)).
 
-- **0.11.x:** 155 automatische Tests. 0.11.2: 3 Tests für die Namen der
+- **0.11.x:** 158 automatische Tests. 0.11.3: 3 neue Tests (Ausrüstung ohne
+  Itemlevel zeigt außerhalb von Retail den Namen, in Retail nicht; Endpunkte ohne
+  Entität werden nach dem Start nicht mehr abgefragt, Endpunkte mit Entität
+  schon), dazu prüft der Test für Jägerbegleiter nach einem Fehler beim Start
+  jetzt, dass der Endpunkt erst nach dem Neuladen wieder abgefragt wird.
+  Gegenprobe: sechs Fehler einzeln eingebaut, jedes Mal schlug mindestens ein
+  Test fehl. 0.11.2: 3 Tests für die Namen der
   Transmog-Gegenstände (Namen aus Ausrüstung und `item/{id}`, einmal je
   Gegenstand; Nachschlagen scheitert; Classic-Namespace) und die Prüfung im
   bestehenden Aussehen-Test, dass ohne passende ID nichts nachgeschlagen wird;
