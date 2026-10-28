@@ -69,7 +69,8 @@ def _pruefe_belege(text: str) -> list[str]:
     if (
         not text
         or re.search(r"https?://", text)
-        or re.search(r"^Keine: \S.{2,}", text, re.MULTILINE)
+        # "Keine: <Grund>" am Zeilenanfang, auch als Listenpunkt "- Keine: ..."
+        or re.search(r"^(?:[-*] )?Keine: \S.{2,}", text, re.MULTILINE)
     ):
         return []
     return ["„Belege“: mindestens ein Link oder „Keine: <Grund>“"]

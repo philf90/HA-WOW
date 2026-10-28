@@ -132,6 +132,22 @@ def test_sources_need_link_or_reason() -> None:
     assert pruefe_pr.pruefe_beschreibung(reason) == []
 
 
+@pytest.mark.parametrize("line", ["- Keine: nur README", "* Keine: nur README"])
+def test_sources_reason_as_list_item(line: str) -> None:
+    link = "- https://community.developer.battle.net/documentation\n"
+    assert pruefe_pr.pruefe_beschreibung(_filled(**{link: f"{line}\n"})) == []
+
+
+@pytest.mark.parametrize(
+    "line", ["- Keine", "- Keine:", "- Keine: x", "Siehe Keine: nur README"]
+)
+def test_sources_reason_must_be_given(line: str) -> None:
+    link = "- https://community.developer.battle.net/documentation\n"
+    errors = pruefe_pr.pruefe_beschreibung(_filled(**{link: f"{line}\n"}))
+    # "- Keine:" meldet zusaetzlich das leere Feld "Keine".
+    assert "„Belege“: mindestens ein Link oder „Keine: <Grund>“" in errors
+
+
 def test_comment_only_section_counts_as_empty() -> None:
     body = _filled(**{"Neuer Sensor.\n": "<!-- spaeter -->\n"})
     assert pruefe_pr.pruefe_beschreibung(body) == [

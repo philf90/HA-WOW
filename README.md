@@ -452,7 +452,10 @@ haben, wie bei [Classic](#wow-classic).
 Automatische Tests laufen gegen Home Assistant 2026.2.3; live geprüft wurde unter
 Home Assistant 2026.10.4 mit Retail-Charakteren der Region EU.
 
-- **0.10.x:** 137 automatische Tests. 0.10.2: 3 Tests für die WoW-Marke
+- **0.10.x:** 143 automatische Tests. Seit 0.10.2 dazu 6 Tests für die
+  PR-Vorlage: „Keine: <Grund>“ unter „Belege“ gilt auch als Listenpunkt
+  („- Keine: …“), ohne Grund weiter nicht; Gegenprobe: vier Fehler einzeln
+  eingebaut, jedes Mal schlug mindestens ein Test fehl. 0.10.2: 3 Tests für die WoW-Marke
   (Classic ohne Preis beim Start wird nicht weiter abgefragt, Classic mit Preis
   und Retail ohne Preis schon); Gegenprobe: vier Fehler einzeln eingebaut, jedes
   Mal schlug mindestens ein Test fehl. 0.10.1: 3 Tests für die Klassenprüfung
