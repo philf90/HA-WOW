@@ -345,7 +345,7 @@ class WowArsenalCard extends HTMLElement {
     if (!kacheln.length) {
       return "";
     }
-    return `<div class="leiste" style="--kacheln:${kacheln.length}">
+    return `<div class="leiste" style="--kacheln:${kacheln.length};--schmal:${Math.min(kacheln.length, 2)}">
       ${kacheln
         .map(
           (k) => `<div class="kachel"><div class="kachel-wert">${esc(k.wert)}</div>
@@ -554,7 +554,7 @@ const STYLE = `
   .platz.rechts .stufe { text-align: right; }
   .leiste { display: grid; grid-template-columns: repeat(var(--kacheln), minmax(0, 1fr)); gap: 6px; margin-top: 9px; }
   @container (max-width: 299px) {
-    .leiste { grid-template-columns: repeat(min(var(--kacheln), 2), minmax(0, 1fr)); }
+    .leiste { grid-template-columns: repeat(var(--schmal), minmax(0, 1fr)); }
   }
   .kachel { min-width: 0; padding: 8px 6px; border-radius: 13px; background: ${FARBEN.kachel}; border: 1px solid ${FARBEN.rand}; text-align: center; }
   .kachel-wert { font-size: 15px; font-weight: 750; color: ${FARBEN.text}; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
