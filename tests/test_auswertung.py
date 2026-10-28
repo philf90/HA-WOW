@@ -345,9 +345,14 @@ def _with_tree_link() -> dict:
     frost = specs["specializations"][1]
     active = {
         **frost["loadouts"][1],
+        # Verweise wie in der echten Antwort vom 28.10.2026
         "selected_class_talent_tree": {
-            "key": {"href": f"{GAME}/{TREE_PATH}?namespace=static-11.2.5_63660-eu"},
+            "key": {"href": f"{GAME}/talent-tree/790?namespace=static-11.2.5_63660-eu"},
             "name": "Magier",
+        },
+        "selected_spec_talent_tree": {
+            "key": {"href": f"{GAME}/{TREE_PATH}?namespace=static-11.2.5_63660-eu"},
+            "name": "Frost",
         },
         "selected_class_talents": [
             {
@@ -441,10 +446,8 @@ async def test_diagnostics_talent_tree_nodes_endpoint(
     """Verweis ohne Spezialisierung: Endpunkt "Talent Tree Nodes" mit talent_nodes."""
     mock_token(aioclient_mock)
     specs = _with_tree_link()
-    loadout = specs["specializations"][1]["loadouts"][1]
-    loadout["selected_class_talent_tree"] = {
-        "key": {"href": f"{GAME}/talent-tree/790?namespace=static-eu"}
-    }
+    # Ohne Verweis auf den Baum der Spezialisierung: Klassenbaum
+    del specs["specializations"][1]["loadouts"][1]["selected_spec_talent_tree"]
     nodes = {"id": 790, "talent_nodes": TREE["class_talent_nodes"]}
     mock_api(
         aioclient_mock,

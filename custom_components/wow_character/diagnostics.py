@@ -14,10 +14,12 @@ from .coordinator import WowConfigEntry, WowDetailCoordinator
 
 TO_REDACT = {CONF_CLIENT_ID, CONF_CLIENT_SECRET}
 
-# Verweis des aktiven Loadouts auf seinen Talentbaum (Retail), z. B.
-# ".../data/wow/talent-tree/790/playable-specialization/64?namespace=...".
-# Die Doku nennt das Format nicht; ohne Spezialisierung ist es der Endpunkt
-# "Talent Tree Nodes" (talent-tree/{id}) mit talent_nodes.
+# Verweise des aktiven Loadouts auf seinen Talentbaum (Retail). Echte Antwort
+# vom 28.10.2026: selected_spec_talent_tree zeigt auf
+# "talent-tree/658/playable-specialization/64" (Endpunkt "Talent Tree"),
+# selected_class_talent_tree auf "talent-tree/658" (Endpunkt "Talent Tree
+# Nodes": alle Knoten der Klasse fuer alle Spezialisierungen, Verbindungen nur
+# bei Heldentalenten). Die Doku nennt das Format nicht.
 _TALENT_TREE_HREF = re.compile(
     r"/data/wow/(talent-tree/\d+(?:/playable-specialization/\d+)?)"
 )
@@ -97,9 +99,13 @@ def _talent_tree_path(specs: Any) -> str | None:
         for loadout in spec.get("loadouts") or []:
             if not isinstance(loadout, dict) or not loadout.get("is_active"):
                 continue
-            tree = loadout.get("selected_class_talent_tree") or {}
-            match = _TALENT_TREE_HREF.search((tree.get("key") or {}).get("href") or "")
-            return match.group(1) if match else None
+            # Baum der Spezialisierung zuerst, sonst der Klassenbaum.
+            for key in ("selected_spec_talent_tree", "selected_class_talent_tree"):
+                tree = loadout.get(key) or {}
+                href = (tree.get("key") or {}).get("href") or ""
+                if match := _TALENT_TREE_HREF.search(href):
+                    return match.group(1)
+            return None
     return None
 
 
