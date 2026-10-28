@@ -11,7 +11,7 @@ Home-Assistant-Integration für World-of-Warcraft-Charaktere: Level, Itemlevel,
 Ausrüstung, Raid- und Mythic+-Fortschritt, Berufe, Ruf, Erfolge und mehr als
 Sensoren, dazu WoW-Marke, wöchentlicher Reset und Serverstatus. Die Daten kommen
 aus der offiziellen Battle.net API. Unterstützt Retail, WoW Classic (Era,
-Progression, Anniversary) und ist für WoW Forever vorbereitet. Version 0.13.0.
+Progression, Anniversary) und ist für WoW Forever vorbereitet. Version 0.14.0.
 
 <p align="center">
   <img src="https://raw.githubusercontent.com/philf90/HA-WOW/main/assets/vorschau-karten.png" alt="Arsenal-, Charaktere-, Berufe- und Raid-Karte im Nachtblau-Stil mit Beispieldaten" width="100%">
@@ -394,6 +394,35 @@ für das Arsenal-Popup) stehen im Kopf jeder Datei.
 </p>
 <p align="center"><sub>PvP und Gilde in Retail, PvP in Classic Anniversary, Gilde in Classic Era · Beispieldaten</sub></p>
 
+### Karte „WoW Talentbaum“ (seit 0.14.0)
+
+Die Integration liefert eine eigene Karte mit, ohne zusätzliches HACS-Paket und
+ohne Eintrag unter den Dashboard-Ressourcen: Home Assistant lädt sie mit dem
+Frontend. Nach dem Update einmal die Seite neu laden. Sie zeichnet Klassen-,
+Spezialisierungs- und aktiven Heldenbaum aus dem Sensor „Talentbaum“ (Retail):
+
+```yaml
+type: custom:wow-talent-tree-card
+entity: sensor.mein_charakter_talentbaum
+# optional, Auswahl und Reihenfolge der Bäume:
+trees: [class, spec, hero]
+```
+
+- Form der Knoten wie im Spiel: Quadrat aktiv, Kreis passiv, Achteck Wahl.
+- Vergebene Talente in Farbe mit goldenem Rahmen (Höchstrang) oder grünem
+  (teilweise), nicht vergebene grau. Rang („2/3“) bei Talenten mit mehreren
+  Rängen; meldet die API mehr Ränge als der Baum kennt, steht das so da (z. B.
+  „2/1“).
+- Pfeile aus `unlocks`, golden, wenn beide Enden vergeben sind; gestrichelte
+  Linien für die Punkte-Schwellen der API.
+- Die Zahl hinter dem Baumnamen ist die Summe der vergebenen Ränge laut API,
+  einschließlich vorgegebener Punkte.
+- Antippen zeigt Name, Rang und Beschreibung unter dem Baum, bei Wahlknoten
+  beide Talente mit Haken am gewählten.
+- Fehlt ein Symbol, steht ein Platzhalter mit den Anfangsbuchstaben.
+- In der Kartenauswahl heißt sie „WoW Talentbaum“; der Editor bietet die
+  Sensoren der Integration an.
+
 ## Ändern, Hinweise und Diagnose
 
 - **Neues Secret:** am Eintrag „Battle.net API“ ⋮ → **Neu konfigurieren**. Lehnt
@@ -547,6 +576,14 @@ Automatische Tests laufen gegen Home Assistant 2026.2.3; live geprüft wurde unt
 Home Assistant 2026.10.4 mit Retail-Charakteren der Region EU, seit 0.11.2 auch
 mit einem Classic-Era-Charakter (siehe [WoW Classic](#wow-classic)).
 
+- **0.14.x:** 177 automatische Tests. 0.14.0: 3 Tests für die Karte
+  „WoW Talentbaum“ (Datei wird ausgeliefert; mit Frontend als Modul geladen,
+  Version im Pfad; ohne Frontend nicht). Gegenprobe: drei Fehler einzeln
+  eingebaut, jedes Mal schlug mindestens ein Test fehl. Die Karte selbst
+  (JavaScript) ist nicht automatisch getestet: Gezeichnet in Chromium mit
+  erfundenen Daten im Aufbau des Sensors (drei Bäume, Wahlknoten, Ränge,
+  fehlende Symbole, Rang über Höchstrang), in 460 und 1000 Pixel Breite, ohne
+  Fehler in der Konsole. **Nicht live geprüft:** die Karte in Home Assistant.
 - **0.13.x:** 174 automatische Tests. 0.13.0: 8 Tests für den Sensor
   „Talentbaum“ (Knoten mit Lage, Rang, Wahl, Symbol und Pfeilen; Heldenknoten
   nur im aktiven Heldenbaum; Knoten ohne Talent fallen weg; mehrfach genannter
