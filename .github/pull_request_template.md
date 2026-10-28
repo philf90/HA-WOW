@@ -13,7 +13,7 @@ Kästchen offen ist. Trifft ein Punkt nicht zu: Kästchen ankreuzen und
 
 <!-- Quellen für Endpunkte, Namespaces und Feldnamen: Blizzard-Doku (Link),
 Typdefinitionen (Paket und Version), echte Antwort (Diagnose).
-Ohne externe Quelle: „Keine: <Grund>“. -->
+Ohne externe Quelle: „Keine: <Grund>“, auch als Listenpunkt. -->
 
 ## Änderungen
 
