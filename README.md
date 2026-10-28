@@ -10,7 +10,8 @@
 Home-Assistant-Integration für World-of-Warcraft-Charaktere: Level, Itemlevel,
 Ausrüstung, Raid- und Mythic+-Fortschritt, Berufe, Ruf, Erfolge und mehr als
 Sensoren, dazu WoW-Marke, wöchentlicher Reset und Serverstatus. Die Daten kommen
-aus der offiziellen Battle.net API. Version 0.8.0.
+aus der offiziellen Battle.net API. Unterstützt Retail, WoW Classic (Era,
+Progression, Anniversary) und ist für WoW Forever vorbereitet. Version 0.9.0.
 
 <p align="center">
   <img src="https://raw.githubusercontent.com/philf90/HA-WOW/main/assets/vorschau-karten.png" alt="Arsenal-, Charaktere-, Berufe- und Raid-Karte im Nachtblau-Stil mit Beispieldaten" width="100%">
@@ -49,7 +50,8 @@ aus der offiziellen Battle.net API. Version 0.8.0.
 4. **Einrichten:** Zweite Schaltfläche oben, oder Einstellungen → Geräte & Dienste
    → Integration hinzufügen → „WoW Charakter“. Client-ID und Secret eingeben.
 5. **Charakter hinzufügen:** Am neuen Eintrag „Battle.net API“ →
-   **Charakter hinzufügen**: zuerst Region und Spielversion, dann Realm aus der
+   **Charakter hinzufügen**: zuerst Region und Spielversion (Retail, Classic Era,
+   Classic Progression, Classic Anniversary oder Forever), dann Realm aus der
    Liste wählen und Charakternamen eingeben. Für weitere Charaktere diesen Schritt
    wiederholen.
 
@@ -75,6 +77,7 @@ Region und Realm stehen im Gerät „WoW-Spielwelt EU“ (bzw. US, KR, TW).
 - [Abfragen und Takte](#abfragen-und-takte)
 - [Dashboard-Karten](#dashboard-karten)
 - [Ändern, Hinweise und Diagnose](#ändern-hinweise-und-diagnose)
+- [WoW Classic](#wow-classic)
 - [WoW Forever](#wow-forever)
 - [Grenzen](#grenzen)
 - [Teststand](#teststand)
@@ -327,6 +330,63 @@ für das Arsenal-Popup) stehen im Kopf jeder Datei.
   **Diagnose herunterladen** liefert die API-Antworten ohne Client-ID und Secret.
   Damit lassen sich Feldnamen prüfen, wenn ein Wert fehlt.
 
+## WoW Classic
+
+Grundlage ist die offizielle Doku von Blizzard (Stand 28.10.2026):
+[Classic Profile APIs](https://community.developer.battle.net/documentation/world-of-warcraft-classic/profile-apis),
+[Classic Game Data APIs](https://community.developer.battle.net/documentation/world-of-warcraft-classic/game-data-apis)
+und [Classic Namespaces](https://community.developer.battle.net/documentation/world-of-warcraft-classic/guides/namespaces).
+
+| Spielversion in der Integration | Spiel laut Blizzard-Doku | Namespace |
+|---|---|---|
+| Classic Era | World of Warcraft Classic (Era) | `profile-classic1x-{region}` |
+| Classic Progression | Mists of Pandaria Classic (Progression) | `profile-classic-{region}` |
+| Classic Anniversary | Burning Crusade Classic (Anniversary) | `profile-classicann-{region}` |
+
+Für die Realm-Liste und die Spielwelt gilt `dynamic-…`, für Symbole `static-…`
+mit demselben Zusatz. Welche Erweiterung hinter Progression und Anniversary
+steckt, ändert Blizzard mit der Zeit; der Namespace bleibt.
+
+**Abgefragt werden nur Endpunkte, die die Classic-Doku nennt:**
+
+| Bereich | Classic | Endpunkt |
+|---|---|---|
+| Profil (Level, Itemlevel, Erfahrung, Erfolgspunkte, letzter Login), Level gestiegen | ja | Profil |
+| Status-Prüfung (Reparaturhinweise) | ja | `status` |
+| Ausrüstung, leere Sockel, Verzauberungen, Set | ja | `equipment`; Symbole aus `media/item/{id}` |
+| Ehrenstufe, ehrenhafte Siege | ja | `pvp-summary` |
+| Charakterwerte (zunächst aus) | ja | `statistics` |
+| Erfolge, Neuer Erfolg, Spielstatistik | ja | `achievements`, `achievements/statistics` |
+| Spezialisierung | ja | `specializations` |
+| Avatar, Ganzkörperbild | ja | `character-media` |
+| Gilde | ja | `/data/wow/guild/{realm}/{gilde}`, `…/activity` |
+| Server, Warteschlange, Bevölkerung je Realm | ja | `realm/{slug}`, `connected-realm/{id}` |
+| WoW-Marke | nur wenn die API einen Preis liefert | `token/index` |
+| Klassen-Symbol (`class_icon`) | ja | `media/playable-class/{id}` |
+| Raids, Boss besiegt, Mythic+, wöchentlicher Reset | nein, nicht in der Doku | – |
+| Berufe, Ruf, Titel, Quests, Sammlungen, Neu gesammelt | nein, nicht in der Doku | – |
+| Symbole von Spezialisierung und Erfolgen, deutsche Erfolgskategorien | nein, nicht in der Doku | – |
+
+**Was die Antworten enthalten, sagt die Doku nicht** (sie nennt Endpunkte und
+Parameter, keine Antwortfelder). Die Integration liest Classic deshalb wie
+Retail und legt für Classic (wie für Forever) nur an, was beim Start wirklich
+Daten liefert:
+
+- Entitäten eines Endpunkts nur, wenn er antwortet (z. B. keine Erfolge, falls
+  Classic Era dafür 404 meldet).
+- Sensoren nur, wenn sie beim Start einen Wert haben (z. B. kein Sensor
+  „Meisterschaft“, wenn die Antwort keinen Wert dafür enthält). Ist die erste
+  Abfrage gescheitert, werden sie angelegt und bleiben „unbekannt“, bis Daten
+  kommen.
+- Ausrüstungsplätze, die Retail nicht kennt, bekommen einen eigenen Sensor
+  „Ausrüstung {Platz}“ mit dem Namen des Platzes aus der API, falls die Antwort
+  solche Plätze enthält.
+
+Kommt ein Wert erst später dazu (z. B. erste Erfolge, ein belegter
+Zusatzplatz), erscheint sein Sensor nach dem nächsten Neuladen der Integration.
+Fällt ein Sensor bei einem späteren Start weg, bleibt er als „nicht mehr
+bereitgestellt“ stehen und lässt sich löschen.
+
 ## WoW Forever
 
 Blizzard hat den API-Namespace für Forever noch nicht dokumentiert (Start
@@ -337,7 +397,8 @@ Kandidaten sind **unbestätigt**. Sobald Blizzard den Namespace nennt, dort
 eintragen; schlägt das Hinzufügen fehl, ist das die wahrscheinlichste Ursache.
 
 Für Forever-Charaktere legt die Integration nur Entitäten an, deren Endpunkt beim
-Start Daten liefert.
+Start Daten liefert, und (seit 0.9.0) nur Sensoren, die beim Start einen Wert
+haben, wie bei [Classic](#wow-classic).
 
 ## Grenzen
 
@@ -350,6 +411,10 @@ Start Daten liefert.
   kennt je Season nur den besten Lauf je Dungeon, und die Woche hat nur Start und
   Ende.
 - WoW Forever ist ungetestet.
+- WoW Classic ist nur automatisch getestet, nicht mit echten Antworten der API
+  (siehe [Teststand](#teststand)). Raids, Mythic+, Berufe, Ruf, Titel, Quests und
+  Sammlungen gibt es für Classic nicht, weil die Classic-API sie nicht anbietet.
+  Einen wöchentlichen Reset liefert die Classic-API ebenfalls nicht.
 - Das Logo zeigt Home Assistant ab 2026.3 aus dem Ordner `brand/` der
   Integration. In der HACS-Liste erscheint stattdessen ein Platzhalter: HACS 2.0.5
   lädt Symbole nur von `brands.home-assistant.io`, und dort nimmt Home Assistant
@@ -361,6 +426,13 @@ Start Daten liefert.
 Automatische Tests laufen gegen Home Assistant 2026.2.3; live geprüft wurde unter
 Home Assistant 2026.10.4 mit Retail-Charakteren der Region EU.
 
+- **0.9.x:** 94 automatische Tests, darunter 10 für Classic: Namespaces aller
+  drei Classic-Versionen beim Hinzufügen, nur dokumentierte Endpunkte und
+  Symbole, keine Sensoren ohne Wert, Zusatzplätze der Ausrüstung, Name des
+  Spielwelt-Geräts. Gegenprobe: Jede der 13 Schutzmaßnahmen einzeln entfernt,
+  jedes Mal schlug mindestens ein Test fehl. **Nicht live geprüft:** Für Classic
+  lag kein API-Zugang mit Classic-Charakter vor; ob die Antwortfelder von Classic
+  denen von Retail entsprechen, ist offen.
 - **0.8.x:** 84 automatische Tests, hassfest ohne Fehler. 0.8.0 am 27.10.2026
   über HACS installiert und live geprüft: keine Meldung der Integration im Log,
   kein Reparaturhinweis, keine Entität nicht verfügbar. Die Ereignisse „Neu
@@ -414,6 +486,7 @@ Home Assistant 2026.10.4 mit Retail-Charakteren der Region EU.
 - **0.1.x:** live geprüft: Realm-Liste, Profil, Mythic+-Profil und die Abfrage
   alle 15 Minuten.
 - **WoW Forever** ist ungetestet.
+- **WoW Classic** ist nur automatisch getestet (siehe 0.9.x).
 
 ## Tests
 

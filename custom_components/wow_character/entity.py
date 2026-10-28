@@ -10,7 +10,7 @@ from homeassistant.helpers.update_coordinator import (
     DataUpdateCoordinator,
 )
 
-from .const import DOMAIN
+from .const import DOMAIN, GAME_VERSIONS
 from .coordinator import WowWorldCoordinator
 
 
@@ -44,13 +44,13 @@ class WowWorldEntity(CoordinatorEntity[WowWorldCoordinator]):
         entry = coordinator.config_entry
         scope = f"world-{coordinator.region}{coordinator.suffix}"
         self._attr_unique_id = f"{entry.unique_id}-{scope}-{key}"
-        forever = " Forever" if coordinator.suffix else ""
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, f"{entry.entry_id}-{scope}")},
             translation_key="world",
             translation_placeholders={
                 "region": coordinator.region.upper(),
-                "version": forever,
+                # z. B. "" (Retail), " Forever" oder " Classic Era"
+                "version": GAME_VERSIONS[coordinator.game_version]["label"],
             },
             manufacturer="Blizzard Entertainment",
             model="World of Warcraft",

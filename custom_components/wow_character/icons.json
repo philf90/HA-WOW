@@ -75,6 +75,9 @@
       "equipment_off_hand": {
         "default": "mdi:shield-outline"
       },
+      "equipment_other": {
+        "default": "mdi:shield-outline"
+      },
       "equipment_shirt": {
         "default": "mdi:shield-outline"
       },

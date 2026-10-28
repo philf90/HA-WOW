@@ -110,14 +110,39 @@ REGIONS = {
     },
 }
 
+# Detail-Endpunkte, die Blizzard fuer die Profil-API von WoW Classic nennt
+# (Doku "World of Warcraft Classic Profile APIs", Stand 28.10.2026). Raids,
+# Mythic+, Berufe, Sammlungen, Ruf, Titel und Quests fehlen dort.
+CLASSIC_ENDPOINTS = (
+    "pvp",
+    "statistics",
+    "achievements",
+    "media",
+    "equipment",
+    "specializations",
+    "game_statistics",
+    "guild",
+    "guild_activity",
+)
+# Statische Spieldaten, die die Integration nachschlaegt und die Blizzard fuer
+# Classic nennt (Doku "World of Warcraft Classic Game Data APIs"). Symbole von
+# Spezialisierungen, Berufen, Raids und Erfolgen sowie Erfolgskategorien
+# fehlen dort.
+CLASSIC_STATIC = ("media/playable-class", "media/item")
+
 # Namespaces: "dynamic{suffix}-{region}" fuer die Realm-Liste,
 # "profile{suffix}-{region}" fuer Charaktere, z. B. "profile-eu".
 # Bei mehreren Kandidaten wird beim Einrichten der Reihe nach probiert, welcher
 # eine Realm-Liste liefert; der erste Treffer wird gespeichert.
+# label: Zusatz im Namen des Spielwelt-Geraets, z. B. "WoW-Spielwelt EU Forever".
+# endpoints/static: was die Version kennt; None heisst ohne Einschraenkung.
 GAME_VERSIONS = {
     "retail": {
         "namespaces": [""],
         "mythic_plus": True,
+        "label": "",
+        "endpoints": None,
+        "static": None,
     },
     # WoW Forever startet am 04.11.2026. Blizzard hat den Namespace noch nicht
     # dokumentiert. Die Kandidaten stammen aus homeassistant-wow-blizzard und
@@ -125,5 +150,32 @@ GAME_VERSIONS = {
     "forever": {
         "namespaces": ["-forever", "-camelot"],
         "mythic_plus": False,
+        "label": " Forever",
+        "endpoints": None,
+        "static": None,
+    },
+    # Classic: Namespaces laut Blizzard-Doku "World of Warcraft Classic
+    # Namespaces" (Stand 28.10.2026). Die Erweiterung hinter Progression und
+    # Anniversary wechselt mit der Zeit, der Namespace bleibt.
+    "classic_era": {
+        "namespaces": ["-classic1x"],
+        "mythic_plus": False,
+        "label": " Classic Era",
+        "endpoints": CLASSIC_ENDPOINTS,
+        "static": CLASSIC_STATIC,
+    },
+    "classic_progression": {
+        "namespaces": ["-classic"],
+        "mythic_plus": False,
+        "label": " Classic Progression",
+        "endpoints": CLASSIC_ENDPOINTS,
+        "static": CLASSIC_STATIC,
+    },
+    "classic_anniversary": {
+        "namespaces": ["-classicann"],
+        "mythic_plus": False,
+        "label": " Classic Anniversary",
+        "endpoints": CLASSIC_ENDPOINTS,
+        "static": CLASSIC_STATIC,
     },
 }
