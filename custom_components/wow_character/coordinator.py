@@ -398,6 +398,8 @@ class WowDetailCoordinator(_CharacterMixin, DataUpdateCoordinator[dict[str, Any]
         # Brackets mit Sensor; setzt sensor.py beim Anlegen, None bis dahin.
         # Brackets ohne Sensor werden bis zum Neuladen nicht abgefragt.
         self.pvp_bracket_sensors: set[str] | None = None
+        # Item-ID -> Name fuer den Transmog (Sprache der Region).
+        self._transmog_names: dict[int, str] = {}
         # Klassen-ID -> Name fuer die Gildenmitglieder (Sprache der Region).
         self._class_names: dict[int, str] = {}
         # Hauptkategorien der Erfolge: ID -> Name in der Sprache der Region.
@@ -515,6 +517,8 @@ class WowDetailCoordinator(_CharacterMixin, DataUpdateCoordinator[dict[str, Any]
         data["achievement_roots"] = dict(self._achievement_roots)
         await self._lookup_class_names(data.get("guild_roster"))
         data["class_names"] = dict(self._class_names)
+        await self._lookup_transmog_names(data.get("appearance"), data.get("equipment"))
+        data["transmog_names"] = dict(self._transmog_names)
         await self._media.lookup(
             [
                 *(("profession", i) for i in self._profession_ids(data)),
@@ -553,6 +557,51 @@ class WowDetailCoordinator(_CharacterMixin, DataUpdateCoordinator[dict[str, Any]
             except BattleNetNotFound:
                 result[bracket] = None
         return result
+
+    async def _lookup_transmog_names(
+        self, appearance: dict[str, Any] | None, equipment: dict[str, Any] | None
+    ) -> None:
+        """Namen der Transmog-Gegenstaende, nur wenn die IDs belegt Item-IDs sind.
+
+        Weder Doku noch Typdefinitionen sagen, was transmog[].id ist. Stimmt die
+        ID auf mindestens einem Platz mit dem dort angelegten Item ueberein (ein
+        nicht transmogrifizierter Platz), sind es Item-IDs. Dann kommen die Namen
+        aus der Ausruestung oder aus item/{id}, sonst gibt es keine.
+        """
+        items = p.equipment(equipment)
+        transmog = p.appearance(appearance)["transmog"]
+        if not any(
+            isinstance(t["id"], int)
+            and t["id"] == (items.get(t["slot"]) or {}).get("item_id")
+            for t in transmog
+        ):
+            return
+        equipped = {
+            i["item_id"]: i["name"]
+            for i in items.values()
+            if isinstance(i.get("item_id"), int) and isinstance(i.get("name"), str)
+        }
+        for t in transmog:
+            item_id = t["id"]
+            if not isinstance(item_id, int) or item_id in self._transmog_names:
+                continue
+            if item_id in equipped:
+                self._transmog_names[item_id] = equipped[item_id]
+                continue
+            path = f"item/{item_id}"
+            if not self.supports_static(path):
+                continue
+            try:
+                static = await self.client.get_static_data(
+                    self.region, self.suffix, path
+                )
+            except BattleNetAuthError as err:
+                raise _auth_failed(err) from err
+            except BattleNetError as err:
+                _LOGGER.debug("Item %s nicht nachgeschlagen: %s", item_id, err)
+                continue
+            if isinstance(name := static.get("name"), str) and name:
+                self._transmog_names[item_id] = name
 
     async def _lookup_class_names(self, roster: dict[str, Any] | None) -> None:
         """Klassennamen der Gildenmitglieder nachschlagen, jede Klasse einmal.

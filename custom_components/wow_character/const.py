@@ -150,10 +150,11 @@ CLASSIC_ENDPOINTS = (
 )
 # Statische Spieldaten, die die Integration nachschlaegt und die Blizzard fuer
 # Classic nennt (Doku "World of Warcraft Classic Game Data APIs");
-# playable-class liefert die Klassennamen der Gildenmitglieder. Symbole von
+# playable-class liefert die Klassennamen der Gildenmitglieder, item die Namen
+# der Transmog-Gegenstaende. Symbole von
 # Spezialisierungen, Berufen, Raids und Erfolgen sowie Erfolgskategorien
 # fehlen dort.
-CLASSIC_STATIC = ("media/playable-class", "media/item", "playable-class")
+CLASSIC_STATIC = ("media/playable-class", "media/item", "playable-class", "item")
 
 # Namespaces: "dynamic{suffix}-{region}" fuer die Realm-Liste,
 # "profile{suffix}-{region}" fuer Charaktere, z. B. "profile-eu".

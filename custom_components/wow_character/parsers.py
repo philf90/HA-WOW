@@ -777,14 +777,18 @@ def pvp_bracket(data: dict[str, Any] | None) -> dict[str, Any]:
     }
 
 
-def appearance(data: dict[str, Any] | None) -> dict[str, Any]:
+def appearance(
+    data: dict[str, Any] | None, names: dict[int, str] | None = None
+) -> dict[str, Any]:
     """Geschlecht und Transmog aus dem Aussehen.
 
     Felder wie in den Typdefinitionen von @blizzard-api/wow 4.1.4
-    (CharacterAppearanceResponse); fuer Classic gibt es keine. Je Gegenstand
-    nur, was die API nennt: Platz, ID und Verzauberung, keinen Namen.
+    (CharacterAppearanceResponse); fuer Classic gibt es keine. Die API nennt
+    je Gegenstand Platz, ID und Verzauberung; den Namen nur aus names (siehe
+    _lookup_transmog_names im Coordinator).
     """
     data = data or {}
+    names = names or {}
     return {
         "gender": name_of(data.get("gender")),
         "transmog": [
@@ -792,6 +796,7 @@ def appearance(data: dict[str, Any] | None) -> dict[str, Any]:
                 "slot": (item.get("slot") or {}).get("type"),
                 "slot_name": (item.get("slot") or {}).get("name"),
                 "id": item.get("id"),
+                "name": names.get(item.get("id")),
                 "enchant": item.get("enchant"),
             }
             for item in data.get("items") or []

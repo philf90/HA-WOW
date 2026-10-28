@@ -551,7 +551,11 @@ class WowLevelSensor(WowSensor):
         attrs = super().extra_state_attributes
         if attrs is None:
             return None
-        return {**attrs, **p.appearance((self._detail.data or {}).get("appearance"))}
+        detail = self._detail.data or {}
+        return {
+            **attrs,
+            **p.appearance(detail.get("appearance"), detail.get("transmog_names")),
+        }
 
 
 def _professions(detail: WowDetailCoordinator) -> dict[int, dict[str, Any]]:
