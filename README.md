@@ -11,7 +11,7 @@ Home-Assistant-Integration für World-of-Warcraft-Charaktere: Level, Itemlevel,
 Ausrüstung, Raid- und Mythic+-Fortschritt, Berufe, Ruf, Erfolge und mehr als
 Sensoren, dazu WoW-Marke, wöchentlicher Reset und Serverstatus. Die Daten kommen
 aus der offiziellen Battle.net API. Unterstützt Retail, WoW Classic (Era,
-Progression, Anniversary) und ist für WoW Forever vorbereitet. Version 0.12.2.
+Progression, Anniversary) und ist für WoW Forever vorbereitet. Version 0.13.0.
 
 <p align="center">
   <img src="https://raw.githubusercontent.com/philf90/HA-WOW/main/assets/vorschau-karten.png" alt="Arsenal-, Charaktere-, Berufe- und Raid-Karte im Nachtblau-Stil mit Beispieldaten" width="100%">
@@ -125,6 +125,7 @@ die anderen laufen weiter.
 | Avatar, Ganzkörperbild | Bilder | 6 h | `character-media` |
 | Spezialisierung mit Heldentalenten und Talent-Code | Sensor | 1 h | `specializations` |
 | Talente (Baum mit den meisten Punkten; Punkte und Talente je Baum), nur außerhalb von Retail | Sensor | 1 h | `specializations` |
+| Talentbaum (Spezialisierung; Knoten von Klassen-, Spezialisierungs- und aktivem Heldenbaum als Attribute), Retail | Sensor | 1 h | `specializations`; Baum aus `talent-tree/{id}/playable-specialization/{specId}`, Symbole aus `media/spell/{id}` |
 | Titel (Anzahl, Liste als Attribut) | Sensor | 6 h | `titles` |
 | Level gestiegen | Ereignis | 15 min | Profil, `level` |
 | Gilde (Mitglieder; Name, Erfolgspunkte, Aktivitäten und Mitgliederliste als Attribute), nur in einer Gilde | Sensor | 6 h, Aktivitäten 1 h | `/data/wow/guild/{realm}/{gilde}`, `…/activity` und `…/roster`; Klassennamen aus `playable-class/{id}` |
@@ -309,6 +310,18 @@ Aus den statischen Spieldaten, je Objekt einmal nachgeschlagen:
   Attribute: `total_points` und `trees`, je Baum `name`, `points` und `talents`
   (je Talent `name`, `rank`, `description`). Die Antwort nennt nur Bäume mit
   Punkten; ohne Punkte beim Start gibt es keinen Sensor.
+- **Talentbaum** (seit 0.13.0, Retail): Zustand ist die Spezialisierung.
+  Attribute: `hero` (aktiver Heldenbaum), `class_nodes`, `spec_nodes` und
+  `hero_nodes` (je Knoten `id`, `row`, `col`, `type`, `max_rank`, `rank`,
+  `talent` als gewählte Talent-ID, `talents` mit `id`, `name`, `spell_id`,
+  `description` und `icon`, sowie `unlocks` für die Pfeile) und `gates` (je
+  Schwelle `tree`, `row`, `points`). Grundlage ist die echte Antwort vom
+  28.10.2026: Die IDs der vergebenen Talente sind die Knoten-IDs; die Knoten der
+  Heldenbäume stehen in der Antwort auch unter den Knoten der Spezialisierung und
+  werden dort herausgenommen; Knoten ohne Talent (vermutlich die Wahl des
+  Heldenbaums) fallen weg. Steht ein Knoten mehrfach in der Verteilung, zählt der
+  höchste Rang und `talent` bleibt leer, weil nicht belegt ist, welches gilt.
+  Classic liefert keinen Talentbaum.
 - **Mythic+-Läufe:** Der Sensor „Höchster Mythic+-Schlüssel“ hat `best_runs`
   (Kurzform je Dungeon) und `runs`: je Lauf `dungeon`, `dungeon_id`, `level`,
   `timed`, `duration` (Sekunden), `completed`, `rating`, `color`, `affixes` und
@@ -327,8 +340,8 @@ nicht, bleibt der englische Name. Raidnamen kommen weiterhin auf Englisch.
 ### Nicht in der Datenbank
 
 Lange Attribute speichert Home Assistant nicht im Verlauf: `tooltip`, `factions`,
-`runs`, `titles`, `statistics`, `activities`, `pets`, `members`, `transmog` und
-`trees`. Die Werte stehen trotzdem im aktuellen Zustand.
+`runs`, `titles`, `statistics`, `activities`, `pets`, `members`, `transmog`,
+`trees`, `class_nodes`, `spec_nodes`, `hero_nodes` und `gates`. Die Werte stehen trotzdem im aktuellen Zustand.
 
 ## Abfragen und Takte
 
@@ -339,6 +352,10 @@ Lange Attribute speichert Home Assistant nicht im Verlauf: `tooltip`, `factions`
   zum Neuladen nicht mehr ab (seit 0.11.3).
 - Ereignisse lösen nur für Einträge aus, die nach dem Start von Home Assistant
   dazukommen.
+- Talentbaum (seit 0.13.0): Den Baum der Spezialisierung lädt die Integration
+  einmal je Start und Spezialisierung, die Symbole einmal je Talent, erst nach
+  dem Anlegen der Entitäten (bei einer Klasse rund 100 Abfragen, einmalig). Ist
+  der Sensor „Talentbaum“ deaktiviert, entfällt beides.
 - Berufs-Sensoren entstehen aus der ersten Antwort; ein neu gelernter Beruf
   erscheint nach dem nächsten Neuladen der Integration.
 - Das Token holt die Integration über den globalen Endpunkt
@@ -530,6 +547,16 @@ Automatische Tests laufen gegen Home Assistant 2026.2.3; live geprüft wurde unt
 Home Assistant 2026.10.4 mit Retail-Charakteren der Region EU, seit 0.11.2 auch
 mit einem Classic-Era-Charakter (siehe [WoW Classic](#wow-classic)).
 
+- **0.13.x:** 174 automatische Tests. 0.13.0: 8 Tests für den Sensor
+  „Talentbaum“ (Knoten mit Lage, Rang, Wahl, Symbol und Pfeilen; Heldenknoten
+  nur im aktiven Heldenbaum; Knoten ohne Talent fallen weg; mehrfach genannter
+  Knoten; Baum einmal je Start, Symbole erst nach dem Anlegen; Fehler wird
+  wiederholt; deaktivierter Sensor; Endpunkt bleibt ohne Sensor
+  „Spezialisierung“ aktuell; kein Sensor in Classic). Der Konsistenz-Test
+  erkennt `_unrecorded_attributes` jetzt auch über mehrere Zeilen. Gegenprobe:
+  zehn Fehler einzeln eingebaut, jedes Mal schlug mindestens ein Test fehl.
+  Grundlage ist die echte Antwort vom 28.10.2026 (Magier, Frost). **Nicht live
+  geprüft:** diese Version.
 - **0.12.x:** 166 automatische Tests. 0.12.2: Die Diagnose-Tests nutzen die
   Verweise wie in der echten Antwort und prüfen, dass der Baum der
   Spezialisierung Vorrang hat und der Klassenbaum nur ohne ihn geladen wird;

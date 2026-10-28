@@ -73,6 +73,7 @@ DETAIL_KEYS: dict[str, str] = {
     "item_set": "equipment",
     "achievements": "achievements",
     "specialization": "specializations",
+    "talent_tree": "specializations",
     "talents": "specializations",
     "titles": "titles",
     "game_statistics": "game_statistics",
@@ -403,6 +404,8 @@ class WowDetailCoordinator(_CharacterMixin, DataUpdateCoordinator[dict[str, Any]
         # __init__.py). Danach entsteht bis zum Neuladen keine neue Entitaet;
         # Endpunkte ohne Entitaet werden nicht mehr abgefragt.
         self.entities_ready = False
+        # Talentbaeume der Spezialisierung je Pfad; statisch bis zum Neuladen.
+        self._talent_trees: dict[str, dict[str, Any]] = {}
         # Item-ID -> Name fuer den Transmog (Sprache der Region).
         self._transmog_names: dict[int, str] = {}
         # Klassen-ID -> Name fuer die Gildenmitglieder (Sprache der Region).
@@ -411,6 +414,17 @@ class WowDetailCoordinator(_CharacterMixin, DataUpdateCoordinator[dict[str, Any]
         self._achievement_roots: dict[int, str] = {}
         # Symbole aus den statischen Spieldaten, z. B. "profession/164" -> URL.
         self._media = MediaCache(self)
+
+    def entity_enabled(self, key: str, platform: str = "sensor") -> bool:
+        """Ist die Entitaet aktiv? Vor dem Anlegen der Entitaeten immer ja."""
+        if not self.entities_ready:
+            return True
+        ent_reg = er.async_get(self.hass)
+        entity_id = ent_reg.async_get_entity_id(
+            platform, DOMAIN, f"{self.subentry.unique_id}-{key}"
+        )
+        entry = ent_reg.async_get(entity_id) if entity_id else None
+        return entry is not None and entry.disabled_by is None
 
     def needed_endpoints(self) -> set[str]:
         """Endpunkte mit mindestens einer aktiven Entitaet.
@@ -530,6 +544,7 @@ class WowDetailCoordinator(_CharacterMixin, DataUpdateCoordinator[dict[str, Any]
         data["class_names"] = dict(self._class_names)
         await self._lookup_transmog_names(data.get("appearance"), data.get("equipment"))
         data["transmog_names"] = dict(self._transmog_names)
+        data["talent_tree"] = await self._talent_tree(data.get("specializations"))
         await self._media.lookup(
             [
                 *(("profession", i) for i in self._profession_ids(data)),
@@ -568,6 +583,37 @@ class WowDetailCoordinator(_CharacterMixin, DataUpdateCoordinator[dict[str, Any]
             except BattleNetNotFound:
                 result[bracket] = None
         return result
+
+    async def _talent_tree(self, specs: Any) -> dict[str, Any] | None:
+        """Talentbaum der Spezialisierung mit der Verteilung des aktiven Loadouts.
+
+        Nur solange der Sensor "Talentbaum" aktiv ist. Der Baum kommt einmal je
+        Start; die Symbole erst nach dem Anlegen der Entitaeten, damit der Start
+        nicht auf rund hundert Abfragen wartet.
+        """
+        if not self.entity_enabled("talent_tree"):
+            return None
+        loadout = p.active_loadout(specs)
+        path = p.spec_tree_path(loadout)
+        if path is None or not self.supports_static(path):
+            return None
+        if path not in self._talent_trees:
+            try:
+                self._talent_trees[path] = await self.client.get_static_data(
+                    self.region, self.suffix, path
+                )
+            except BattleNetAuthError as err:
+                raise _auth_failed(err) from err
+            except BattleNetError as err:
+                _LOGGER.debug("Talentbaum %s fehlt: %s", path, err)
+                return None
+        tree = self._talent_trees[path]
+        hero_id = p.hero_tree_id(specs, loadout)
+        if self.entities_ready:
+            await self._media.lookup(
+                [("spell", i) for i in p.tree_spell_ids(tree, hero_id)]
+            )
+        return p.talent_tree(tree, loadout, hero_id, self._media.urls())
 
     async def _lookup_transmog_names(
         self, appearance: dict[str, Any] | None, equipment: dict[str, Any] | None

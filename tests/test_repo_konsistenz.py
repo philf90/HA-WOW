@@ -112,9 +112,10 @@ def test_unrecorded_attributes_documented() -> None:
     section = README.split("### Nicht in der Datenbank", 1)[1].split("\n## ", 1)[0]
     names = set()
     for path in BASE.glob("*.py"):
-        # frozenset({...}) oder Erweiterung einer Elternklasse: ... | {...}
+        # frozenset({...}), auch ueber mehrere Zeilen, oder Erweiterung einer
+        # Elternklasse: ... | {...}
         for group in re.findall(
-            r"_unrecorded_attributes = (?:frozenset\(|\S+ \| )\{([^}]*)\}",
+            r"_unrecorded_attributes = (?:frozenset\(\s*|\S+ \| )\{([^}]*)\}",
             path.read_text(),
         ):
             names |= set(re.findall(r'"(\w+)"', group))

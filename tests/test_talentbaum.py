@@ -1,0 +1,279 @@
+"""Tests fuer den Sensor "Talentbaum" (Retail).
+
+Aufbau wie die echte Antwort vom 28.10.2026 (Magier, Frost): Baum der
+Spezialisierung mit class_talent_nodes, spec_talent_nodes (darin auch die
+Knoten der Heldenbaeume), hero_talent_trees und restriction_lines; IDs und
+Namen erfunden.
+"""
+
+from homeassistant.core import HomeAssistant
+from homeassistant.helpers import entity_registry as er
+
+from .conftest import (
+    API,
+    GAME,
+    SPECIALIZATIONS,
+    UID1,
+    character_subentry,
+    mock_api,
+    mock_token,
+)
+from .test_classic import _classic_subentry
+from .test_details import _eid, _setup, _state
+
+TREE_PATH = "talent-tree/790/playable-specialization/64"
+
+
+def _node(node_id, row, col, talents, ranks=1, kind="PASSIVE", unlocks=None):
+    """Knoten; talents: [(Talent-ID, Spell-ID, Name)], mehrere = Wahlknoten."""
+    tooltips = [
+        {
+            "talent": {"id": t},
+            "spell_tooltip": {
+                "spell": {"id": s, "name": n},
+                "description": f"{n}: Beschreibung.",
+            },
+        }
+        for t, s, n in talents
+    ]
+    if not talents:
+        rank_list = [{"rank": 1}]
+    elif len(tooltips) > 1:
+        rank_list = [{"rank": 1, "choice_of_tooltips": tooltips}]
+    else:
+        rank_list = [{"rank": r + 1, "tooltip": tooltips[0]} for r in range(ranks)]
+    return {
+        "id": node_id,
+        "display_row": row,
+        "display_col": col,
+        "node_type": {"type": "CHOICE" if len(talents) > 1 else kind},
+        "ranks": rank_list,
+        "unlocks": unlocks,
+    }
+
+
+HERO_A = [_node(900, 1, 10, [(9000, 19000, "Held A")])]
+HERO_B = [_node(910, 1, 22, [(9100, 19100, "Held B")])]
+TREE = {
+    "name": "Frost",
+    "class_talent_nodes": [
+        _node(100, 1, 4, [(1000, 11000, "Klasse 1")], kind="ACTIVE", unlocks=[101]),
+        # Wahl des Heldenbaums: Knoten ohne Talent
+        _node(199, 1, 12, []),
+        _node(101, 2, 4, [(1010, 11010, "Wahl 1"), (1011, 11011, "Wahl 2")]),
+        _node(102, 2, 5, [(1020, 11020, "Klasse 2")], ranks=2),
+    ],
+    # Wie in der echten Antwort stehen Heldenknoten auch hier.
+    "spec_talent_nodes": [
+        _node(200, 1, 18, [(2000, 12000, "Spez 1")], kind="ACTIVE"),
+        _node(210, 11, 18, [(2100, 12100, "Spitze")]),
+        *HERO_A,
+        *HERO_B,
+    ],
+    "hero_talent_trees": [
+        {"id": 40, "name": "Held A", "hero_talent_nodes": HERO_A},
+        {"id": 41, "name": "Held B", "hero_talent_nodes": HERO_B},
+    ],
+    "restriction_lines": [
+        {"required_points": 8, "restricted_row": 4.5, "is_for_class": True},
+        {"required_points": 20, "restricted_row": 7.5, "is_for_class": False},
+    ],
+}
+SPELLS = (11000, 11010, 11011, 11020, 12000, 12100, 19000)
+
+
+def _taken(node_id, talent_id, rank=1):
+    return {"id": node_id, "rank": rank, "tooltip": {"talent": {"id": talent_id}}}
+
+
+def _specs() -> dict:
+    specs = {
+        **SPECIALIZATIONS,
+        "specializations": list(SPECIALIZATIONS["specializations"]),
+    }
+    frost = specs["specializations"][1]
+    active = {
+        **frost["loadouts"][1],
+        "selected_class_talent_tree": {
+            "key": {"href": f"{GAME}/talent-tree/790?namespace=static-eu"}
+        },
+        "selected_spec_talent_tree": {
+            "key": {"href": f"{GAME}/{TREE_PATH}?namespace=static-eu"}
+        },
+        "selected_hero_talent_tree": {"id": 40, "name": "Held A"},
+        "selected_class_talents": [
+            _taken(100, 1000),
+            _taken(199, None),
+            _taken(101, 1011),
+            _taken(102, 1020, 2),
+        ],
+        # Spitze: wie Knoten 110422 der echten Antwort dreimal, Rang 1, 2, 1
+        "selected_spec_talents": [
+            _taken(200, 2000),
+            _taken(210, 2100),
+            _taken(210, 2101, 2),
+            _taken(210, 2102),
+        ],
+        "selected_hero_talents": [_taken(900, 9000)],
+    }
+    specs["specializations"][1] = {**frost, "loadouts": [frost["loadouts"][0], active]}
+    return specs
+
+
+def _media(spell_id: int) -> dict:
+    return {
+        "assets": [{"key": "icon", "value": f"https://render.example/{spell_id}.jpg"}]
+    }
+
+
+def _mock(aioclient_mock, **extra) -> None:
+    mock_token(aioclient_mock)
+    mock_api(
+        aioclient_mock,
+        {
+            f"{API}/specializations": _specs(),
+            f"{GAME}/{TREE_PATH}": TREE,
+            **{f"{GAME}/media/spell/{i}": _media(i) for i in SPELLS},
+            **extra,
+        },
+    )
+
+
+def _calls(aioclient_mock, part: str) -> int:
+    return sum(1 for call in aioclient_mock.mock_calls if part in str(call[1]))
+
+
+async def test_talent_tree(hass: HomeAssistant, aioclient_mock) -> None:
+    _mock(aioclient_mock)
+    await _setup(hass, character_subentry())
+
+    state = _state(hass, "sensor", "talent_tree")
+    assert state.state == "Frost"
+    attrs = state.attributes
+    assert attrs["hero"] == "Held A"
+    # Knoten ohne Talent faellt weg
+    assert [n["id"] for n in attrs["class_nodes"]] == [100, 101, 102]
+    first, choice, double = attrs["class_nodes"]
+    assert first == {
+        "id": 100,
+        "row": 1,
+        "col": 4,
+        "type": "ACTIVE",
+        "max_rank": 1,
+        "rank": 1,
+        "talent": 1000,
+        "talents": [
+            {
+                "id": 1000,
+                "name": "Klasse 1",
+                "spell_id": 11000,
+                "description": "Klasse 1: Beschreibung.",
+                "icon": "https://render.example/11000.jpg",
+            }
+        ],
+        "unlocks": [101],
+    }
+    assert (choice["type"], choice["talent"]) == ("CHOICE", 1011)
+    assert [t["id"] for t in choice["talents"]] == [1010, 1011]
+    assert (double["rank"], double["max_rank"]) == (2, 2)
+    # Heldenknoten nicht im Baum der Spezialisierung, nur der aktive Heldenbaum
+    assert [n["id"] for n in attrs["spec_nodes"]] == [200, 210]
+    assert [n["id"] for n in attrs["hero_nodes"]] == [900]
+    assert attrs["hero_nodes"][0]["rank"] == 1
+    assert attrs["gates"] == [
+        {"tree": "class", "row": 4.5, "points": 8},
+        {"tree": "spec", "row": 7.5, "points": 20},
+    ]
+
+
+async def test_node_listed_several_times(hass: HomeAssistant, aioclient_mock) -> None:
+    """Hoechster Rang zaehlt; welches Talent gilt, ist nicht belegt."""
+    _mock(aioclient_mock)
+    await _setup(hass, character_subentry())
+
+    spec_nodes = _state(hass, "sensor", "talent_tree").attributes["spec_nodes"]
+    apex = next(n for n in spec_nodes if n["id"] == 210)
+    assert (apex["rank"], apex["talent"]) == (2, None)
+
+
+async def test_tree_once_icons_after_start(hass: HomeAssistant, aioclient_mock) -> None:
+    """Baum einmal je Start; Symbole einmal je Talent, erst nach dem Anlegen."""
+    _mock(aioclient_mock)
+    entry = await _setup(hass, character_subentry())
+    assert _calls(aioclient_mock, "/talent-tree/") == 1
+    assert _calls(aioclient_mock, "/media/spell/") == len(SPELLS)
+
+    detail = entry.runtime_data.details[next(iter(entry.subentries))]
+    detail._fetched.clear()
+    await detail.async_refresh()
+    await hass.async_block_till_done()
+    assert _calls(aioclient_mock, "/talent-tree/") == 1
+    assert _calls(aioclient_mock, "/media/spell/") == len(SPELLS)
+
+
+async def test_tree_without_icons_before_entities(
+    hass: HomeAssistant, aioclient_mock
+) -> None:
+    """Der erste Abruf beim Start fragt keine Symbole ab."""
+    _mock(aioclient_mock)
+    entry = await _setup(hass, character_subentry())
+    detail = entry.runtime_data.details[next(iter(entry.subentries))]
+    detail.entities_ready = False
+    detail._media._urls.clear()
+    before = _calls(aioclient_mock, "/media/spell/")
+    await detail.async_refresh()
+    assert _calls(aioclient_mock, "/media/spell/") == before
+    assert detail.data["talent_tree"]["class_nodes"][0]["talents"][0]["icon"] is None
+
+
+async def test_tree_error_is_retried(hass: HomeAssistant, aioclient_mock) -> None:
+    _mock(aioclient_mock, **{f"{GAME}/{TREE_PATH}": 500})
+    entry = await _setup(hass, character_subentry())
+    assert _state(hass, "sensor", "talent_tree").state == "unknown"
+
+    aioclient_mock.clear_requests()
+    _mock(aioclient_mock)
+    detail = entry.runtime_data.details[next(iter(entry.subentries))]
+    detail._fetched.clear()
+    await detail.async_refresh()
+    await hass.async_block_till_done()
+    assert _state(hass, "sensor", "talent_tree").state == "Frost"
+
+
+async def test_disabled_sensor_skips_tree(hass: HomeAssistant, aioclient_mock) -> None:
+    _mock(aioclient_mock)
+    entry = await _setup(hass, character_subentry())
+    er.async_get(hass).async_update_entity(
+        _eid(hass, "sensor", f"{UID1}-talent_tree"),
+        disabled_by=er.RegistryEntryDisabler.USER,
+    )
+    detail = entry.runtime_data.details[next(iter(entry.subentries))]
+    detail._talent_trees.clear()
+    detail._fetched.clear()
+    calls = _calls(aioclient_mock, "/talent-tree/")
+    await detail.async_refresh()
+    assert _calls(aioclient_mock, "/talent-tree/") == calls
+    assert detail.data["talent_tree"] is None
+
+
+async def test_classic_has_no_talent_tree(hass: HomeAssistant, aioclient_mock) -> None:
+    """Classic kennt laut Doku keine Talent-Endpunkte."""
+    _mock(aioclient_mock)
+    await _setup(hass, _classic_subentry())
+    uid = "eu-profile-classic1x-eu-die-aldor-testchar"
+    assert _eid(hass, "sensor", f"{uid}-talent_tree") is None
+    assert _calls(aioclient_mock, "/talent-tree/") == 0
+
+
+async def test_tree_keeps_specializations_needed(
+    hass: HomeAssistant, aioclient_mock
+) -> None:
+    """Auch ohne Sensor "Spezialisierung" bleibt der Endpunkt aktuell."""
+    _mock(aioclient_mock)
+    entry = await _setup(hass, character_subentry())
+    er.async_get(hass).async_update_entity(
+        _eid(hass, "sensor", f"{UID1}-specialization"),
+        disabled_by=er.RegistryEntryDisabler.USER,
+    )
+    detail = entry.runtime_data.details[next(iter(entry.subentries))]
+    assert "specializations" in detail.needed_endpoints()

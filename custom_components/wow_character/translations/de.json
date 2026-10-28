@@ -264,6 +264,9 @@
       "talents": {
         "name": "Talente"
       },
+      "talent_tree": {
+        "name": "Talentbaum"
+      },
       "titles": {
         "name": "Titel"
       },

@@ -630,6 +630,195 @@ def talents(data: dict[str, Any] | None) -> dict[str, Any] | None:
     }
 
 
+# Verweis des Loadouts auf den Talentbaum der Spezialisierung, z. B.
+# ".../data/wow/talent-tree/658/playable-specialization/64?namespace=...".
+_SPEC_TREE_HREF = re.compile(r"/data/wow/(talent-tree/\d+/playable-specialization/\d+)")
+
+
+def active_loadout(specs: dict[str, Any] | None) -> dict[str, Any] | None:
+    """Aktives Loadout der aktiven Spezialisierung (Retail)."""
+    specs = specs if isinstance(specs, dict) else {}
+    active = (specs.get("active_specialization") or {}).get("id")
+    for spec in specs.get("specializations") or []:
+        if not isinstance(spec, dict):
+            continue
+        if (spec.get("specialization") or {}).get("id") != active:
+            continue
+        for loadout in spec.get("loadouts") or []:
+            if isinstance(loadout, dict) and loadout.get("is_active"):
+                return loadout
+    return None
+
+
+def spec_tree_path(loadout: dict[str, Any] | None) -> str | None:
+    """Pfad des Talentbaums der Spezialisierung, z. B. "talent-tree/658/..."."""
+    tree = (loadout or {}).get("selected_spec_talent_tree") or {}
+    match = _SPEC_TREE_HREF.search((tree.get("key") or {}).get("href") or "")
+    return match.group(1) if match else None
+
+
+def _tree_talents(node: dict[str, Any]) -> list[dict[str, Any]]:
+    """Talente eines Knotens (bei Wahlknoten alle Moeglichkeiten), je Talent einmal."""
+    talents: dict[int, dict[str, Any]] = {}
+    for rank in node.get("ranks") or []:
+        if not isinstance(rank, dict):
+            continue
+        for tooltip in [rank.get("tooltip"), *(rank.get("choice_of_tooltips") or [])]:
+            if not isinstance(tooltip, dict):
+                continue
+            talent_id = (tooltip.get("talent") or {}).get("id")
+            spell_tooltip = tooltip.get("spell_tooltip") or {}
+            spell = spell_tooltip.get("spell") or {}
+            if not isinstance(talent_id, int) or talent_id in talents:
+                continue
+            talents[talent_id] = {
+                "id": talent_id,
+                "name": spell.get("name") or name_of(tooltip.get("talent")),
+                "spell_id": spell.get("id"),
+                "description": clean_text(spell_tooltip.get("description")),
+            }
+    return list(talents.values())
+
+
+def _tree_nodes(
+    nodes: Any,
+    selected: dict[int, dict[str, Any]],
+    icons: dict[str, str],
+    skip: set[int] | frozenset[int] = frozenset(),
+) -> list[dict[str, Any]]:
+    """Knoten fuer die Karte: Lage, Raenge, Wahl und Verbindungen.
+
+    Knoten ohne Talent (z. B. die Wahl des Heldenbaums in Zeile 1) fallen weg.
+    """
+    result = []
+    for node in nodes if isinstance(nodes, list) else []:
+        if not isinstance(node, dict) or node.get("id") in skip:
+            continue
+        talents = _tree_talents(node)
+        if not talents:
+            continue
+        for talent in talents:
+            talent["icon"] = icons.get(f"spell/{talent['spell_id']}")
+        taken = selected.get(node.get("id")) or {}
+        result.append(
+            {
+                "id": node.get("id"),
+                "row": node.get("display_row"),
+                "col": node.get("display_col"),
+                "type": (node.get("node_type") or {}).get("type"),
+                "max_rank": len(
+                    [r for r in node.get("ranks") or [] if isinstance(r, dict)]
+                ),
+                "rank": taken.get("rank", 0),
+                "talent": taken.get("talent"),
+                "talents": talents,
+                "unlocks": [i for i in node.get("unlocks") or [] if isinstance(i, int)],
+            }
+        )
+    return result
+
+
+def _selected_nodes(loadout: dict[str, Any], key: str) -> dict[int, dict[str, Any]]:
+    """Knoten-ID -> vergebener Rang und gewaehltes Talent.
+
+    Steht ein Knoten mehrfach in der Liste (echte Antwort: Knoten 110422 dreimal
+    mit verschiedenen Talenten), zaehlt der hoechste Rang; welches Talent dann
+    gilt, ist nicht belegt, deshalb keines.
+    """
+    result: dict[int, dict[str, Any]] = {}
+    for entry in loadout.get(key) or []:
+        if not isinstance(entry, dict) or not isinstance(entry.get("id"), int):
+            continue
+        rank = entry.get("rank") if isinstance(entry.get("rank"), int) else 0
+        talent = ((entry.get("tooltip") or {}).get("talent") or {}).get("id")
+        if (known := result.get(entry["id"])) is not None:
+            known["rank"] = max(known["rank"], rank)
+            if known["talent"] != talent:
+                known["talent"] = None
+            continue
+        result[entry["id"]] = {"rank": rank, "talent": talent}
+    return result
+
+
+def tree_spell_ids(tree: dict[str, Any] | None, hero_id: int | None) -> list[int]:
+    """Spell-IDs aller Talente, die die Karte zeigt, fuer die Symbole."""
+    built = talent_tree(tree, {}, hero_id, {})
+    if built is None:
+        return []
+    return [
+        talent["spell_id"]
+        for part in ("class_nodes", "spec_nodes", "hero_nodes")
+        for node in built[part]
+        for talent in node["talents"]
+        if isinstance(talent["spell_id"], int)
+    ]
+
+
+def hero_tree_id(specs: Any, loadout: dict[str, Any] | None) -> int | None:
+    """Aktiver Heldenbaum: aus dem Loadout, sonst aus der Spezialisierung."""
+    hero = (loadout or {}).get("selected_hero_talent_tree") or {}
+    if isinstance(hero.get("id"), int):
+        return hero["id"]
+    hero = (specs if isinstance(specs, dict) else {}).get(
+        "active_hero_talent_tree"
+    ) or {}
+    return hero.get("id") if isinstance(hero.get("id"), int) else None
+
+
+def talent_tree(
+    tree: dict[str, Any] | None,
+    loadout: dict[str, Any] | None,
+    hero_id: int | None,
+    icons: dict[str, str],
+) -> dict[str, Any] | None:
+    """Talentbaum der Spezialisierung mit der Verteilung des aktiven Loadouts.
+
+    Aufbau laut echter Antwort vom 28.10.2026: Die Knoten der Heldenbaeume
+    stehen zusaetzlich in spec_talent_nodes und werden dort herausgenommen;
+    gezeigt wird nur der aktive Heldenbaum. Schwellen aus restriction_lines.
+    """
+    if not isinstance(tree, dict):
+        return None
+    loadout = loadout or {}
+    heroes = [h for h in tree.get("hero_talent_trees") or [] if isinstance(h, dict)]
+    hero_node_ids = {
+        n.get("id")
+        for h in heroes
+        for n in h.get("hero_talent_nodes") or []
+        if isinstance(n, dict)
+    }
+    hero = next((h for h in heroes if h.get("id") == hero_id), None)
+    return {
+        "name": tree.get("name"),
+        "hero": name_of(hero),
+        "class_nodes": _tree_nodes(
+            tree.get("class_talent_nodes"),
+            _selected_nodes(loadout, "selected_class_talents"),
+            icons,
+        ),
+        "spec_nodes": _tree_nodes(
+            tree.get("spec_talent_nodes"),
+            _selected_nodes(loadout, "selected_spec_talents"),
+            icons,
+            hero_node_ids,
+        ),
+        "hero_nodes": _tree_nodes(
+            (hero or {}).get("hero_talent_nodes"),
+            _selected_nodes(loadout, "selected_hero_talents"),
+            icons,
+        ),
+        "gates": [
+            {
+                "tree": "class" if line.get("is_for_class") else "spec",
+                "row": line.get("restricted_row"),
+                "points": line.get("required_points"),
+            }
+            for line in tree.get("restriction_lines") or []
+            if isinstance(line, dict)
+        ],
+    }
+
+
 def titles(data: dict[str, Any] | None) -> list[str]:
     return [name for t in (data or {}).get("titles") or [] if (name := name_of(t))]
 
