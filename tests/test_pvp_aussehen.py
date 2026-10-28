@@ -69,10 +69,19 @@ async def test_level_sensor_shows_appearance(
     attrs = hass.states.get(_eid(hass, "sensor", "level")).attributes
     assert attrs["class"] == "Magier"
     assert attrs["gender"] == "Weiblich"
+    # Keine Transmog-ID passt zur Ausruestung (Helm 5001): Bedeutung der ID
+    # nicht belegt, daher keine Namen und kein Nachschlagen.
     assert attrs["transmog"] == [
-        {"slot": "HEAD", "slot_name": "Kopf", "id": 7001, "enchant": 0},
-        {"slot": "MAIN_HAND", "slot_name": "Waffenhand", "id": 7002, "enchant": 5},
+        {"slot": "HEAD", "slot_name": "Kopf", "id": 7001, "name": None, "enchant": 0},
+        {
+            "slot": "MAIN_HAND",
+            "slot_name": "Waffenhand",
+            "id": 7002,
+            "name": None,
+            "enchant": 5,
+        },
     ]
+    assert _calls(aioclient_mock, "/data/wow/item/") == 0
 
     # Neues Aussehen kommt ueber den Detail-Coordinator am Level-Sensor an.
     aioclient_mock.clear_requests()
@@ -253,3 +262,78 @@ async def test_class_names_looked_up_once(hass: HomeAssistant, aioclient_mock) -
     await hass.async_block_till_done()
     assert _calls(aioclient_mock, "/playable-class/8?") == 1
     assert _calls(aioclient_mock, "/roster?") == 2
+
+
+# Kopf nicht transmogrifiziert (ID wie der angelegte Helm 5001 aus EQUIPMENT),
+# Waffenhand mit fremdem Aussehen.
+APPEARANCE_ITEMS = {
+    **APPEARANCE,
+    "items": [
+        {"id": 5001, "slot": {"type": "HEAD", "name": "Kopf"}, "enchant": 0},
+        {"id": 7002, "slot": {"type": "MAIN_HAND", "name": "Waffenhand"}, "enchant": 0},
+    ],
+}
+
+
+async def test_transmog_names_when_ids_are_item_ids(
+    hass: HomeAssistant, aioclient_mock
+) -> None:
+    mock_token(aioclient_mock)
+    mock_api(
+        aioclient_mock,
+        {
+            f"{API}/appearance": APPEARANCE_ITEMS,
+            f"{GAME}/item/7002": {"id": 7002, "name": "Transmog-Schwert"},
+        },
+    )
+    entry = await _setup(hass)
+
+    transmog = hass.states.get(_eid(hass, "sensor", "level")).attributes["transmog"]
+    assert [t["name"] for t in transmog] == ["Testhelm", "Transmog-Schwert"]
+    # Der Helm kommt aus der Ausruestung, nur das Schwert wird nachgeschlagen.
+    assert _calls(aioclient_mock, "/data/wow/item/5001") == 0
+    assert _calls(aioclient_mock, "/data/wow/item/7002") == 1
+
+    # Namen bleiben gemerkt: keine zweite Abfrage.
+    await _refresh_detail(
+        hass,
+        entry,
+        aioclient_mock,
+        {
+            f"{API}/appearance": APPEARANCE_ITEMS,
+            f"{GAME}/item/7002": {"id": 7002, "name": "Transmog-Schwert"},
+        },
+    )
+    assert _calls(aioclient_mock, "/data/wow/item/") == 0
+
+
+async def test_transmog_name_lookup_fails(hass: HomeAssistant, aioclient_mock) -> None:
+    mock_token(aioclient_mock)
+    mock_api(
+        aioclient_mock,
+        {f"{API}/appearance": APPEARANCE_ITEMS, f"{GAME}/item/7002": 404},
+    )
+    await _setup(hass)
+    transmog = hass.states.get(_eid(hass, "sensor", "level")).attributes["transmog"]
+    assert [t["name"] for t in transmog] == ["Testhelm", None]
+
+
+async def test_transmog_names_classic(hass: HomeAssistant, aioclient_mock) -> None:
+    """Classic: item/{id} steht in der Classic-Doku, static-Namespace der Version."""
+    mock_token(aioclient_mock)
+    mock_api(
+        aioclient_mock,
+        {
+            f"{API}/appearance": APPEARANCE_ITEMS,
+            f"{GAME}/item/7002": {"id": 7002, "name": "Transmog-Schwert"},
+        },
+    )
+    sub = character_subentry("eu-profile-classic1x-eu-die-aldor-testchar")
+    sub["data"] = {
+        **sub["data"],
+        "game_version": "classic_era",
+        "namespace_suffix": "-classic1x",
+    }
+    await _setup(hass, sub)
+    urls = [str(call[1]) for call in aioclient_mock.mock_calls]
+    assert any("/data/wow/item/7002?" in u and "static-classic1x-eu" in u for u in urls)

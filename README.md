@@ -11,7 +11,7 @@ Home-Assistant-Integration für World-of-Warcraft-Charaktere: Level, Itemlevel,
 Ausrüstung, Raid- und Mythic+-Fortschritt, Berufe, Ruf, Erfolge und mehr als
 Sensoren, dazu WoW-Marke, wöchentlicher Reset und Serverstatus. Die Daten kommen
 aus der offiziellen Battle.net API. Unterstützt Retail, WoW Classic (Era,
-Progression, Anniversary) und ist für WoW Forever vorbereitet. Version 0.11.1.
+Progression, Anniversary) und ist für WoW Forever vorbereitet. Version 0.11.2.
 
 <p align="center">
   <img src="https://raw.githubusercontent.com/philf90/HA-WOW/main/assets/vorschau-karten.png" alt="Arsenal-, Charaktere-, Berufe- und Raid-Karte im Nachtblau-Stil mit Beispieldaten" width="100%">
@@ -243,10 +243,15 @@ klappt das nicht, bleibt `class` leer. Namen der Ränge liefert die API nicht.
 ### Aussehen und PvP-Brackets
 
 - **Aussehen** (seit 0.11.0, am Level-Sensor): `gender` und `transmog`, je
-  Gegenstand `slot`, `slot_name`, `id` und `enchant`. Die API nennt keine
-  Gegenstandsnamen, und ob `id` die Item-ID ist, ist nicht dokumentiert; die
-  Integration gibt die Werte deshalb unverändert weiter. Der Endpunkt wird nur
-  abgefragt, solange der Level-Sensor aktiv ist.
+  Gegenstand `slot`, `slot_name`, `id`, `name` und `enchant`. Der Endpunkt wird
+  nur abgefragt, solange der Level-Sensor aktiv ist.
+- **Namen der Transmog-Gegenstände** (seit 0.11.2): Die API nennt keine Namen,
+  und ob `id` die Item-ID ist, ist nicht dokumentiert. Die Integration prüft das
+  an den echten Daten: Stimmt die ID auf mindestens einem Platz mit dem dort
+  angelegten Item überein (Platz ohne Transmog), sind es Item-IDs. Dann kommt
+  `name` aus der Ausrüstung oder einmal je Gegenstand aus `item/{id}`. Stimmt
+  kein Platz überein (alles transmogrifiziert oder Ausrüstung nicht abgefragt),
+  bleibt `name` leer.
 - **PvP-Wertung je Bracket** (seit 0.11.0): Zustand ist die Wertung; Attribute
   `season_played`, `season_won`, `season_lost`, `weekly_played`, `weekly_won`,
   `weekly_lost` und `season_id`. Abgefragt werden die Brackets `2v2`, `3v3` und
@@ -410,6 +415,7 @@ steckt, ändert Blizzard mit der Zeit; der Namespace bleibt.
 | Spezialisierung | ja | `specializations` |
 | Avatar, Ganzkörperbild | ja | `character-media` |
 | Gilde mit Mitgliederliste | ja | `/data/wow/guild/{realm}/{gilde}`, `…/activity`, `…/roster`; Klassennamen aus `playable-class/{id}` |
+| Namen der Transmog-Gegenstände | ja, wenn die IDs belegt Item-IDs sind | `item/{id}` |
 | Jägerbegleiter, nur für Jäger | ja | `hunter-pets` |
 | Server, Warteschlange, Bevölkerung je Realm | ja | `realm/{slug}`, `connected-realm/{id}` |
 | WoW-Marke | nur wenn die API beim Start einen Preis liefert; sonst bis zum Neuladen keine weitere Abfrage | `token/index` |
@@ -478,7 +484,12 @@ haben, wie bei [Classic](#wow-classic).
 Automatische Tests laufen gegen Home Assistant 2026.2.3; live geprüft wurde unter
 Home Assistant 2026.10.4 mit Retail-Charakteren der Region EU.
 
-- **0.11.x:** 152 automatische Tests. 0.11.1: 3 Tests für die PvP-Abfragen
+- **0.11.x:** 155 automatische Tests. 0.11.2: 3 Tests für die Namen der
+  Transmog-Gegenstände (Namen aus Ausrüstung und `item/{id}`, einmal je
+  Gegenstand; Nachschlagen scheitert; Classic-Namespace) und die Prüfung im
+  bestehenden Aussehen-Test, dass ohne passende ID nichts nachgeschlagen wird;
+  Gegenprobe: fünf Fehler einzeln eingebaut, jedes Mal schlug mindestens ein
+  Test fehl. 0.11.1: 3 Tests für die PvP-Abfragen
   (Brackets ohne Sensor nicht mehr, ohne Bracket-Sensor gar nicht, Bracket mit
   Sensor auch nach einem 404); Gegenprobe: vier Fehler einzeln eingebaut, jedes
   Mal schlug mindestens ein Test fehl. 0.11.0: 149 Tests, darunter 6 neue für Aussehen,
