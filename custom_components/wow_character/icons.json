@@ -197,6 +197,9 @@
       },
       "hunter_pets": {
         "default": "mdi:paw"
+      },
+      "pvp_bracket": {
+        "default": "mdi:sword-cross"
       }
     }
   }

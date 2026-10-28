@@ -22,6 +22,7 @@ from .const import EQUIPMENT_SLOTS
 from .coordinator import (
     EQUIPMENT_PREFIX,
     PROFESSION_PREFIX,
+    PVP_BRACKET_PREFIX,
     WowConfigEntry,
     WowCoordinator,
     WowDetailCoordinator,
@@ -414,7 +415,9 @@ async def async_setup_entry(
     for subentry_id, coordinator in runtime.coordinators.items():
         detail = runtime.details[subentry_id]
         entities: list[SensorEntity] = [
-            WowSensor(coordinator, d)
+            WowLevelSensor(coordinator, d, detail)
+            if d.key == "level"
+            else WowSensor(coordinator, d)
             for d in PROFILE_SENSORS
             if (coordinator.mythic_plus or not d.mythic_plus_only)
             and has_value(coordinator, d)
@@ -453,6 +456,14 @@ async def async_setup_entry(
             and (detail.data or {}).get("hunter_pets") is not None
         ):
             entities.append(WowHunterPetsSensor(detail))
+        # PvP-Brackets: je Bracket mit Daten beim Start ein Sensor.
+        if detail_available(detail, f"{PVP_BRACKET_PREFIX}3v3"):
+            brackets = (detail.data or {}).get("pvp_brackets") or {}
+            entities += [
+                WowPvpBracketSensor(detail, bracket)
+                for bracket, value in brackets.items()
+                if value is not None
+            ]
         async_add_entities(entities, config_subentry_id=subentry_id)
 
     for world in runtime.worlds.values():
@@ -505,6 +516,38 @@ class WowSensor(WowCharacterEntity, SensorEntity):
         if attrs_fn is None or self.coordinator.data is None:
             return None
         return attrs_fn(self.coordinator.data)
+
+
+class WowLevelSensor(WowSensor):
+    """Level mit Profil-Attributen; Geschlecht und Transmog aus dem Aussehen.
+
+    Das Aussehen fragt der Detail-Coordinator ab (alle 6 Stunden); der Sensor
+    hoert deshalb auch auf ihn.
+    """
+
+    _unrecorded_attributes = WowSensor._unrecorded_attributes | {"transmog"}
+
+    def __init__(
+        self,
+        coordinator: WowCoordinator,
+        description: WowSensorDescription,
+        detail: WowDetailCoordinator,
+    ) -> None:
+        super().__init__(coordinator, description)
+        self._detail = detail
+
+    async def async_added_to_hass(self) -> None:
+        await super().async_added_to_hass()
+        self.async_on_remove(
+            self._detail.async_add_listener(self._handle_coordinator_update)
+        )
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any] | None:
+        attrs = super().extra_state_attributes
+        if attrs is None:
+            return None
+        return {**attrs, **p.appearance((self._detail.data or {}).get("appearance"))}
 
 
 def _professions(detail: WowDetailCoordinator) -> dict[int, dict[str, Any]]:
@@ -648,13 +691,38 @@ class WowHunterPetsSensor(WowCharacterEntity, SensorEntity):
         }
 
 
+class WowPvpBracketSensor(WowCharacterEntity, SensorEntity):
+    """Wertung in einem PvP-Bracket; Spiele je Saison und Woche als Attribute."""
+
+    _attr_translation_key = "pvp_bracket"
+    _attr_state_class = SensorStateClass.MEASUREMENT
+
+    def __init__(self, coordinator: WowDetailCoordinator, bracket: str) -> None:
+        super().__init__(coordinator, f"{PVP_BRACKET_PREFIX}{bracket.lower()}")
+        self._bracket = bracket
+        self._attr_translation_placeholders = {"bracket": bracket.upper()}
+
+    def _info(self) -> dict[str, Any]:
+        brackets = (self.coordinator.data or {}).get("pvp_brackets") or {}
+        return p.pvp_bracket(brackets.get(self._bracket))
+
+    @property
+    def native_value(self) -> int | None:
+        return self._info()["rating"]
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        return {k: v for k, v in self._info().items() if k != "rating"}
+
+
 class WowGuildSensor(WowCharacterEntity, SensorEntity):
     """Mitglieder der Gilde; Name, Erfolgspunkte und Aktivitaeten als Attribute."""
 
     _attr_translation_key = "guild"
     _attr_state_class = SensorStateClass.MEASUREMENT
-    # Aktivitaeten wechseln oft und sind nur fuer Karten gedacht.
-    _unrecorded_attributes = frozenset({"activities"})
+    # Aktivitaeten wechseln oft, die Mitgliederliste ist lang; beide sind fuer
+    # Karten gedacht.
+    _unrecorded_attributes = frozenset({"activities", "members"})
 
     def __init__(self, coordinator: WowDetailCoordinator) -> None:
         super().__init__(coordinator, "guild")
@@ -678,6 +746,10 @@ class WowGuildSensor(WowCharacterEntity, SensorEntity):
             "created": created.isoformat() if created else None,
             "activities": p.guild_activities(
                 (self.coordinator.data or {}).get("guild_activity")
+            ),
+            "members": p.guild_members(
+                (self.coordinator.data or {}).get("guild_roster"),
+                (self.coordinator.data or {}).get("class_names"),
             ),
         }
 

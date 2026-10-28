@@ -142,6 +142,31 @@ async def test_guild_sensor(hass: HomeAssistant, aioclient_mock) -> None:
                     },
                 ]
             },
+            # Felder wie in den Typdefinitionen von @blizzard-api/classic-wow
+            # 4.2.0 und @blizzard-api/wow 4.1.4; Klassen nur als ID.
+            f"{GUILD}/roster": {
+                "members": [
+                    {
+                        "character": {
+                            "name": "Anton",
+                            "level": 70,
+                            "playable_class": {"id": 3},
+                        },
+                        "rank": 2,
+                    },
+                    {
+                        "character": {
+                            "name": "Zora",
+                            "level": 80,
+                            "playable_class": {"id": 8},
+                        },
+                        "rank": 0,
+                    },
+                ]
+            },
+            f"{GAME}/playable-class/8": {"id": 8, "name": "Magier"},
+            # Klasse 3 laesst sich nicht nachschlagen: Name fehlt.
+            f"{GAME}/playable-class/3": 404,
         },
     )
     await _setup(hass)
@@ -162,6 +187,12 @@ async def test_guild_sensor(hass: HomeAssistant, aioclient_mock) -> None:
         "character": "Mitglied",
         "achievement": "Ein Erfolg",
     }
+    # Nach Rang sortiert, nicht nach Name; Klassenname nur, wo das Nachschlagen
+    # klappt.
+    assert attrs["members"] == [
+        {"name": "Zora", "level": 80, "class": "Magier", "class_id": 8, "rank": 0},
+        {"name": "Anton", "level": 70, "class": None, "class_id": 3, "rank": 2},
+    ]
 
 
 async def test_new_collectible_event(hass: HomeAssistant, aioclient_mock) -> None:

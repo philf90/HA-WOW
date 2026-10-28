@@ -31,6 +31,7 @@ from .const import (
     GAME_VERSIONS,
     NOT_FOUND_IS_FINAL,
     NOT_FOUND_LIMIT,
+    PVP_BRACKETS,
     STATUS_INTERVAL,
     UPDATE_INTERVAL,
     WORLD_INTERVAL,
@@ -80,13 +81,17 @@ DETAIL_KEYS: dict[str, str] = {
     "hunter_pets": "hunter_pets",
 }
 # Entitaeten, die ausser ihrem Endpunkt aus DETAIL_KEYS weitere brauchen.
+# Der Level-Sensor (Profil) zeigt zusaetzlich Attribute aus dem Aussehen.
 EXTRA_ENDPOINTS: dict[str, tuple[str, ...]] = {
-    "guild": ("guild_activity",),
+    "guild": ("guild_activity", "guild_roster"),
     "new_collectible": ("pets", "toys", "titles"),
+    "level": ("appearance",),
 }
 PROFESSION_PREFIX = "profession-"
 # Ein Sensor je Ausruestungsplatz, z. B. "equipment_head".
 EQUIPMENT_PREFIX = "equipment_"
+# Ein Sensor je PvP-Bracket, z. B. "pvp_bracket_3v3".
+PVP_BRACKET_PREFIX = "pvp_bracket_"
 
 
 def config_snapshot(entry: ConfigEntry) -> Any:
@@ -127,6 +132,8 @@ def endpoint_for_key(key: str) -> str | None:
         return "professions"
     if key.startswith(EQUIPMENT_PREFIX):
         return "equipment"
+    if key.startswith(PVP_BRACKET_PREFIX):
+        return "pvp_brackets"
     return DETAIL_KEYS.get(key)
 
 
@@ -388,6 +395,8 @@ class WowDetailCoordinator(_CharacterMixin, DataUpdateCoordinator[dict[str, Any]
         self._tier_names: dict[int, str] = {}
         # Medien-ID eines Items -> URL des Symbols; Symbole aendern sich nicht.
         self._item_icons: dict[int, str] = {}
+        # Klassen-ID -> Name fuer die Gildenmitglieder (Sprache der Region).
+        self._class_names: dict[int, str] = {}
         # Hauptkategorien der Erfolge: ID -> Name in der Sprache der Region.
         self._achievement_roots: dict[int, str] = {}
         # Symbole aus den statischen Spieldaten, z. B. "profession/164" -> URL.
@@ -405,10 +414,10 @@ class WowDetailCoordinator(_CharacterMixin, DataUpdateCoordinator[dict[str, Any]
             if not entry.unique_id.startswith(prefix):
                 continue
             key = entry.unique_id[len(prefix) :]
-            endpoint = endpoint_for_key(key)
-            if endpoint is None:
+            endpoints = {endpoint_for_key(key), *EXTRA_ENDPOINTS.get(key, ())}
+            endpoints.discard(None)
+            if not endpoints:
                 continue
-            endpoints = {endpoint, *EXTRA_ENDPOINTS.get(key, ())}
             registered |= endpoints
             if entry.disabled_by is None:
                 enabled |= endpoints
@@ -464,6 +473,8 @@ class WowDetailCoordinator(_CharacterMixin, DataUpdateCoordinator[dict[str, Any]
                     data[endpoint] = await self.client.get_profile_data(
                         self.region, self.suffix, resource.format(guild=guild)
                     )
+                elif "{bracket}" in resource:
+                    data[endpoint] = await self._pvp_brackets(resource)
                 else:
                     data[endpoint] = await self.client.get_character_resource(
                         self.region, self.realm, self.character, self.suffix, resource
@@ -496,6 +507,8 @@ class WowDetailCoordinator(_CharacterMixin, DataUpdateCoordinator[dict[str, Any]
         if data.get("achievements") is not None:
             await self._lookup_achievement_roots()
         data["achievement_roots"] = dict(self._achievement_roots)
+        await self._lookup_class_names(data.get("guild_roster"))
+        data["class_names"] = dict(self._class_names)
         await self._media.lookup(
             [
                 *(("profession", i) for i in self._profession_ids(data)),
@@ -511,6 +524,47 @@ class WowDetailCoordinator(_CharacterMixin, DataUpdateCoordinator[dict[str, Any]
         )
         data["media_urls"] = self._media.urls()
         return data
+
+    async def _pvp_brackets(self, resource: str) -> dict[str, Any]:
+        """Je Bracket aus PVP_BRACKETS die Antwort; None, wenn die API 404 meldet.
+
+        Andere Fehler gelten fuer den ganzen Endpunkt (alter Stand bleibt).
+        """
+        result: dict[str, Any] = {}
+        for bracket in PVP_BRACKETS:
+            try:
+                result[bracket] = await self.client.get_character_resource(
+                    self.region,
+                    self.realm,
+                    self.character,
+                    self.suffix,
+                    resource.format(bracket=bracket),
+                )
+            except BattleNetNotFound:
+                result[bracket] = None
+        return result
+
+    async def _lookup_class_names(self, roster: dict[str, Any] | None) -> None:
+        """Klassennamen der Gildenmitglieder nachschlagen, jede Klasse einmal.
+
+        Die Mitgliederliste nennt nur die Klassen-ID. Faellt das Nachschlagen
+        aus, bleibt die ID bis zum naechsten Takt ohne Namen.
+        """
+        for class_id in p.roster_class_ids(roster):
+            path = f"playable-class/{class_id}"
+            if class_id in self._class_names or not self.supports_static(path):
+                continue
+            try:
+                static = await self.client.get_static_data(
+                    self.region, self.suffix, path
+                )
+            except BattleNetAuthError as err:
+                raise _auth_failed(err) from err
+            except BattleNetError as err:
+                _LOGGER.debug("Klasse %s nicht nachgeschlagen: %s", class_id, err)
+                continue
+            if isinstance(name := static.get("name"), str) and name:
+                self._class_names[class_id] = name
 
     @staticmethod
     def _profession_ids(data: dict[str, Any]) -> list[int]:
