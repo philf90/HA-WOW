@@ -9,8 +9,10 @@ from __future__ import annotations
 import inspect
 import logging
 import re
+from pathlib import Path
 from types import MappingProxyType
 
+from homeassistant.components.http import StaticPathConfig
 from homeassistant.config_entries import ConfigEntry, ConfigSubentry
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
@@ -28,6 +30,7 @@ from homeassistant.helpers import (
 )
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.typing import ConfigType
+from homeassistant.loader import async_get_integration
 
 from .api import BattleNetClient
 from .const import (
@@ -58,11 +61,34 @@ _LOGGER = logging.getLogger(__name__)
 
 PLATFORMS = [Platform.BINARY_SENSOR, Platform.EVENT, Platform.IMAGE, Platform.SENSOR]
 CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
+# Karte "WoW Talentbaum", von der Integration selbst ausgeliefert.
+CARD_URL = f"/{DOMAIN}/wow-talent-tree-card.js"
+CARD_FILE = Path(__file__).parent / "frontend" / "wow-talent-tree-card.js"
 
 
 async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     await async_migrate_integration(hass)
+    await _async_register_card(hass)
     return True
+
+
+async def _async_register_card(hass: HomeAssistant) -> None:
+    """Karte ausliefern und im Frontend laden, ohne eigene Dashboard-Ressource.
+
+    Die Version im Pfad sorgt dafuer, dass der Browser nach einem Update die
+    neue Datei laedt.
+    """
+    if getattr(hass, "http", None) is None:
+        return
+    await hass.http.async_register_static_paths(
+        [StaticPathConfig(CARD_URL, str(CARD_FILE), True)]
+    )
+    if "frontend" not in hass.config.components:
+        return
+    from homeassistant.components.frontend import add_extra_js_url
+
+    integration = await async_get_integration(hass, DOMAIN)
+    add_extra_js_url(hass, f"{CARD_URL}?v={integration.version}")
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: WowConfigEntry) -> bool:
