@@ -11,7 +11,7 @@ Home-Assistant-Integration für World-of-Warcraft-Charaktere: Level, Itemlevel,
 Ausrüstung, Raid- und Mythic+-Fortschritt, Berufe, Ruf, Erfolge und mehr als
 Sensoren, dazu WoW-Marke, wöchentlicher Reset und Serverstatus. Die Daten kommen
 aus der offiziellen Battle.net API. Unterstützt Retail, WoW Classic (Era,
-Progression, Anniversary) und ist für WoW Forever vorbereitet. Version 0.10.1.
+Progression, Anniversary) und ist für WoW Forever vorbereitet. Version 0.10.2.
 
 <p align="center">
   <img src="https://raw.githubusercontent.com/philf90/HA-WOW/main/assets/vorschau-karten.png" alt="Arsenal-, Charaktere-, Berufe- und Raid-Karte im Nachtblau-Stil mit Beispieldaten" width="100%">
@@ -306,7 +306,9 @@ Lange Attribute speichert Home Assistant nicht im Verlauf: `tooltip`, `factions`
   siehe [Ändern, Hinweise und Diagnose](#ändern-hinweise-und-diagnose).
 - Spielwelt: WoW-Marke, Reset, Season und jeder Realm werden einzeln abgefragt.
   Fällt eine Abfrage aus, behält ihr Wert den letzten Stand; nicht verfügbar wird
-  die Spielwelt erst, wenn alle ausfallen.
+  die Spielwelt erst, wenn alle ausfallen. Gibt es keinen Sensor „WoW-Marke“
+  (Classic und Forever ohne Preis beim Start), wird sie bis zum Neuladen nicht
+  mehr abgefragt (seit 0.10.2).
 - Die Realm-Liste beim Hinzufügen zeigt keine internen Realms von Blizzard (z. B.
   „EU1A Account Realm“, „EU4A1-INST“, „RDB EU“).
 
@@ -385,7 +387,7 @@ steckt, ändert Blizzard mit der Zeit; der Namespace bleibt.
 | Gilde | ja | `/data/wow/guild/{realm}/{gilde}`, `…/activity` |
 | Jägerbegleiter, nur für Jäger | ja | `hunter-pets` |
 | Server, Warteschlange, Bevölkerung je Realm | ja | `realm/{slug}`, `connected-realm/{id}` |
-| WoW-Marke | nur wenn die API einen Preis liefert | `token/index` |
+| WoW-Marke | nur wenn die API beim Start einen Preis liefert; sonst bis zum Neuladen keine weitere Abfrage | `token/index` |
 | Klassen-Symbol (`class_icon`) | ja | `media/playable-class/{id}` |
 | Raids, Boss besiegt, Mythic+, wöchentlicher Reset | nein, nicht in der Doku | – |
 | Berufe, Ruf, Titel, Quests, Sammlungen, Neu gesammelt | nein, nicht in der Doku | – |
@@ -450,7 +452,10 @@ haben, wie bei [Classic](#wow-classic).
 Automatische Tests laufen gegen Home Assistant 2026.2.3; live geprüft wurde unter
 Home Assistant 2026.10.4 mit Retail-Charakteren der Region EU.
 
-- **0.10.x:** 134 automatische Tests. 0.10.1: 3 Tests für die Klassenprüfung
+- **0.10.x:** 137 automatische Tests. 0.10.2: 3 Tests für die WoW-Marke
+  (Classic ohne Preis beim Start wird nicht weiter abgefragt, Classic mit Preis
+  und Retail ohne Preis schon); Gegenprobe: vier Fehler einzeln eingebaut, jedes
+  Mal schlug mindestens ein Test fehl. 0.10.1: 3 Tests für die Klassenprüfung
   der Jägerbegleiter (Nicht-Jäger nur einmal abgefragt, spätere 404 bei einem
   Jäger sind nicht endgültig, auch zweimal hintereinander, Fehler ohne 404
   werden wiederholt); Gegenprobe: fünf Fehler einzeln eingebaut, jedes Mal

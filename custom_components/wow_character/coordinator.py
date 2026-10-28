@@ -681,6 +681,9 @@ class WowWorldCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self.game_version = game_version
         self.mythic_plus: bool = GAME_VERSIONS[game_version]["mythic_plus"]
         self._fetched: dict[str, float] = {}
+        # Gibt es den Sensor "WoW-Marke"? Setzt sensor.py beim Anlegen; None
+        # bis dahin. Ohne Sensor wird die WoW-Marke nicht mehr abgefragt.
+        self.token_sensor: bool | None = None
         # Realm-Slug -> (Anzeigename, ID des verbundenen Realms)
         self._realm_info: dict[str, tuple[str, int]] = {}
 
@@ -703,7 +706,7 @@ class WowWorldCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         data: dict[str, Any] = dict(self.data or {"realms": {}})
         data["realms"] = dict(data.get("realms") or {})
         parts: list[tuple[str, Any]] = []
-        if self._due("token", 60, now):
+        if self.token_sensor is not False and self._due("token", 60, now):
             parts.append(("token", self._token))
         if self.mythic_plus and self._due("period", 60, now):
             parts.append(("period", self._weekly_reset))

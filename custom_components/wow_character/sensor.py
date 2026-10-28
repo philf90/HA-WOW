@@ -464,7 +464,10 @@ def _world_sensors(world: WowWorldCoordinator) -> list[SensorEntity]:
     # Retail kennt WoW-Marke und Reset sicher; Forever nur, wenn die API antwortet.
     known = not world.suffix
     entities: list[SensorEntity] = []
-    if known or data.get("token") is not None:
+    # Ohne Sensor fragt die Spielwelt die WoW-Marke nicht mehr ab, z. B. in
+    # Classic-Regionen ohne WoW-Marke.
+    world.token_sensor = known or data.get("token") is not None
+    if world.token_sensor:
         entities.append(WowTokenSensor(world))
     if world.mythic_plus:
         entities.append(WowResetSensor(world))
