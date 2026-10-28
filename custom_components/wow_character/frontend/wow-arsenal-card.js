@@ -171,7 +171,7 @@ class WowArsenalCard extends HTMLElement {
   }
 
   getGridOptions() {
-    return { columns: 6, min_columns: 6, rows: "auto" };
+    return { columns: 12, min_columns: 6, rows: "auto" };
   }
 
   _t(key) {
@@ -345,7 +345,7 @@ class WowArsenalCard extends HTMLElement {
     if (!kacheln.length) {
       return "";
     }
-    return `<div class="leiste" style="grid-template-columns:repeat(${kacheln.length}, minmax(0,1fr))">
+    return `<div class="leiste" style="--kacheln:${kacheln.length}">
       ${kacheln
         .map(
           (k) => `<div class="kachel"><div class="kachel-wert">${esc(k.wert)}</div>
@@ -509,7 +509,7 @@ const STYLE = `
     border: 1px solid rgba(255, 255, 255, 0.05);
     background: linear-gradient(180deg, #1b2231 0%, #171d29 55%);
     box-shadow: 0 18px 44px -22px rgba(0, 0, 0, 0.7);
-    color: ${FARBEN.text}; font-variant-numeric: tabular-nums;
+    color: ${FARBEN.text}; font-variant-numeric: tabular-nums; container-type: inline-size;
   }
   .hinweis { font-size: 12.5px; line-height: 1.4; color: ${FARBEN.sek}; }
   .kopf { display: grid; grid-template-columns: 44px minmax(0, 1fr); gap: 0 12px; align-items: center; margin-bottom: 9px; }
@@ -552,7 +552,10 @@ const STYLE = `
   .stufe { min-width: 22px; font-size: 11.5px; font-weight: 650; color: ${FARBEN.label}; }
   .platz.links .stufe { text-align: left; }
   .platz.rechts .stufe { text-align: right; }
-  .leiste { display: grid; gap: 6px; margin-top: 9px; }
+  .leiste { display: grid; grid-template-columns: repeat(var(--kacheln), minmax(0, 1fr)); gap: 6px; margin-top: 9px; }
+  @container (max-width: 299px) {
+    .leiste { grid-template-columns: repeat(min(var(--kacheln), 2), minmax(0, 1fr)); }
+  }
   .kachel { min-width: 0; padding: 8px 6px; border-radius: 13px; background: ${FARBEN.kachel}; border: 1px solid ${FARBEN.rand}; text-align: center; }
   .kachel-wert { font-size: 15px; font-weight: 750; color: ${FARBEN.text}; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .kachel-name { margin-top: 2px; font-size: 11.5px; line-height: 1.25; color: ${FARBEN.sek}; overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
