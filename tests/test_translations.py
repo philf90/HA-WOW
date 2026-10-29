@@ -97,3 +97,10 @@ def test_icons_match_translation_keys() -> None:
     entity = json.loads((BASE / "strings.json").read_text())["entity"]
     for platform, keys in icons.items():
         assert set(keys) <= set(entity[platform]), set(keys) - set(entity[platform])
+
+
+@pytest.mark.parametrize("path", FILES)
+def test_no_urls_in_texts(path: str) -> None:
+    """hassfest lehnt URLs in Texten ab; sie gehoeren in Platzhalter."""
+    text = (BASE / path).read_text(encoding="utf-8")
+    assert not re.findall(r"https?://", text), path

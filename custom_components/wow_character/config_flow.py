@@ -1,6 +1,10 @@
 """Einrichtungsdialoge.
 
 Haupteintrag: Client-ID und Secret eines Battle.net-API-Clients, einmalig.
+Danach wahlweise Battle.net-Login: Die Integration sucht die Charaktere des
+Kontos in allen Regionen und Spielversionen und legt die angekreuzten als
+Untereintraege an. "Neu konfigurieren" bietet denselben Abgleich fuer neue
+Charaktere und das Aendern der Zugangsdaten.
 Untereintrag "Charakter": Region und Spielversion, dann Realm aus der
 Realm-Liste und Charaktername. Beliebig viele je Haupteintrag. Neu
 konfigurieren aendert Realm und Name, z. B. nach Umbenennung oder Transfer;
@@ -9,20 +13,30 @@ Geraet, Entitaets-IDs und Verlauf bleiben.
 
 from __future__ import annotations
 
+import asyncio
+import logging
 from collections.abc import Mapping
 from typing import Any
 
 import voluptuous as vol
 from homeassistant.config_entries import (
+    SOURCE_RECONFIGURE,
     ConfigEntry,
     ConfigEntryState,
     ConfigFlow,
     ConfigFlowResult,
+    ConfigSubentry,
+    ConfigSubentryData,
     ConfigSubentryFlow,
     SubentryFlowResult,
 )
 from homeassistant.core import callback
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
+from homeassistant.helpers.config_entry_oauth2_flow import (
+    MY_AUTH_CALLBACK_PATH,
+    LocalOAuth2Implementation,
+    async_get_redirect_uri,
+)
 from homeassistant.helpers.selector import (
     SelectOptionDict,
     SelectSelector,
@@ -37,11 +51,14 @@ from .api import (
     BattleNetAuthError,
     BattleNetClient,
     BattleNetError,
+    BattleNetLoginError,
     BattleNetNotFound,
 )
 from .const import (
+    AUTHORIZE_URL,
     CONF_CHARACTER,
     CONF_CHARACTER_ID,
+    CONF_CHARACTERS,
     CONF_CLIENT_ID,
     CONF_CLIENT_SECRET,
     CONF_GAME_VERSION,
@@ -50,10 +67,14 @@ from .const import (
     CONF_REGION,
     DOMAIN,
     GAME_VERSIONS,
+    LOGIN_SCOPE,
     MAIN_TITLE,
     REGIONS,
     SUBENTRY_CHARACTER,
+    TOKEN_URL,
 )
+
+_LOGGER = logging.getLogger(__name__)
 
 SECRET_SELECTOR = TextSelector(TextSelectorConfig(type=TextSelectorType.PASSWORD))
 CREDENTIALS_SCHEMA = vol.Schema(
@@ -98,6 +119,15 @@ class WowCharacterConfigFlow(ConfigFlow, domain=DOMAIN):
     # Version 2: Haupteintrag mit Untereintraegen je Charakter.
     VERSION = 2
 
+    def __init__(self) -> None:
+        self._credentials: dict[str, str] = {}
+        # Rueckgabe des Logins ueber /auth/external/callback: code oder error,
+        # dazu state mit der benutzten redirect_uri.
+        self._login: dict[str, Any] = {}
+        # Auswahl-Schluessel -> gefundener Charakter, siehe _found_character.
+        self._found: dict[str, dict[str, Any]] = {}
+        self._failed = 0
+
     @classmethod
     @callback
     def async_get_supported_subentry_types(
@@ -119,13 +149,11 @@ class WowCharacterConfigFlow(ConfigFlow, domain=DOMAIN):
             if error:
                 errors["base"] = error
             else:
-                return self.async_create_entry(
-                    title=MAIN_TITLE,
-                    data={
-                        CONF_CLIENT_ID: client_id,
-                        CONF_CLIENT_SECRET: user_input[CONF_CLIENT_SECRET],
-                    },
-                )
+                self._credentials = {
+                    CONF_CLIENT_ID: client_id,
+                    CONF_CLIENT_SECRET: user_input[CONF_CLIENT_SECRET],
+                }
+                return await self.async_step_method()
         return self.async_show_form(
             step_id="user",
             data_schema=self.add_suggested_values_to_schema(
@@ -133,6 +161,28 @@ class WowCharacterConfigFlow(ConfigFlow, domain=DOMAIN):
             ),
             errors=errors,
         )
+
+    async def async_step_method(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Charaktere per Battle.net-Login suchen oder spaeter von Hand anlegen."""
+        try:
+            redirect_uri = async_get_redirect_uri(self.hass)
+        except RuntimeError:
+            # Ohne My Home Assistant und ohne Anfrage der Oberflaeche; der
+            # Anmeldeschritt bricht dann mit "redirect_unknown" ab.
+            redirect_uri = MY_AUTH_CALLBACK_PATH
+        return self.async_show_menu(
+            step_id="method",
+            menu_options=["login", "without_login"],
+            description_placeholders={"redirect_uri": redirect_uri},
+        )
+
+    async def async_step_without_login(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Eintrag ohne Charaktere; die kommen ueber "Charakter hinzufuegen"."""
+        return self.async_create_entry(title=MAIN_TITLE, data=self._credentials)
 
     async def async_step_reauth(
         self, entry_data: Mapping[str, Any]
@@ -149,8 +199,155 @@ class WowCharacterConfigFlow(ConfigFlow, domain=DOMAIN):
     async def async_step_reconfigure(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
+        return self.async_show_menu(
+            step_id="reconfigure", menu_options=["sync", "credentials"]
+        )
+
+    async def async_step_credentials(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
         return await self._async_credentials_step(
-            "reconfigure", self._get_reconfigure_entry(), user_input
+            "credentials", self._get_reconfigure_entry(), user_input
+        )
+
+    async def async_step_sync(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Charaktere des Kontos mit den Untereintraegen abgleichen."""
+        entry = self._get_reconfigure_entry()
+        self._credentials = {
+            CONF_CLIENT_ID: entry.data[CONF_CLIENT_ID],
+            CONF_CLIENT_SECRET: entry.data[CONF_CLIENT_SECRET],
+        }
+        return await self.async_step_login()
+
+    async def async_step_login(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Battle.net-Login in einem eigenen Fenster.
+
+        Home Assistant setzt nach dem Login ueber /auth/external/callback genau
+        diesen Dialog fort; Untereintrags-Dialoge kann der Ruecksprung nicht
+        erreichen, deshalb steckt der Login im Haupteintrag.
+        """
+        if user_input is not None:
+            self._login = user_input
+            return self.async_external_step_done(next_step_id="discover")
+        login = _LoginUrl(
+            self.hass,
+            DOMAIN,
+            self._credentials[CONF_CLIENT_ID],
+            self._credentials[CONF_CLIENT_SECRET],
+            AUTHORIZE_URL,
+            TOKEN_URL,
+        )
+        try:
+            redirect_uri = login.redirect_uri
+            url = await login.async_generate_authorize_url(self.flow_id)
+        except RuntimeError:
+            # Ohne "My Home Assistant" braucht Home Assistant die Adresse aus der
+            # laufenden Anfrage der Oberflaeche.
+            return self.async_abort(reason="redirect_unknown")
+        return self.async_external_step(
+            step_id="login",
+            url=url,
+            description_placeholders={"redirect_uri": redirect_uri},
+        )
+
+    async def async_step_discover(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Login-Code tauschen und die Charaktere aller Regionen suchen."""
+        if "code" not in self._login:
+            return self.async_abort(reason="login_rejected")
+        client = BattleNetClient(
+            async_get_clientsession(self.hass),
+            self._credentials[CONF_CLIENT_ID],
+            self._credentials[CONF_CLIENT_SECRET],
+        )
+        state = self._login.get("state") or {}
+        try:
+            token = await client.exchange_code(
+                self._login["code"], state.get("redirect_uri", "")
+            )
+            # Nutzer koennen einzelne Scopes abwaehlen (Blizzard-Doku).
+            if LOGIN_SCOPE not in str(token.get("scope", "")).split():
+                return self.async_abort(reason="scope_missing")
+            found, self._failed = await _discover(client, token["access_token"])
+        except BattleNetLoginError:
+            return self.async_abort(reason="login_failed")
+        except BattleNetError:
+            return self.async_abort(reason="cannot_connect")
+        if not found:
+            return self.async_abort(reason="no_characters")
+
+        existing: list[ConfigSubentry] = []
+        if self.source == SOURCE_RECONFIGURE:
+            existing = [
+                sub
+                for sub in self._get_reconfigure_entry().subentries.values()
+                if sub.subentry_type == SUBENTRY_CHARACTER
+            ]
+        self._found = {
+            _found_key(item): item
+            for item in found
+            if not any(_same_character(sub.data, item["data"]) for sub in existing)
+        }
+        if not self._found:
+            return self.async_abort(reason="nothing_new")
+        return await self.async_step_select()
+
+    async def async_step_select(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        if user_input is not None:
+            picked = [
+                self._found[key]
+                for key in user_input.get(CONF_CHARACTERS, [])
+                if key in self._found
+            ]
+            if self.source == SOURCE_RECONFIGURE:
+                entry = self._get_reconfigure_entry()
+                taken = {sub.unique_id for sub in entry.subentries.values()}
+                for item in picked:
+                    self.hass.config_entries.async_add_subentry(
+                        entry, ConfigSubentry(**_subentry(item, taken))
+                    )
+                return self.async_abort(
+                    reason="characters_added",
+                    description_placeholders={"count": str(len(picked))},
+                )
+            taken: set[str | None] = set()
+            return self.async_create_entry(
+                title=MAIN_TITLE,
+                data=self._credentials,
+                subentries=[_subentry(item, taken) for item in picked],
+            )
+
+        options = [
+            SelectOptionDict(value=key, label=item["label"])
+            for key, item in sorted(
+                self._found.items(),
+                key=lambda kv: (-kv[1]["level"], kv[1]["label"].casefold()),
+            )
+        ]
+        return self.async_show_form(
+            step_id="select",
+            data_schema=vol.Schema(
+                {
+                    vol.Optional(CONF_CHARACTERS, default=[]): SelectSelector(
+                        SelectSelectorConfig(
+                            options=options,
+                            multiple=True,
+                            mode=SelectSelectorMode.LIST,
+                        )
+                    )
+                }
+            ),
+            description_placeholders={
+                "count": str(len(options)),
+                "failed": str(self._failed),
+            },
         )
 
     async def _async_credentials_step(
@@ -185,6 +382,182 @@ class WowCharacterConfigFlow(ConfigFlow, domain=DOMAIN):
             ),
             errors=errors,
         )
+
+
+class _LoginUrl(LocalOAuth2Implementation):
+    """Baut die Login-Adresse samt state, den /auth/external/callback prueft.
+
+    Den Code-Tausch macht BattleNetClient.exchange_code mit HTTP Basic, wie es
+    Blizzard dokumentiert; Home Assistant 2026.2.3 sendet das Secret im
+    Formular (client_secret_post).
+    """
+
+    @property
+    def extra_authorize_data(self) -> dict:
+        return {"scope": LOGIN_SCOPE}
+
+
+async def _discover(
+    client: BattleNetClient, login_token: str
+) -> tuple[list[dict[str, Any]], int]:
+    """Charaktere des Kontos in allen Regionen und Spielversionen.
+
+    Je Region und Spielversion eine Abfrage, bei mehreren Namespace-Kandidaten
+    (Forever) der erste mit Konto. Gibt die Funde und die Zahl der
+    fehlgeschlagenen Abfragen zurueck; HTTP 404 heisst "kein Konto" und zaehlt
+    nicht als Fehler.
+    """
+
+    async def one(region: str, version: str) -> tuple[list[dict[str, Any]], int]:
+        failed = 0
+        for suffix in GAME_VERSIONS[version]["namespaces"]:
+            try:
+                characters = await client.get_account_characters(
+                    region, suffix, login_token
+                )
+            except BattleNetNotFound:
+                continue
+            except BattleNetLoginError:
+                raise
+            except BattleNetError as err:
+                _LOGGER.warning("Charaktersuche %s%s: %s", region, suffix, err)
+                failed += 1
+                continue
+            found = [
+                item
+                for character in characters
+                if (item := _found_character(region, version, suffix, character))
+            ]
+            return found, failed
+        return [], failed
+
+    results = await asyncio.gather(
+        *(one(region, version) for region in REGIONS for version in GAME_VERSIONS)
+    )
+    return (
+        [item for found, _ in results for item in found],
+        sum(failed for _, failed in results),
+    )
+
+
+def _text(value: Any) -> str:
+    """Name aus der API; ohne locale-Parameter kaeme ein Objekt je Sprache."""
+    if isinstance(value, dict):
+        return str(value.get("de_DE") or next(iter(value.values()), ""))
+    return str(value or "")
+
+
+def _found_character(
+    region: str, version: str, suffix: str, character: dict[str, Any]
+) -> dict[str, Any] | None:
+    """Gefundener Charakter: Daten des Untereintrags, Titel und Listentext."""
+    realm = character.get("realm") or {}
+    slug = realm.get("slug")
+    name = _text(character.get("name"))
+    if not slug or not name:
+        return None
+    realm_name = _text(realm.get("name")) or slug
+    data: dict[str, Any] = {
+        CONF_REGION: region,
+        CONF_GAME_VERSION: version,
+        CONF_REALM: slug,
+        CONF_CHARACTER: name,
+        CONF_NAMESPACE_SUFFIX: suffix,
+        **_character_id(character),
+    }
+    level = character.get("level")
+    level = level if isinstance(level, int) else 0
+    details = " ".join(
+        part
+        for part in (
+            f"Level {level}" if level else "",
+            _text((character.get("playable_class") or {}).get("name")),
+        )
+        if part
+    )
+    game = GAME_VERSIONS[version]["label"].strip() or "Retail"
+    label = f"{name} – {realm_name} · {region.upper()} {game}"
+    if details:
+        label = f"{label} · {details}"
+    return {
+        "data": data,
+        "title": f"{name} – {realm_name}",
+        "label": label,
+        "level": level,
+    }
+
+
+def _found_key(item: dict[str, Any]) -> str:
+    data = item["data"]
+    return "|".join(
+        (
+            data[CONF_REGION],
+            data[CONF_NAMESPACE_SUFFIX],
+            data[CONF_REALM],
+            data[CONF_CHARACTER].lower(),
+        )
+    )
+
+
+def _same_character(existing: Mapping[str, Any], new: Mapping[str, Any]) -> bool:
+    """Gleicher Charakter: gleiche Region, Spielversion und Realm, dazu gleiche
+    ID. Ohne gespeicherte ID (aeltere Untereintraege) entscheidet der Name.
+
+    Die ID geht vor: Ein umbenannter Charakter bleibt derselbe, und wer jetzt
+    seinen alten Namen traegt, ist ein anderer.
+    """
+    if (
+        existing.get(CONF_REGION),
+        existing.get(CONF_NAMESPACE_SUFFIX),
+        existing.get(CONF_REALM),
+    ) != (new[CONF_REGION], new[CONF_NAMESPACE_SUFFIX], new[CONF_REALM]):
+        return False
+    old_id, new_id = existing.get(CONF_CHARACTER_ID), new.get(CONF_CHARACTER_ID)
+    if old_id is not None and new_id is not None:
+        return old_id == new_id
+    return str(existing.get(CONF_CHARACTER, "")).lower() == new[CONF_CHARACTER].lower()
+
+
+def _unique_id(
+    region: str,
+    suffix: str,
+    realm: str,
+    character: str,
+    character_id: Any,
+    taken: set[str | None],
+) -> str:
+    """unique_id wie beim Hinzufuegen von Hand.
+
+    Ein umbenannter Charakter behaelt seine alte unique_id; ein neuer
+    Charakter mit dem alten Namen bekommt dann eine eigene.
+    """
+    unique_id = (
+        f"{region}-{BattleNetClient.namespace('profile', suffix, region)}-"
+        f"{realm}-{character.lower()}"
+    )
+    if unique_id in taken:
+        unique_id = f"{unique_id}-{character_id or len(taken)}"
+    return unique_id
+
+
+def _subentry(item: dict[str, Any], taken: set[str | None]) -> ConfigSubentryData:
+    """Untereintrag fuer einen gefundenen Charakter; merkt die unique_id vor."""
+    data = item["data"]
+    unique_id = _unique_id(
+        data[CONF_REGION],
+        data[CONF_NAMESPACE_SUFFIX],
+        data[CONF_REALM],
+        data[CONF_CHARACTER],
+        data.get(CONF_CHARACTER_ID),
+        taken,
+    )
+    taken.add(unique_id)
+    return ConfigSubentryData(
+        data=dict(data),
+        subentry_type=SUBENTRY_CHARACTER,
+        title=item["title"],
+        unique_id=unique_id,
+    )
 
 
 class CharacterSubentryFlow(ConfigSubentryFlow):
@@ -236,14 +609,8 @@ class CharacterSubentryFlow(ConfigSubentryFlow):
         if user_input is not None:
             realm = user_input[CONF_REALM]
             character = user_input[CONF_CHARACTER].strip()
-            unique_id = (
-                f"{region}-{BattleNetClient.namespace('profile', self._suffix, region)}-"
-                f"{realm}-{character.lower()}"
-            )
             if self._configured(region, self._suffix, realm, character):
                 return self.async_abort(reason="already_configured")
-            # Ein umbenannter Charakter behaelt seine alte unique_id; ein neuer
-            # Charakter mit dem alten Namen bekommt dann eine eigene.
             taken = {sub.unique_id for sub in self._get_entry().subentries.values()}
             try:
                 profile = await self._client.get_profile(
@@ -254,8 +621,9 @@ class CharacterSubentryFlow(ConfigSubentryFlow):
             except BattleNetError:
                 errors["base"] = "cannot_connect"
             else:
-                if unique_id in taken:
-                    unique_id = f"{unique_id}-{profile.get('id') or len(taken)}"
+                unique_id = _unique_id(
+                    region, self._suffix, realm, character, profile.get("id"), taken
+                )
                 return self.async_create_entry(
                     title=f"{profile.get('name', character)} – {self._realms[realm]}",
                     data={

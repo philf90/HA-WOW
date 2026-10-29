@@ -3,10 +3,29 @@
     "step": {
       "user": {
         "title": "Battle.net-API-Client",
-        "description": "Lege auf develop.battle.net einen kostenlosen API-Client an und trage Client-ID und Secret ein. Charaktere fügst du danach an diesem Eintrag hinzu.",
+        "description": "Lege auf develop.battle.net einen kostenlosen API-Client an und trage Client-ID und Secret ein.",
         "data": {
           "client_id": "Client-ID",
           "client_secret": "Client-Secret"
+        }
+      },
+      "method": {
+        "title": "Charaktere hinzufügen",
+        "description": "Melde dich mit Battle.net an, um alle Charaktere deines Kontos zu finden und aus einer Liste zu wählen. Blizzard nimmt die Anmeldung nur an, wenn diese Redirect-URL im API-Client auf develop.battle.net eingetragen ist: {redirect_uri}. Ohne Anmeldung fügst du Charaktere später von Hand an diesem Eintrag hinzu.",
+        "menu_options": {
+          "login": "Mit Battle.net anmelden und Charaktere wählen",
+          "without_login": "Ohne Anmeldung fortfahren"
+        }
+      },
+      "login": {
+        "title": "Mit Battle.net anmelden",
+        "description": "Melde dich im geöffneten Fenster mit Battle.net an und erlaube den Zugriff auf deine World-of-Warcraft-Charaktere. Blizzard nimmt die Anmeldung nur an, wenn diese Redirect-URL im API-Client auf develop.battle.net eingetragen ist: {redirect_uri}"
+      },
+      "select": {
+        "title": "Charaktere wählen",
+        "description": "{count} Charaktere gefunden, die noch nicht eingerichtet sind. Jeder gewählte Charakter wird ein eigenes Gerät. Fehlgeschlagene Abfragen (dort fehlen eventuell Charaktere): {failed}.",
+        "data": {
+          "characters": "Charaktere"
         }
       },
       "reauth_confirm": {
@@ -18,6 +37,14 @@
         }
       },
       "reconfigure": {
+        "title": "Eintrag Battle.net API ändern",
+        "description": "Der Abgleich meldet dich bei Battle.net an und bietet die Charaktere deines Kontos an, die noch nicht eingerichtet sind. Eingerichtete Charaktere bleiben unverändert.",
+        "menu_options": {
+          "sync": "Charaktere abgleichen (Battle.net-Anmeldung)",
+          "credentials": "Client-ID oder Secret ändern"
+        }
+      },
+      "credentials": {
         "title": "Battle.net-API-Client ändern",
         "description": "Gib die neue Client-ID oder das neue Secret ein. Deine Charaktere bleiben eingerichtet.",
         "data": {
@@ -33,7 +60,15 @@
     "abort": {
       "already_configured": "Dieser API-Client ist bereits eingerichtet.",
       "reauth_successful": "Erneut angemeldet.",
-      "reconfigure_successful": "API-Client geändert."
+      "reconfigure_successful": "API-Client geändert.",
+      "cannot_connect": "Battle.net API nicht erreichbar.",
+      "redirect_unknown": "Home Assistant konnte seine eigene Adresse für die Anmeldung nicht ermitteln. My Home Assistant aktivieren (Teil von default_config) oder Home Assistant über seine URL öffnen.",
+      "login_rejected": "Die Anmeldung wurde bei Battle.net abgebrochen oder abgelehnt.",
+      "login_failed": "Battle.net hat die Anmeldung abgelehnt. Erneut versuchen; klappt es weiter nicht, Client-ID, Secret und Redirect-URL prüfen.",
+      "scope_missing": "Der Zugriff auf deine World-of-Warcraft-Charaktere wurde nicht erlaubt. Erneut anmelden und diese Freigabe erteilen.",
+      "no_characters": "Auf diesem Battle.net-Konto wurden in EU, US, KR und TW keine Charaktere gefunden.",
+      "nothing_new": "Alle Charaktere dieses Kontos sind bereits eingerichtet.",
+      "characters_added": "Charaktere hinzugefügt: {count}."
     }
   },
   "config_subentries": {
@@ -45,7 +80,7 @@
       "step": {
         "user": {
           "title": "Region und Spielversion",
-          "description": "Danach wird die Realm-Liste dieser Region und Spielversion geladen.",
+          "description": "Danach wird die Realm-Liste dieser Region und Spielversion geladen. Alle Charaktere deines Kontos auf einmal: am Eintrag „Battle.net API“ ⋮ → Neu konfigurieren → Charaktere abgleichen.",
           "data": {
             "region": "Region",
             "game_version": "Spielversion"

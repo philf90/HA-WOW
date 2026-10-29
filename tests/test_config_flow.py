@@ -41,6 +41,16 @@ async def _start_main(hass: HomeAssistant, data: dict):
     return await hass.config_entries.flow.async_configure(result["flow_id"], data)
 
 
+async def _without_login(hass: HomeAssistant, result):
+    """Menue nach gueltigen Zugangsdaten: ohne Battle.net-Login weiter."""
+    assert result["type"] is FlowResultType.MENU
+    assert result["step_id"] == "method"
+    assert result["menu_options"] == ["login", "without_login"]
+    return await hass.config_entries.flow.async_configure(
+        result["flow_id"], {"next_step_id": "without_login"}
+    )
+
+
 async def _loaded_entry(hass: HomeAssistant, *subentries):
     entry = main_entry(*subentries)
     entry.add_to_hass(hass)
@@ -65,6 +75,7 @@ async def _start_character(hass: HomeAssistant, entry, data: dict):
 async def test_main_entry_created(hass: HomeAssistant, aioclient_mock) -> None:
     mock_token(aioclient_mock)
     result = await _start_main(hass, {"client_id": " id ", "client_secret": "secret"})
+    result = await _without_login(hass, result)
     assert result["type"] is FlowResultType.CREATE_ENTRY
     assert result["title"] == "Battle.net API"
     assert result["data"] == CREDENTIALS
@@ -90,6 +101,7 @@ async def test_main_entry_errors(hass: HomeAssistant, aioclient_mock) -> None:
     result = await hass.config_entries.flow.async_configure(
         result["flow_id"], CREDENTIALS
     )
+    result = await _without_login(hass, result)
     assert result["type"] is FlowResultType.CREATE_ENTRY
 
 
@@ -121,6 +133,12 @@ async def test_reconfigure_keeps_characters(
     aioclient_mock.get(f"{API}/mythic-keystone-profile", json=MYTHIC)
     entry = await _loaded_entry(hass, character_subentry())
     result = await entry.start_reconfigure_flow(hass)
+    assert result["type"] is FlowResultType.MENU
+    assert result["menu_options"] == ["sync", "credentials"]
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"], {"next_step_id": "credentials"}
+    )
+    assert result["step_id"] == "credentials"
     result = await hass.config_entries.flow.async_configure(
         result["flow_id"], {"client_id": "id2", "client_secret": "neu"}
     )

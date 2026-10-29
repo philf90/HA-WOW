@@ -24,6 +24,15 @@ MAIN_TITLE = "Battle.net API"
 
 # Globaler Token-Endpunkt; das Token gilt fuer alle Regionen ausser China.
 TOKEN_URL = "https://oauth.battle.net/token"
+# Battle.net-Login (Authorization Code Flow, Blizzard-Doku "Using OAuth").
+# Der Scope gibt die Charakterliste des Kontos frei (/profile/user/wow).
+# Blizzard liefert dazu kein Refresh-Token, auch nicht mit offline_access
+# (getestet 29.10.2026); das Login-Token dient nur der Suche nach Charakteren
+# und wird nicht gespeichert.
+AUTHORIZE_URL = "https://oauth.battle.net/authorize"
+LOGIN_SCOPE = "wow.profile"
+# Feld der Auswahlliste nach dem Login.
+CONF_CHARACTERS = "characters"
 
 # Profildaten aktualisiert Blizzard erst nach dem Ausloggen; haeufiger
 # abzufragen bringt nichts.

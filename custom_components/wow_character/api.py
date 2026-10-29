@@ -30,6 +30,10 @@ class BattleNetAuthError(BattleNetError):
     """Client-ID oder Secret ungueltig."""
 
 
+class BattleNetLoginError(BattleNetError):
+    """Login-Code oder Login-Token abgelehnt."""
+
+
 class BattleNetNotFound(BattleNetError):
     """Charakter, Realm-Liste oder Namespace nicht gefunden."""
 
@@ -79,6 +83,37 @@ class BattleNetClient:
         self._token = None
         await self._get_token()
 
+    async def exchange_code(self, code: str, redirect_uri: str) -> dict[str, Any]:
+        """Login-Code gegen ein Login-Token tauschen.
+
+        Blizzard-Doku "Authorization Code Flow": Client-ID und Secret per HTTP
+        Basic, redirect_uri wie beim Login. Die Antwort enthaelt access_token,
+        expires_in (86399) und scope, aber kein refresh_token.
+        """
+        try:
+            async with self._session.post(
+                TOKEN_URL,
+                data={
+                    "grant_type": "authorization_code",
+                    "code": code,
+                    "redirect_uri": redirect_uri,
+                },
+                auth=self._auth,
+                timeout=aiohttp.ClientTimeout(total=REQUEST_TIMEOUT),
+            ) as resp:
+                if resp.status in (400, 401):
+                    raise BattleNetLoginError(
+                        f"Login-Code abgelehnt: HTTP {resp.status}"
+                    )
+                if resp.status != 200:
+                    raise BattleNetError(f"Code-Tausch: HTTP {resp.status}")
+                data = await resp.json()
+        except (aiohttp.ClientError, TimeoutError) as err:
+            raise BattleNetError(f"Code-Tausch fehlgeschlagen: {err}") from err
+        if not data.get("access_token"):
+            raise BattleNetLoginError("Antwort ohne access_token")
+        return data
+
     async def _get(
         self,
         region: str,
@@ -86,8 +121,9 @@ class BattleNetClient:
         namespace: str,
         retry: bool = True,
         wait_on_limit: bool = True,
+        login_token: str | None = None,
     ) -> dict[str, Any]:
-        token = await self._get_token()
+        token = login_token or await self._get_token()
         urls = REGIONS[region]
         try:
             async with self._session.get(
@@ -96,6 +132,9 @@ class BattleNetClient:
                 headers={"Authorization": f"Bearer {token}"},
                 timeout=aiohttp.ClientTimeout(total=REQUEST_TIMEOUT),
             ) as resp:
+                if resp.status == 401 and login_token:
+                    # Ein Login-Token laesst sich nicht neu holen.
+                    raise BattleNetLoginError("Login-Token abgelehnt")
                 if resp.status == 401 and retry:
                     # Token serverseitig verfallen: einmal neu holen.
                     self._token = None
@@ -110,7 +149,12 @@ class BattleNetClient:
                     # Sekunde. Einmal eine Sekunde warten und wiederholen.
                     await asyncio.sleep(1)
                     return await self._get(
-                        region, path, namespace, retry, wait_on_limit=False
+                        region,
+                        path,
+                        namespace,
+                        retry,
+                        wait_on_limit=False,
+                        login_token=login_token,
                     )
                 if resp.status == 429:
                     raise BattleNetRateLimited(path)
@@ -151,6 +195,29 @@ class BattleNetClient:
         if not realms:
             raise BattleNetNotFound("leere Realm-Liste")
         return realms
+
+    async def get_account_characters(
+        self, region: str, suffix: str, login_token: str
+    ) -> list[dict[str, Any]]:
+        """Charaktere des angemeldeten Kontos in Region und Spielversion.
+
+        "Account Profile Summary" (/profile/user/wow), nur mit Login-Token und
+        Scope wow.profile. Felder je Charakter laut Test vom 29.10.2026:
+        character, faction, gender, id, level, name, playable_class,
+        playable_race, protected_character, realm (id, key, name, slug).
+        HTTP 404 heisst: kein WoW-Konto in diesem Namespace.
+        """
+        data = await self._get(
+            region,
+            "/profile/user/wow",
+            self.namespace("profile", suffix, region),
+            login_token=login_token,
+        )
+        return [
+            character
+            for account in data.get("wow_accounts") or []
+            for character in account.get("characters") or []
+        ]
 
     async def get_profile(
         self, region: str, realm: str, character: str, suffix: str
