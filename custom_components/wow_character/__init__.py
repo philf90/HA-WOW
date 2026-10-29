@@ -18,6 +18,7 @@ from homeassistant.components.http import StaticPathConfig
 from homeassistant.config_entries import ConfigEntry, ConfigSubentry
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import ConfigEntryAuthFailed, ConfigEntryNotReady
 from homeassistant.helpers import (
     config_validation as cv,
 )
@@ -34,9 +35,10 @@ from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.typing import ConfigType
 from homeassistant.loader import async_get_integration
 
-from .api import BattleNetClient
+from .api import BattleNetAuthError, BattleNetClient, BattleNetError
 from .const import (
     CONF_CHARACTER,
+    CONF_CHARACTER_ID,
     CONF_CLIENT_ID,
     CONF_CLIENT_SECRET,
     CONF_GAME_VERSION,
@@ -111,6 +113,23 @@ async def async_setup_entry(hass: HomeAssistant, entry: WowConfigEntry) -> bool:
         entry.data[CONF_CLIENT_ID],
         entry.data[CONF_CLIENT_SECRET],
     )
+    # Ohne Token kommt keine Abfrage durch. Ein erfolgreicher Start ohne Daten
+    # liesse Entitaeten weg, die nur aus der ersten Antwort entstehen (Berufe,
+    # PvP-Brackets); Home Assistant wiederholt den Start stattdessen selbst.
+    try:
+        await client.validate()
+    except BattleNetAuthError as err:
+        raise ConfigEntryAuthFailed(
+            translation_domain=DOMAIN,
+            translation_key="auth_failed",
+            translation_placeholders={"error": str(err)},
+        ) from err
+    except BattleNetError as err:
+        raise ConfigEntryNotReady(
+            translation_domain=DOMAIN,
+            translation_key="update_failed",
+            translation_placeholders={"error": str(err)},
+        ) from err
     runtime = WowRuntimeData(client=client)
     characters = {
         subentry_id: subentry
@@ -151,6 +170,17 @@ async def async_setup_entry(hass: HomeAssistant, entry: WowConfigEntry) -> bool:
     for subentry_id in runtime.coordinators.keys() - entry.subentries.keys():
         del runtime.coordinators[subentry_id]
         del runtime.details[subentry_id]
+    # IDs, die _record_id beim Start nachgetragen hat, in den Stand uebernehmen;
+    # sonst laedt der Vergleich am Ende ohne Grund neu. Jede andere Aenderung
+    # waehrend des Starts laedt weiterhin neu.
+    for subentry_id, (_title, data) in snapshot[1].items():
+        subentry = entry.subentries.get(subentry_id)
+        if (
+            subentry is not None
+            and CONF_CHARACTER_ID not in data
+            and CONF_CHARACTER_ID in subentry.data
+        ):
+            data[CONF_CHARACTER_ID] = subentry.data[CONF_CHARACTER_ID]
     entry.runtime_data = runtime
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)

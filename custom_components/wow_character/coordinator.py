@@ -263,7 +263,10 @@ class WowCoordinator(_CharacterMixin, DataUpdateCoordinator[dict[str, Any]]):
             except BattleNetAuthError as err:
                 raise _auth_failed(err) from err
             except BattleNetError as err:
-                raise _update_failed(err) from err
+                # Das Profil kam an; Mythic+ behaelt den letzten Stand, statt
+                # alle Profil-Sensoren nicht verfuegbar zu machen.
+                _LOGGER.debug("%s: Mythic+-Profil fehlgeschlagen: %s", self.name, err)
+                mythic = (self.data or {}).get("mythic")
 
         # Aktuelle M+-Season der Region, damit die Wertung nur fuer sie gilt.
         season_id = ((self._world.data if self._world else None) or {}).get("season_id")
@@ -341,8 +344,8 @@ class WowCoordinator(_CharacterMixin, DataUpdateCoordinator[dict[str, Any]]):
         entry = self.config_entry
         data = {**self.subentry.data, CONF_CHARACTER_ID: char_id}
         # Vorher vermerken: Der Listener startet sofort (eager task). Beim
-        # Start ist runtime_data noch nicht gesetzt; dann vermerkt
-        # async_setup_entry den Stand an seinem Ende.
+        # Start ist runtime_data noch nicht gesetzt; dann uebernimmt
+        # async_setup_entry die ID nach den ersten Abfragen in seinen Stand.
         if (runtime := getattr(entry, "runtime_data", None)) is not None:
             snapshot = config_snapshot(entry)
             snapshot[1][self.subentry.subentry_id] = (self.subentry.title, dict(data))

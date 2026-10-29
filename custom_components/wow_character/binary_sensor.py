@@ -11,6 +11,7 @@ from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from .coordinator import WowConfigEntry, WowWorldCoordinator
 from .entity import WowWorldEntity
+from .sensor import realm_slugs
 
 # Nur Coordinator-Entitaeten ohne eigene Abfragen: keine Begrenzung noetig.
 PARALLEL_UPDATES = 0
@@ -22,10 +23,7 @@ async def async_setup_entry(
     async_add_entities: AddConfigEntryEntitiesCallback,
 ) -> None:
     for world in entry.runtime_data.worlds.values():
-        for slug, realm in ((world.data or {}).get("realms") or {}).items():
-            # Forever: nur Realms, fuer die die API antwortet.
-            if world.suffix and realm is None:
-                continue
+        for slug in realm_slugs(world):
             async_add_entities(
                 [WowRealmStatus(world, slug), WowRealmQueue(world, slug)]
             )

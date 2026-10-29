@@ -119,8 +119,8 @@ async def test_main_entry_duplicate(hass: HomeAssistant, aioclient_mock) -> None
 
 
 async def test_reauth(hass: HomeAssistant, aioclient_mock) -> None:
-    entry = await _loaded_entry(hass)
     mock_token(aioclient_mock)
+    entry = await _loaded_entry(hass)
     result = await entry.start_reauth_flow(hass)
     assert result["step_id"] == "reauth_confirm"
     result = await hass.config_entries.flow.async_configure(

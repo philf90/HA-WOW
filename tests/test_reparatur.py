@@ -1,5 +1,7 @@
 """Tests fuer Charakter-Status, Reparaturhinweise, Neu konfigurieren und Aufraeumen."""
 
+from unittest.mock import patch
+
 from homeassistant import config_entries
 from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResultType
@@ -46,14 +48,22 @@ async def test_character_id_recorded_without_reload(
     """Charaktere aus aelteren Versionen bekommen ihre ID ohne Neuladen."""
     mock_token(aioclient_mock)
     mock_api(aioclient_mock, {API: {**PROFILE, "id": 42}})
-    entry = await _setup(hass)
-    runtime = entry.runtime_data
-    await hass.async_block_till_done()
+    starts = []
+    setup_entry = wow.async_setup_entry
+
+    async def counting(hass: HomeAssistant, entry) -> bool:
+        starts.append(entry.entry_id)
+        return await setup_entry(hass, entry)
+
+    # Gezaehlt statt runtime_data verglichen: Ein Neuladen ist vor dem
+    # Vergleich schon durch (bis 0.17.1 unbemerkt doppelt gestartet).
+    with patch.object(wow, "async_setup_entry", counting):
+        entry = await _setup(hass)
+        await hass.async_block_till_done()
 
     (subentry,) = entry.subentries.values()
     assert subentry.data["character_id"] == 42
-    # Gleicher Laufzeitstand: Der Update-Listener hat nicht neu geladen.
-    assert entry.runtime_data is runtime
+    assert len(starts) == 1
     assert hass.states.get(LEVEL).state == "90"
     assert _issue(hass, entry) is None
 

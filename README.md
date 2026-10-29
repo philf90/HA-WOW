@@ -11,7 +11,7 @@ Home-Assistant-Integration für World-of-Warcraft-Charaktere: Level, Itemlevel,
 Ausrüstung, Raid- und Mythic+-Fortschritt, Berufe, Ruf, Erfolge und mehr als
 Sensoren, dazu WoW-Marke, wöchentlicher Reset und Serverstatus. Die Daten kommen
 aus der offiziellen Battle.net API. Unterstützt Retail, WoW Classic (Era,
-Progression, Anniversary) und ist für WoW Forever vorbereitet. Version 0.17.1.
+Progression, Anniversary) und ist für WoW Forever vorbereitet. Version 0.17.2.
 
 Zwei Dashboard-Karten liefert die Integration selbst mit: „WoW Arsenal“
 (`custom:wow-arsenal-card`) und „WoW Talentbaum“ (`custom:wow-talent-tree-card`,
@@ -147,6 +147,11 @@ neu starten. Wer von Hand aktualisiert, ersetzt den ganzen Ordner
 z. B. die Einträge im Menü „Charakter hinzufügen“. Was sich je Version ändert, steht in den
 [Release-Notes](https://github.com/philf90/HA-WOW/releases).
 
+**Update auf 0.17.2:** keine Migration, nur Fehlerkorrekturen. Wer unter
+0.17.1 oder früher die Client-ID gewechselt hat, hat die Spielwelt-Entitäten
+doppelt (die neuen mit der Endung `_2`); die alten stehen als „nicht mehr
+bereitgestellt“ in der Entitätenliste und lassen sich dort löschen.
+
 **Update auf 0.17.1:** keine Migration. Einträge, Geräte, Entitäts-IDs,
 Verlauf und Abfragen bleiben, wie sie sind; das Speicherformat ist unverändert,
 zurück auf 0.16.x geht deshalb ohne Backup. Neu ist nur, was du nutzen kannst:
@@ -267,7 +272,11 @@ HTTPS-Adresse bleibt das Anlegen von Hand.
   denen Charaktere angelegt sind.
 
 Fällt die Abfrage eines Charakters aus, sind nur seine Entitäten nicht verfügbar;
-die anderen laufen weiter.
+die anderen laufen weiter. Bekommt die Integration beim Start kein Token (kein
+Netz, Blizzard gestört), wiederholt Home Assistant den Start selbst, statt ohne
+Daten zu starten (seit 0.17.2); sonst fehlten Entitäten, die nur aus der ersten
+Antwort entstehen. Scheitert nur das Mythic+-Profil, bleiben die übrigen
+Profilwerte verfügbar und die Wertung behält ihren letzten Stand (seit 0.17.2).
 
 ## Entitäten je Charakter
 
@@ -653,7 +662,9 @@ trees: [class, spec, hero]
 
 - **Neues Secret:** am Eintrag „Battle.net API“ ⋮ → **Neu konfigurieren** →
   **Client-ID oder Secret ändern**. Lehnt Blizzard die Zugangsdaten ab, fragt
-  Home Assistant von selbst nach neuen.
+  Home Assistant von selbst nach neuen. Eine andere Client-ID geht ebenfalls;
+  die Spielwelt-Entitäten behalten dabei ihre Entitäts-IDs und ihren Verlauf
+  (seit 0.17.2, vorher entstanden sie neu mit der Endung `_2`).
 - **Neue Charaktere:** **Charakter hinzufügen** → **Mit Battle.net anmelden und
   Charaktere wählen** (siehe [Battle.net-Anmeldung](#battlenet-anmeldung-seit-0170)).
 - **Charakter umbenannt oder transferiert:** am Charakter unter dem Eintrag
@@ -781,7 +792,9 @@ bereitgestellt“ stehen und lässt sich löschen.
 Blizzard hat den API-Namespace für Forever noch nicht dokumentiert (Start
 04.11.2026). Beim Hinzufügen eines Forever-Charakters probiert die Integration die
 Kandidaten aus `const.py` (`GAME_VERSIONS["forever"]["namespaces"]`) der Reihe nach:
-Der erste, unter dem die API eine Realm-Liste liefert, wird gespeichert. Die
+Der erste, unter dem die API eine Realm-Liste liefert, wird gespeichert. HTTP 404
+und 403 gelten dabei als „Namespace unbekannt“, der nächste Kandidat folgt (403
+seit 0.17.2; vorher brach das Hinzufügen mit „Verbindung fehlgeschlagen“ ab). Die
 Kandidaten sind **unbestätigt**. Sobald Blizzard den Namespace nennt, dort
 eintragen; schlägt das Hinzufügen fehl, ist das die wahrscheinlichste Ursache.
 
@@ -818,7 +831,23 @@ Automatische Tests laufen gegen Home Assistant 2026.2.3; live geprüft wurde unt
 Home Assistant 2026.10.4 mit Retail-Charakteren der Region EU, seit 0.11.2 auch
 mit einem Classic-Era-Charakter (siehe [WoW Classic](#wow-classic)).
 
-- **0.17.x:** 210 automatische Tests. 0.17.1: 4 Tests für die Anmeldung aus
+- **0.17.x:** 219 automatische Tests. 0.17.2: 9 Tests für die Korrekturen
+  (Start ohne Token wird wiederholt und legt danach Beruf, PvP-Bracket und
+  Realm-Entitäten an; Realm-Entitäten in Retail auch ohne erste Antwort;
+  Mythic+-Fehler beim Start und später, Profil bleibt verfügbar und die Wertung
+  behält ihren Stand; neue Client-ID über „Neu konfigurieren“ und über die
+  erneute Anmeldung ohne doppelte Spielwelt-Entitäten; Rückwechsel auf eine
+  Client-ID mit verwaisten Entitäten ohne Fehler; Forever mit 403 für den
+  ersten und für alle Kandidaten). Drei Tests angepasst: Abgelehnte
+  Zugangsdaten beenden den Start jetzt mit erneuter Anmeldung; die erneute
+  Anmeldung braucht dafür einen gültigen Start; das Nachtragen der
+  Charakter-ID zählt jetzt die Starts, der alte Vergleich von `runtime_data`
+  fand das doppelte Laden aus 0.17.1 nicht. Gegenprobe: sieben Teile der
+  Korrektur einzeln ausgebaut (Token-Prüfung beim Start, Realms aus den
+  Charakteren, Umschreiben der unique_id, Schutz vor belegter unique_id, alter
+  Mythic+-Stand, ID im Stand des Starts, 403 überspringen), jedes Mal schlug
+  ein Test fehl. **Nicht live
+  geprüft.** 0.17.1: 4 Tests für die Anmeldung aus
   „Charakter hinzufügen“ (Hilfsdialog gibt den Rücksprung weiter und ist nicht
   unter „Entdeckt“, abgelehnte Anmeldung, Schließen beendet den Hilfsdialog) und
   für einen während des Starts gelöschten Charakter (keine Meldung „unknown
