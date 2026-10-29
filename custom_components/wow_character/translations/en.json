@@ -3,10 +3,29 @@
     "step": {
       "user": {
         "title": "Battle.net API client",
-        "description": "Create a free API client at develop.battle.net and enter its client ID and secret. Add characters afterwards on this entry.",
+        "description": "Create a free API client at develop.battle.net and enter its client ID and secret.",
         "data": {
           "client_id": "Client ID",
           "client_secret": "Client secret"
+        }
+      },
+      "method": {
+        "title": "Add characters",
+        "description": "Sign in with Battle.net to find all characters of your account and pick them from a list. Blizzard needs the redirect URL shown in the next step in your API client at develop.battle.net (usually https://my.home-assistant.io/redirect/oauth). Without signing in, add characters by hand on this entry later.",
+        "menu_options": {
+          "login": "Sign in with Battle.net and pick characters",
+          "without_login": "Continue without signing in"
+        }
+      },
+      "login": {
+        "title": "Sign in with Battle.net",
+        "description": "Sign in with Battle.net in the window that opened and allow access to your World of Warcraft characters. Blizzard accepts the sign-in only if this redirect URL is entered in your API client at develop.battle.net: {redirect_uri}"
+      },
+      "select": {
+        "title": "Pick characters",
+        "description": "Found {count} characters that are not set up yet. Each picked character becomes its own device. Failed queries (characters there may be missing): {failed}.",
+        "data": {
+          "characters": "Characters"
         }
       },
       "reauth_confirm": {
@@ -18,6 +37,14 @@
         }
       },
       "reconfigure": {
+        "title": "Change Battle.net API entry",
+        "description": "Syncing signs in with Battle.net and offers the characters of your account that are not set up yet. Characters already set up stay unchanged.",
+        "menu_options": {
+          "sync": "Sync characters (sign in with Battle.net)",
+          "credentials": "Change client ID or secret"
+        }
+      },
+      "credentials": {
         "title": "Change Battle.net API client",
         "description": "Enter the new client ID or secret. Your characters stay configured.",
         "data": {
@@ -33,7 +60,15 @@
     "abort": {
       "already_configured": "This API client is already configured.",
       "reauth_successful": "Signed in again.",
-      "reconfigure_successful": "API client updated."
+      "reconfigure_successful": "API client updated.",
+      "cannot_connect": "Battle.net API is not reachable.",
+      "redirect_unknown": "Home Assistant could not determine its own address for the sign-in. Enable My Home Assistant (part of default_config) or open Home Assistant via its URL.",
+      "login_rejected": "The sign-in was cancelled or rejected at Battle.net.",
+      "login_failed": "Battle.net rejected the sign-in. Try again; if it keeps failing, check client ID, secret and redirect URL.",
+      "scope_missing": "Access to your World of Warcraft characters was not allowed. Sign in again and keep that permission.",
+      "no_characters": "No characters found on this Battle.net account in EU, US, KR or TW.",
+      "nothing_new": "All characters of this account are already set up.",
+      "characters_added": "Characters added: {count}."
     }
   },
   "config_subentries": {
@@ -45,7 +80,7 @@
       "step": {
         "user": {
           "title": "Region and game version",
-          "description": "The realm list for this region and game version is loaded next.",
+          "description": "The realm list for this region and game version is loaded next. To add all characters of your account at once: on the entry “Battle.net API” ⋮ → Reconfigure → Sync characters.",
           "data": {
             "region": "Region",
             "game_version": "Game version"

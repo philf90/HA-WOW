@@ -11,7 +11,7 @@ Home-Assistant-Integration für World-of-Warcraft-Charaktere: Level, Itemlevel,
 Ausrüstung, Raid- und Mythic+-Fortschritt, Berufe, Ruf, Erfolge und mehr als
 Sensoren, dazu WoW-Marke, wöchentlicher Reset und Serverstatus. Die Daten kommen
 aus der offiziellen Battle.net API. Unterstützt Retail, WoW Classic (Era,
-Progression, Anniversary) und ist für WoW Forever vorbereitet. Version 0.16.1.
+Progression, Anniversary) und ist für WoW Forever vorbereitet. Version 0.17.0.
 
 Zwei Dashboard-Karten liefert die Integration selbst mit: „WoW Arsenal“
 (`custom:wow-arsenal-card`) und „WoW Talentbaum“ (`custom:wow-talent-tree-card`,
@@ -33,7 +33,9 @@ Retail), ohne zusätzliche HACS-Karten oder Dashboard-Ressourcen.
 - **[HACS](https://hacs.xyz)** für die Installation per Klick (ohne HACS geht es
   auch, siehe unten)
 - **Battle.net-API-Client** (kostenlos): Client-ID und Secret, angelegt mit einem
-  Blizzard-Konto auf <https://develop.battle.net>
+  Blizzard-Konto auf <https://develop.battle.net>. Für die Suche nach Charakteren
+  per Battle.net-Anmeldung zusätzlich die Redirect-URL
+  `https://my.home-assistant.io/redirect/oauth` im Client (seit 0.17.0)
 - Charaktere in den Regionen **EU, US, KR oder TW** (China wird nicht unterstützt)
 
 ## Installation
@@ -42,7 +44,8 @@ Retail), ohne zusätzliche HACS-Karten oder Dashboard-Ressourcen.
 [![Integration hinzufügen](https://my.home-assistant.io/badges/config_flow_start.svg)](https://my.home-assistant.io/redirect/config_flow_start/?domain=wow_character)
 
 1. **API-Client anlegen:** auf <https://develop.battle.net> anmelden, einen Client
-   erstellen, Client-ID und Secret notieren.
+   erstellen, unter „Redirect URIs“ `https://my.home-assistant.io/redirect/oauth`
+   eintragen, Client-ID und Secret notieren.
 2. **Integration herunterladen:** Erste Schaltfläche oben → HACS fragt, ob das
    Repository hinzugefügt werden soll → **Hinzufügen** → **Herunterladen**.
    Von Hand: HACS → ⋮ → **Benutzerdefinierte Repositories** →
@@ -53,11 +56,15 @@ Retail), ohne zusätzliche HACS-Karten oder Dashboard-Ressourcen.
 3. **Home Assistant neu starten.**
 4. **Einrichten:** Zweite Schaltfläche oben, oder Einstellungen → Geräte & Dienste
    → Integration hinzufügen → „WoW Charakter“. Client-ID und Secret eingeben.
-5. **Charakter hinzufügen:** Am neuen Eintrag „Battle.net API“ →
-   **Charakter hinzufügen**: zuerst Region und Spielversion (Retail, Classic Era,
-   Classic Progression, Classic Anniversary oder Forever), dann Realm aus der
-   Liste wählen und Charakternamen eingeben. Für weitere Charaktere diesen Schritt
-   wiederholen.
+5. **Charaktere wählen:** **Mit Battle.net anmelden und Charaktere wählen**. Die
+   Integration sucht alle Charaktere des Kontos in EU, US, KR und TW und in allen
+   Spielversionen und legt die angekreuzten an (seit 0.17.0, siehe
+   [Battle.net-Anmeldung](#battlenet-anmeldung-seit-0170)). Alternativ
+   **Ohne Anmeldung fortfahren** und Charaktere von Hand anlegen: am Eintrag
+   „Battle.net API“ → **Charakter hinzufügen**, zuerst Region und Spielversion
+   (Retail, Classic Era, Classic Progression, Classic Anniversary oder Forever),
+   dann Realm aus der Liste wählen und Charakternamen eingeben. Von Hand geht
+   auch für Charaktere anderer Konten.
 
 Danach ist jeder Charakter ein eigenes Gerät mit seinen Sensoren; die Werte für
 Region und Realm stehen im Gerät „WoW-Spielwelt EU“ (bzw. US, KR, TW).
@@ -77,6 +84,7 @@ Region und Realm stehen im Gerät „WoW-Spielwelt EU“ (bzw. US, KR, TW).
 ## Inhalt
 
 - [Aktualisieren](#aktualisieren)
+- [Battle.net-Anmeldung](#battlenet-anmeldung-seit-0170)
 - [Aufbau](#aufbau)
 - [Entitäten je Charakter](#entitäten-je-charakter)
 - [Entitäten der Spielwelt](#entitäten-der-spielwelt)
@@ -104,6 +112,42 @@ Client-ID werden zu einem Eintrag „Battle.net API“ zusammengefasst, jeder Ch
 wird ein Untereintrag. Geräte, Entitäts-IDs, eigene Anpassungen und Verlauf bleiben
 erhalten. **Vorher ein Backup anlegen:** Nach dem Umbau kann 0.1.x die Einträge
 nicht mehr lesen; zurück geht es nur über das Backup.
+
+## Battle.net-Anmeldung (seit 0.17.0)
+
+Die Anmeldung dient nur dazu, die Charaktere des Kontos zu finden. Alle
+laufenden Abfragen nutzen weiter Client-ID und Secret.
+
+- **Wo:** beim Einrichten nach Client-ID und Secret, später am Eintrag
+  „Battle.net API“ ⋮ → **Neu konfigurieren** → **Charaktere abgleichen**. Der
+  Abgleich bietet nur Charaktere an, die noch nicht eingerichtet sind; ein
+  eingerichteter Charakter wird an seiner ID erkannt, ältere Einträge ohne ID am
+  Namen. Ein umbenannter Charakter erscheint deshalb nicht doppelt. Der Dialog
+  „Charakter hinzufügen“ bleibt von Hand: Home Assistant setzt nach der
+  Anmeldung nur Dialoge des Haupteintrags fort.
+- **Redirect-URL:** Blizzard leitet nach der Anmeldung nur an eine Adresse
+  zurück, die im API-Client eingetragen ist; sonst zeigt Blizzard „400 –
+  Umleitungs-URL ist nicht gültig“. Mit My Home Assistant (Teil von
+  `default_config`) ist das `https://my.home-assistant.io/redirect/oauth`, ohne
+  `<Adresse von Home Assistant>/auth/external/callback`, laut Blizzard-Doku nur
+  mit HTTPS. Der Anmeldeschritt zeigt die benutzte Adresse an.
+- **Was Blizzard liefert:** Scope `wow.profile`, Endpunkt `/profile/user/wow`
+  („Account Profile Summary“) je Region und Spielversion: 4 Regionen × 6
+  Namespaces (Forever mit zwei Kandidaten) = höchstens 24 Abfragen je Suche,
+  parallel. HTTP 404 heißt „kein Konto dort“. Je Charakter nutzt die Integration Name, ID,
+  Level, Klasse und Realm (Name und Slug).
+- **Was gespeichert wird:** nur die Untereinträge der gewählten Charaktere, mit
+  denselben Daten und Entitäts-IDs wie von Hand angelegt. Das Login-Token nicht:
+  Es gilt 24 Stunden, und ein Refresh-Token gibt Blizzard nicht aus (getestet am
+  29.10.2026, auch mit dem Scope `offline_access`). Neue Charaktere kommen über
+  einen neuen Abgleich mit erneuter Anmeldung dazu.
+- **Erneut anmelden (Reauth):** wie bisher nur, wenn Blizzard Client-ID oder
+  Secret ablehnt. Die Battle.net-Anmeldung löst nie eine erneute Anmeldung aus;
+  ein neues Passwort oder eine entzogene Freigabe ändert am Betrieb nichts.
+- **Fehler** brechen nur den Dialog ab, der Eintrag läuft weiter: Anmeldung
+  abgelehnt, Freigabe für die WoW-Charaktere abgewählt, Code-Tausch abgelehnt,
+  keine Charaktere gefunden. Schlagen einzelne Abfragen fehl, nennt die
+  Auswahlliste ihre Zahl; dort fehlen dann eventuell Charaktere.
 
 ## Aufbau
 
@@ -500,8 +544,11 @@ trees: [class, spec, hero]
 
 ## Ändern, Hinweise und Diagnose
 
-- **Neues Secret:** am Eintrag „Battle.net API“ ⋮ → **Neu konfigurieren**. Lehnt
-  Blizzard die Zugangsdaten ab, fragt Home Assistant von selbst nach neuen.
+- **Neues Secret:** am Eintrag „Battle.net API“ ⋮ → **Neu konfigurieren** →
+  **Client-ID oder Secret ändern**. Lehnt Blizzard die Zugangsdaten ab, fragt
+  Home Assistant von selbst nach neuen.
+- **Neue Charaktere:** am Eintrag „Battle.net API“ ⋮ → **Neu konfigurieren** →
+  **Charaktere abgleichen** (siehe [Battle.net-Anmeldung](#battlenet-anmeldung-seit-0170)).
 - **Charakter umbenannt oder transferiert:** am Charakter unter dem Eintrag
   „Battle.net API“ ⋮ → **Neu konfigurieren**, dann Realm und Namen ändern. Gerät,
   Entitäts-IDs und Verlauf bleiben; die Entitäts-IDs tragen weiter den alten
@@ -640,8 +687,10 @@ haben, wie bei [Classic](#wow-classic).
 - Profildaten aktualisiert Blizzard erst, wenn sich der Charakter ausloggt.
 - Die Region China wird nicht unterstützt.
 - Gold, Position und Account-Daten liefert die API nur mit einer Anmeldung des
-  Spielers (Authorization Code Flow, Scope `wow.profile`). Die Integration nutzt
-  nur Client-ID und Secret und kann sie deshalb nicht abfragen.
+  Spielers (Authorization Code Flow, Scope `wow.profile`). Das Login-Token gilt
+  24 Stunden, ein Refresh-Token gibt Blizzard nicht aus. Die Integration nutzt
+  die Anmeldung deshalb nur zur Suche nach Charakteren und kann diese Werte
+  nicht dauerhaft abfragen.
 - Große Schatzkammer und Affixe der aktuellen Woche liefert die API nicht: Sie
   kennt je Season nur den besten Lauf je Dungeon, und die Woche hat nur Start und
   Ende.
@@ -662,6 +711,27 @@ Automatische Tests laufen gegen Home Assistant 2026.2.3; live geprüft wurde unt
 Home Assistant 2026.10.4 mit Retail-Charakteren der Region EU, seit 0.11.2 auch
 mit einem Classic-Era-Charakter (siehe [WoW Classic](#wow-classic)).
 
+- **0.17.x:** 199 automatische Tests, davon 14 neu für die
+  Battle.net-Anmeldung: Login-Adresse mit Scope und Redirect-URL, Code-Tausch
+  mit derselben Redirect-URL, Charaktersuche nur mit dem Login-Token (24
+  Abfragen), Auswahl nach Level, Untereinträge mit denselben Daten und
+  `unique_id` wie von Hand, ohne Auswahl, Forever-Kandidat, gezählte
+  Fehlabfrage, sechs Abbruchgründe, fehlende Adresse; Abgleich bietet nur neue
+  Charaktere an (per Name und per ID erkannt), nichts Neues, gleicher Name mit
+  anderer ID. 3 bestehende Tests an die neuen Menüs angepasst. Gegenprobe: elf
+  Fehler einzeln eingebaut (Scope nicht geprüft, Scope nicht angefordert,
+  falsche Redirect-URL beim Code-Tausch, Abgleich nur per Name, nur per ID,
+  ohne Filter, Login-Token wie Client-Token behandelt, Client-Token statt
+  Login-Token, Fehlabfragen nicht gezählt, erster Forever-Kandidat gewinnt auch
+  ohne Konto, abgelehnte Anmeldung nicht abgebrochen), jedes Mal schlug
+  mindestens ein Test fehl. Von Hand mit curl gegen die echte API geprüft
+  (29.10.2026, Konto mit Retail- und Classic-Era-Charakteren in EU): Code-Tausch
+  per HTTP Basic, Antwort ohne `refresh_token` (auch mit `offline_access`, mit
+  und ohne `openid` und `prompt=consent`), `/profile/user/wow` in 16
+  Kombinationen aus Region und Spielversion, Feldnamen je Charakter. **Nicht
+  live geprüft:** der Ablauf in Home Assistant selbst (Fenster, Rücksprung über
+  My Home Assistant, Auswahl), Classic Progression und Anniversary mit Konto,
+  Forever.
 - **0.16.x:** 185 automatische Tests. 0.16.1: 4 Tests für das Apex-Talent
   (alle Stufen: Rang 4/4, Stufen in Spielreihenfolge mit Name, Beschreibung und
   Symbol; ohne und mit nur der ersten Stufe: 0/4 und 1/4; mehrere Knoten in der
