@@ -33,6 +33,7 @@ from homeassistant.config_entries import (
 )
 from homeassistant.core import callback
 from homeassistant.data_entry_flow import UnknownFlow
+from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.config_entry_oauth2_flow import (
     MY_AUTH_CALLBACK_PATH,
@@ -421,6 +422,8 @@ class WowCharacterConfigFlow(_LoginSteps, ConfigFlow, domain=DOMAIN):
             if error:
                 errors["base"] = error
             else:
+                if client_id != entry.unique_id:
+                    _move_world_unique_ids(self.hass, entry, client_id)
                 return self.async_update_reload_and_abort(
                     entry,
                     unique_id=client_id,
@@ -437,6 +440,28 @@ class WowCharacterConfigFlow(_LoginSteps, ConfigFlow, domain=DOMAIN):
             ),
             errors=errors,
         )
+
+
+def _move_world_unique_ids(hass: Any, entry: ConfigEntry, client_id: str) -> None:
+    """Spielwelt-Entitaeten auf die neue Client-ID umschreiben.
+
+    Ihre unique_id beginnt mit der unique_id des Eintrags, der Client-ID (siehe
+    WowWorldEntity). Ohne Umschreiben legte Home Assistant sie nach dem Wechsel
+    neu mit "_2" an; die alten blieben verwaist, mit Verlauf und Automationen.
+    Gibt es die neue unique_id schon (Rueckwechsel auf eine Client-ID, deren
+    Entitaeten vor 0.17.2 verwaist stehen blieben), uebernimmt Home Assistant
+    beim Neuladen diesen Eintrag; die Entitaet bleibt dann unveraendert.
+    """
+    old = f"{entry.unique_id}-world-"
+    new = f"{client_id}-world-"
+    ent_reg = er.async_get(hass)
+    for reg_entry in er.async_entries_for_config_entry(ent_reg, entry.entry_id):
+        if not reg_entry.unique_id.startswith(old):
+            continue
+        unique_id = new + reg_entry.unique_id[len(old) :]
+        if ent_reg.async_get_entity_id(reg_entry.domain, DOMAIN, unique_id):
+            continue
+        ent_reg.async_update_entity(reg_entry.entity_id, new_unique_id=unique_id)
 
 
 class _LoginUrl(LocalOAuth2Implementation):
@@ -867,7 +892,8 @@ class CharacterSubentryFlow(_LoginSteps, ConfigSubentryFlow):
         for suffix in GAME_VERSIONS[game_version]["namespaces"]:
             try:
                 return suffix, await self._client.get_realms(region, suffix)
-            except BattleNetNotFound:
+            except (BattleNetNotFound, BattleNetForbidden):
+                # 403: Namespace (noch) unbekannt, wie bei der Charaktersuche.
                 continue
         raise BattleNetNotFound("kein Namespace-Kandidat liefert eine Realm-Liste")
 

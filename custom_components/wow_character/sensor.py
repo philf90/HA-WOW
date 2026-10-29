@@ -514,10 +514,22 @@ def _world_sensors(world: WowWorldCoordinator) -> list[SensorEntity]:
         entities.append(WowTokenSensor(world))
     if world.mythic_plus:
         entities.append(WowResetSensor(world))
-    for slug, realm in (data.get("realms") or {}).items():
-        if known or realm is not None:
-            entities.append(WowRealmPopulationSensor(world, slug))
+    for slug in realm_slugs(world):
+        entities.append(WowRealmPopulationSensor(world, slug))
     return entities
+
+
+def realm_slugs(world: WowWorldCoordinator) -> list[str]:
+    """Realms mit Entitaeten.
+
+    Retail: alle Realms der Charaktere, auch wenn die erste Abfrage scheiterte;
+    sonst fehlten sie bis zum Neuladen. Forever und Classic: nur Realms, fuer
+    die die API beim Start antwortet.
+    """
+    if not world.suffix:
+        return sorted(world.realms)
+    realms = (world.data or {}).get("realms") or {}
+    return sorted(slug for slug, realm in realms.items() if realm is not None)
 
 
 class WowSensor(WowCharacterEntity, SensorEntity):

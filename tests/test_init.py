@@ -75,12 +75,14 @@ async def test_auth_error_starts_reauth(hass: HomeAssistant, aioclient_mock) -> 
     mock_token(aioclient_mock, status=401)
     entry = main_entry(character_subentry())
     entry.add_to_hass(hass)
-    assert await hass.config_entries.async_setup(entry.entry_id)
+    # Abgelehnte Zugangsdaten: kein Start ohne Daten, sondern erneut anmelden.
+    assert not await hass.config_entries.async_setup(entry.entry_id)
     await hass.async_block_till_done()
 
+    assert entry.state is config_entries.ConfigEntryState.SETUP_ERROR
     flows = hass.config_entries.flow.async_progress_by_handler(DOMAIN)
     assert [f["context"]["source"] for f in flows] == ["reauth"]
-    assert hass.states.get("sensor.testchar_die_aldor_level").state == "unavailable"
+    assert hass.states.get("sensor.testchar_die_aldor_level") is None
 
 
 async def test_remove_character(hass: HomeAssistant, aioclient_mock) -> None:
