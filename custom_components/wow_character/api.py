@@ -38,6 +38,10 @@ class BattleNetNotFound(BattleNetError):
     """Charakter, Realm-Liste oder Namespace nicht gefunden."""
 
 
+class BattleNetForbidden(BattleNetError):
+    """HTTP 403, z. B. fuer einen Namespace, den Blizzard (noch) nicht kennt."""
+
+
 class BattleNetRateLimited(BattleNetError):
     """Abfragelimit erreicht (HTTP 429)."""
 
@@ -143,6 +147,8 @@ class BattleNetClient:
                     raise BattleNetAuthError("Token abgelehnt")
                 if resp.status == 404:
                     raise BattleNetNotFound(path)
+                if resp.status == 403:
+                    raise BattleNetForbidden(f"{path}: HTTP 403")
                 if resp.status == 429 and wait_on_limit:
                     # Laut Blizzard-Doku ("Getting Started", Throttling): ueber
                     # 100 Abfragen je Sekunde gibt es 429 bis zum Ende der
@@ -205,7 +211,9 @@ class BattleNetClient:
         Scope wow.profile. Felder je Charakter laut Test vom 29.10.2026:
         character, faction, gender, id, level, name, playable_class,
         playable_race, protected_character, realm (id, key, name, slug).
-        HTTP 404 heisst: kein WoW-Konto in diesem Namespace.
+        HTTP 404 heisst: kein WoW-Konto in diesem Namespace. HTTP 403 kam im
+        Live-Test vom 29.10.2026 fuer die Forever-Kandidaten (-forever,
+        -camelot), die Blizzard noch nicht dokumentiert.
         """
         data = await self._get(
             region,

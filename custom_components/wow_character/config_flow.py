@@ -51,6 +51,7 @@ from .api import (
     BattleNetAuthError,
     BattleNetClient,
     BattleNetError,
+    BattleNetForbidden,
     BattleNetLoginError,
     BattleNetNotFound,
 )
@@ -404,8 +405,9 @@ async def _discover(
 
     Je Region und Spielversion eine Abfrage, bei mehreren Namespace-Kandidaten
     (Forever) der erste mit Konto. Gibt die Funde und die Zahl der
-    fehlgeschlagenen Abfragen zurueck; HTTP 404 heisst "kein Konto" und zaehlt
-    nicht als Fehler.
+    fehlgeschlagenen Abfragen zurueck. HTTP 404 heisst "kein Konto", HTTP 403
+    "Namespace unbekannt" (Forever-Kandidaten, Live-Test 29.10.2026); beides
+    zaehlt nicht als Fehler.
     """
 
     async def one(region: str, version: str) -> tuple[list[dict[str, Any]], int]:
@@ -416,6 +418,9 @@ async def _discover(
                     region, suffix, login_token
                 )
             except BattleNetNotFound:
+                continue
+            except BattleNetForbidden:
+                _LOGGER.debug("Charaktersuche %s%s: HTTP 403", region, suffix)
                 continue
             except BattleNetLoginError:
                 raise

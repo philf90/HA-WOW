@@ -11,7 +11,7 @@ Home-Assistant-Integration für World-of-Warcraft-Charaktere: Level, Itemlevel,
 Ausrüstung, Raid- und Mythic+-Fortschritt, Berufe, Ruf, Erfolge und mehr als
 Sensoren, dazu WoW-Marke, wöchentlicher Reset und Serverstatus. Die Daten kommen
 aus der offiziellen Battle.net API. Unterstützt Retail, WoW Classic (Era,
-Progression, Anniversary) und ist für WoW Forever vorbereitet. Version 0.17.0.
+Progression, Anniversary) und ist für WoW Forever vorbereitet. Version 0.17.1.
 
 Zwei Dashboard-Karten liefert die Integration selbst mit: „WoW Arsenal“
 (`custom:wow-arsenal-card`) und „WoW Talentbaum“ (`custom:wow-talent-tree-card`,
@@ -145,7 +145,7 @@ HACS zeigt neue Versionen als Update an. Nach dem Herunterladen Home Assistant
 neu starten. Was sich je Version ändert, steht in den
 [Release-Notes](https://github.com/philf90/HA-WOW/releases).
 
-**Update auf 0.17.0:** keine Migration. Einträge, Geräte, Entitäts-IDs,
+**Update auf 0.17.1:** keine Migration. Einträge, Geräte, Entitäts-IDs,
 Verlauf und Abfragen bleiben, wie sie sind; das Speicherformat ist unverändert,
 zurück auf 0.16.x geht deshalb ohne Backup. Neu ist nur, was du nutzen kannst:
 
@@ -202,7 +202,9 @@ nicht behält (siehe unten). Nach einem neuen Charakter im Spiel: einmal auslogg
 - **Was Blizzard liefert:** Scope `wow.profile`, Endpunkt `/profile/user/wow`
   („Account Profile Summary“) je Region und Spielversion: 4 Regionen × 6
   Namespaces (Forever mit zwei Kandidaten) = höchstens 24 Abfragen je Suche,
-  parallel. HTTP 404 heißt „kein Konto dort“. Je Charakter nutzt die
+  parallel. HTTP 404 heißt „kein Konto dort“; HTTP 403 kam im Live-Test für
+  die Forever-Kandidaten, die Blizzard noch nicht kennt, und zählt ebenfalls
+  nicht als Fehlabfrage (seit 0.17.1). Je Charakter nutzt die
   Integration Name, ID, Level, Klasse und Realm (Name und Slug).
 - **Was gespeichert wird:** nur die Untereinträge der gewählten Charaktere, mit
   denselben Daten und Entitäts-IDs wie von Hand angelegt. Das Login-Token nicht:
@@ -804,7 +806,25 @@ Automatische Tests laufen gegen Home Assistant 2026.2.3; live geprüft wurde unt
 Home Assistant 2026.10.4 mit Retail-Charakteren der Region EU, seit 0.11.2 auch
 mit einem Classic-Era-Charakter (siehe [WoW Classic](#wow-classic)).
 
-- **0.17.x:** 202 automatische Tests, davon 17 neu. 3 prüfen, dass die
+- **0.17.x:** 206 automatische Tests. 0.17.1: 4 neue Tests aus dem Live-Test:
+  Abgleich mit drei Charakteren richtet alle ein und lädt nur einmal neu; ein
+  während eines Neustarts angelegter Charakter wird danach eingerichtet; jede
+  Änderung lädt neu, auch zurück zu einem früheren Stand; HTTP 403 der
+  Forever-Kandidaten zählt nicht als Fehlabfrage. Gegenprobe: vier Teile der
+  Korrektur einzeln ausgebaut (kein Abgeben vor dem Vergleich, kein Merker für
+  das laufende Neuladen, kein Nachladen nach einer Änderung während des Starts,
+  403 als Fehler), jedes Mal schlug ein Test fehl. Zwei Teile lassen sich so
+  nicht trennen: das Aufräumen des Merkers (ein neues Neuladen überschreibt ihn
+  ohnehin) und der Stand vom Beginn des Starts (das Nachladen deckt ihn mit ab).
+  **Live geprüft mit 0.17.0** (29.10.2026, Konto mit Retail- und
+  Classic-Era-Charakteren in EU): Hinweis im Dialog „Charakter hinzufügen“,
+  Anmeldung, Rücksprung über My Home Assistant und Auswahlliste mit den sechs
+  noch nicht eingerichteten Charakteren; eingerichtete, auch der Classic-Era-
+  Charakter, erschienen nicht. Dabei fielen die beiden Fehler auf, die 0.17.1
+  behebt: Nach dem Anlegen mehrerer Charaktere bekamen sie kein Gerät, und die
+  Liste nannte 8 Fehlabfragen (HTTP 403 der Forever-Kandidaten). **Nicht live
+  geprüft:** 0.17.1; Neueinrichtung mit Anmeldung, Companion-App,
+  Fehlerfälle. 0.17.0: 202 automatische Tests, davon 17 neu. 3 prüfen, dass die
   Übersetzungen keine URLs enthalten (Regel von hassfest). 14 gelten der
   Battle.net-Anmeldung: Login-Adresse mit Scope und Redirect-URL, Code-Tausch
   mit derselben Redirect-URL, Charaktersuche nur mit dem Login-Token (24
