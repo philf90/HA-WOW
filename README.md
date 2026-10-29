@@ -13,6 +13,10 @@ Sensoren, dazu WoW-Marke, wöchentlicher Reset und Serverstatus. Die Daten komme
 aus der offiziellen Battle.net API. Unterstützt Retail, WoW Classic (Era,
 Progression, Anniversary) und ist für WoW Forever vorbereitet. Version 0.15.2.
 
+Zwei Dashboard-Karten liefert die Integration selbst mit: „WoW Arsenal“
+(`custom:wow-arsenal-card`) und „WoW Talentbaum“ (`custom:wow-talent-tree-card`,
+Retail), ohne zusätzliche HACS-Karten oder Dashboard-Ressourcen.
+
 <p align="center">
   <img src="https://raw.githubusercontent.com/philf90/HA-WOW/main/assets/vorschau-karten.png" alt="Arsenal-, Charaktere-, Berufe- und Raid-Karte im Nachtblau-Stil mit Beispieldaten" width="100%">
 </p>
@@ -65,7 +69,10 @@ Region und Realm stehen im Gerät „WoW-Spielwelt EU“ (bzw. US, KR, TW).
 - Einige Sensoren sind zunächst ausgeschaltet (Charakterwerte, Spielstatistik).
   Einschalten unter Einstellungen → Geräte & Dienste → WoW Charakter → Charakter
   → Entitäten.
-- Passende Dashboard-Karten: siehe [Dashboard-Karten](#dashboard-karten).
+- Dashboard-Karten: mitgeliefert sind
+  [„WoW Arsenal“](#karte-wow-arsenal-seit-0150) und
+  [„WoW Talentbaum“](#karte-wow-talentbaum-seit-0140); weitere Karten als YAML
+  siehe [Dashboard-Karten](#dashboard-karten).
 
 ## Inhalt
 
@@ -378,7 +385,16 @@ Lange Attribute speichert Home Assistant nicht im Verlauf: `tooltip`, `factions`
 
 ## Dashboard-Karten
 
-Karten im Nachtblau-Stil für diese Integration liegen im Repository
+Zwei Karten liefert die Integration selbst mit; Home Assistant lädt sie mit dem
+Frontend, ohne zusätzliche HACS-Karten oder Dashboard-Ressourcen:
+
+- [„WoW Arsenal“](#karte-wow-arsenal-seit-0150) (`custom:wow-arsenal-card`,
+  seit 0.15.0): Charakterseite mit Ausrüstung und Kennzahlen.
+- [„WoW Talentbaum“](#karte-wow-talentbaum-seit-0140)
+  (`custom:wow-talent-tree-card`, seit 0.14.0): Talentbäume mit vergebenen
+  Punkten (Retail).
+
+Weitere Karten im Nachtblau-Stil als YAML liegen im Repository
 [philf90/home-assistant](https://github.com/philf90/home-assistant) unter
 `dashboard/sonstiges/`: die Arsenal-Karte (`wow-arsenal-karte.yaml` mit
 `wow-templates.yaml`) und zehn einzeln nutzbare Karten (`wow-*-karte.yaml`) für
