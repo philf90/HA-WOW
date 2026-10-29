@@ -27,8 +27,14 @@ class EntityAdder:
     Neuladen und zeigt "unbekannt".
     """
 
-    def __init__(self, add_entities: Callable[[list[Entity]], None]) -> None:
+    def __init__(
+        self,
+        add_entities: Callable[[list[Entity]], None],
+        allowed: Callable[[str], bool] | None = None,
+    ) -> None:
         self._add_entities = add_entities
+        # Schluessel ausgeschalteter Gruppen (Optionen) werden nie angelegt.
+        self._allowed = allowed or (lambda _key: True)
         # Schluessel nach der unique_id des Charakters bzw. der Spielwelt
         self.known: set[str] = set()
 
@@ -36,7 +42,7 @@ class EntityAdder:
     def add(self, candidates: Iterable[tuple[str, Callable[[], Entity]]]) -> None:
         new = []
         for key, factory in candidates:
-            if key not in self.known:
+            if key not in self.known and self._allowed(key):
                 self.known.add(key)
                 new.append(factory())
         if new:

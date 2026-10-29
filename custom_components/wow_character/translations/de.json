@@ -151,14 +151,25 @@
     "step": {
       "init": {
         "title": "Optionen",
-        "description": "Sprache der Texte aus der Battle.net API, z. B. Namen von Klassen, Gegenständen, Raids und Realms. Die Namen der Entitäten folgen der Sprache von Home Assistant. Bietet eine Region die gewählte Sprache nicht an, gilt die Sprache der Region. Speichern lädt die Integration neu.",
+        "description": "Sprache der Texte aus der Battle.net API, wie oft die Integration sie abfragt und welche Gruppen sie weglässt. Die Namen der Entitäten folgen der Sprache von Home Assistant. Speichern lädt die Integration neu.",
         "data": {
-          "language": "Sprache der API-Texte"
+          "language": "Sprache der API-Texte",
+          "profile_minutes": "Profil (Minuten)",
+          "detail_minutes": "Details (Minuten)",
+          "rare_minutes": "Seltene Details (Minuten)",
+          "disabled_groups": "Ausgeschaltete Gruppen"
         },
         "data_description": {
-          "language": "„Sprache der Region“ ist das bisherige Verhalten: Deutsch in Europa, Englisch in Amerika, Koreanisch in Korea, traditionelles Chinesisch in Taiwan."
+          "language": "„Sprache der Region“ ist das bisherige Verhalten: Deutsch in Europa, Englisch in Amerika, Koreanisch in Korea, traditionelles Chinesisch in Taiwan.",
+          "profile_minutes": "Level, Itemlevel, Mythic+-Wertung und weitere Profilwerte. Vorgabe 15. Blizzard aktualisiert das Profil erst nach dem Ausloggen.",
+          "detail_minutes": "Ausrüstung, Raids, Mythic+-Läufe, PvP, Erfolge, Charakterwerte, Gildenaktivitäten, Spezialisierung. Vorgabe 60.",
+          "rare_minutes": "Berufe, Sammlungen, Ruf, Titel, Quests, Spielstatistik, Gilde und Mitglieder, Bilder, Aussehen, Jägerbegleiter; außerdem die Suche nach neuen Entitäten. Vorgabe 360 (6 Stunden). Mindestens so lang wie Details.",
+          "disabled_groups": "Für diese Gruppen keine Abfragen und keine Entitäten. Vorhandene Entitäten behalten Entitäts-ID und Verlauf und kommen beim Einschalten zurück."
         }
       }
+    },
+    "error": {
+      "rare_below_detail": "Seltene Details dürfen nicht häufiger abgefragt werden als Details."
     }
   },
   "selector": {
@@ -192,6 +203,19 @@
         "ru": "Русский (Europa)",
         "ko": "한국어 (Korea)",
         "zh": "繁體中文 (Taiwan)"
+      }
+    },
+    "groups": {
+      "options": {
+        "guild": "Gilde (Mitglieder, Aktivitäten)",
+        "collections": "Sammlungen und Titel (Reittiere, Haustiere, Spielzeuge, Ereignis Neu gesammelt)",
+        "achievements": "Erfolge (Ereignis Neuer Erfolg)",
+        "game_statistics": "Spielstatistik",
+        "quests": "Abgeschlossene Quests",
+        "reputations": "Ruf",
+        "professions": "Berufe",
+        "raids": "Raids (Ereignis Boss besiegt)",
+        "pvp": "PvP (Ehre, Brackets)"
       }
     }
   },

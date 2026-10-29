@@ -34,11 +34,8 @@ LOGIN_SCOPE = "wow.profile"
 # Feld der Auswahlliste nach dem Login.
 CONF_CHARACTERS = "characters"
 
-# Profildaten aktualisiert Blizzard erst nach dem Ausloggen; haeufiger
-# abzufragen bringt nichts.
-UPDATE_INTERVAL = timedelta(minutes=15)
-# Takt fuer Detail-Endpunkte je Charakter und fuer die Spielwelt.
-DETAIL_INTERVAL = timedelta(minutes=60)
+# Takt der Spielwelt (Realms, WoW-Marke, Reset). Die Takte der Charaktere
+# stehen in INTERVAL_OPTIONS.
 WORLD_INTERVAL = timedelta(minutes=15)
 # Abstand der Pruefung ueber den Status-Endpunkt (is_valid und ID).
 STATUS_INTERVAL = timedelta(hours=24)
@@ -86,7 +83,39 @@ DETAIL_ENDPOINTS: dict[str, tuple[str, int]] = {
 # Beruf, PvP-Brackets ohne Wertung, Erfolge in Classic Era) und fuer die
 # WoW-Marke ohne Sensor: Liefern sie spaeter Daten, entsteht die Entitaet ohne
 # Neuladen. Endpunkte, deren Entitaeten alle deaktiviert sind, bleiben aus.
+# Vorgabe; die Option "Seltene Details" aendert ihn (seit 0.20.0).
 DISCOVERY_MINUTES = 360
+
+# Takte als Optionen des Haupteintrags (seit 0.20.0), in Minuten: Vorgabe,
+# kleinster und groesster Wert. Profil: Blizzard aktualisiert es erst nach dem
+# Ausloggen, haeufiger als alle 15 Minuten bringt selten etwas. "detail" gilt
+# fuer die Endpunkte, die
+# DETAIL_ENDPOINTS mit 60 Minuten fuehrt, "rare" fuer die mit 360 Minuten und
+# fuer Endpunkte ohne Entitaet.
+CONF_PROFILE_MINUTES = "profile_minutes"
+CONF_DETAIL_MINUTES = "detail_minutes"
+CONF_RARE_MINUTES = "rare_minutes"
+INTERVAL_OPTIONS: dict[str, tuple[int, int, int]] = {
+    CONF_PROFILE_MINUTES: (15, 5, 120),
+    CONF_DETAIL_MINUTES: (60, 15, 720),
+    CONF_RARE_MINUTES: (DISCOVERY_MINUTES, 60, 1440),
+}
+# Abschaltbare Gruppen von Detail-Endpunkten. Ausgeschaltet: keine Abfrage
+# und keine Entitaeten dieser Endpunkte; vorhandene bleiben in der Registry
+# (Entitaets-ID, Verlauf) und kommen beim Einschalten zurueck.
+CONF_DISABLED_GROUPS = "disabled_groups"
+ENDPOINT_GROUPS: dict[str, tuple[str, ...]] = {
+    "guild": ("guild", "guild_activity", "guild_roster"),
+    # Titel gehoeren zum Ereignis "Neu gesammelt".
+    "collections": ("mounts", "pets", "toys", "titles"),
+    "achievements": ("achievements",),
+    "game_statistics": ("game_statistics",),
+    "quests": ("quests",),
+    "reputations": ("reputations",),
+    "professions": ("professions",),
+    "raids": ("raids",),
+    "pvp": ("pvp", "pvp_brackets"),
+}
 # Endpunkte, bei denen ein 404 laut Blizzard-Doku etwas Dauerhaftes ueber den
 # Charakter sagt. hunter-pets: "If the character is a hunter, returns a summary
 # of the character's hunter pets. Otherwise, returns an HTTP 404 Not Found

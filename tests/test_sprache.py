@@ -126,7 +126,7 @@ async def test_options_flow_reloads_with_new_language(
     assert result["type"] is FlowResultType.FORM
     assert result["step_id"] == "init"
     # Vorgabe: Sprache der Region
-    (key,) = result["data_schema"].schema
+    (key,) = [k for k in result["data_schema"].schema if k == "language"]
     assert key.default() == "region"
 
     starts = []
@@ -145,7 +145,7 @@ async def test_options_flow_reloads_with_new_language(
         )
         await hass.async_block_till_done()
     assert result["type"] is FlowResultType.CREATE_ENTRY
-    assert entry.options == {"language": "it"}
+    assert entry.options["language"] == "it"
     assert len(starts) == 1
     assert entry.state is config_entries.ConfigEntryState.LOADED
     assert _locales(aioclient_mock, "api.blizzard.com") == {"it_IT"}

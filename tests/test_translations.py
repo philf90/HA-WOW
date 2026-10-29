@@ -29,11 +29,17 @@ def _used_keys(source: str) -> tuple[set[str], set[str]]:
 def test_flow_keys_translated(path: str) -> None:
     source = (BASE / "config_flow.py").read_text()
     main_src, sub_src = source.split("class CharacterSubentryFlow")
+    # Der Optionsdialog hat eigene Fehler unter "options" (seit 0.20.0).
+    before, options_src = main_src.split("class WowOptionsFlow")
+    options_src, after = options_src.split("\nclass ", 1)
+    main_src = before + after
     strings = json.loads((BASE / path).read_text())
 
     main_errors, main_aborts = _used_keys(main_src)
     sub_errors, sub_aborts = _used_keys(sub_src)
-    assert main_errors and sub_errors, "keine Schluessel gefunden"
+    options_errors, _options_aborts = _used_keys(options_src)
+    assert main_errors and sub_errors and options_errors, "keine Schluessel gefunden"
+    assert options_errors <= set(strings["options"]["error"]), path
 
     main = strings["config"]
     sub = strings["config_subentries"]["character"]

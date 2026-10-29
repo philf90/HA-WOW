@@ -6,7 +6,7 @@ import logging
 import re
 import time
 from dataclasses import dataclass, field
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from homeassistant.config_entries import ConfigEntry, ConfigSubentry
@@ -27,20 +27,23 @@ from .api import (
 from .const import (
     CONF_CHARACTER,
     CONF_CHARACTER_ID,
+    CONF_DETAIL_MINUTES,
+    CONF_DISABLED_GROUPS,
     CONF_GAME_VERSION,
     CONF_NAMESPACE_SUFFIX,
+    CONF_PROFILE_MINUTES,
+    CONF_RARE_MINUTES,
     CONF_REALM,
     CONF_REGION,
     DETAIL_ENDPOINTS,
-    DETAIL_INTERVAL,
-    DISCOVERY_MINUTES,
     DOMAIN,
+    ENDPOINT_GROUPS,
     GAME_VERSIONS,
+    INTERVAL_OPTIONS,
     NOT_FOUND_IS_FINAL,
     NOT_FOUND_LIMIT,
     PVP_BRACKETS,
     STATUS_INTERVAL,
-    UPDATE_INTERVAL,
     WORLD_INTERVAL,
 )
 
@@ -112,6 +115,40 @@ def config_snapshot(entry: ConfigEntry) -> Any:
             for subentry_id, subentry in entry.subentries.items()
         },
         dict(entry.options),
+    )
+
+
+@dataclass(frozen=True)
+class PollSettings:
+    """Takte in Minuten und ausgeschaltete Endpunkte, aus den Optionen."""
+
+    profile: int
+    detail: int
+    rare: int
+    disabled: frozenset[str] = frozenset()
+
+    def minutes(self, default: int) -> int:
+        """Abstand fuer einen Endpunkt mit Vorgabe default aus DETAIL_ENDPOINTS."""
+        return (
+            self.detail
+            if default <= INTERVAL_OPTIONS[CONF_DETAIL_MINUTES][0]
+            else self.rare
+        )
+
+
+def poll_settings(entry: ConfigEntry) -> PollSettings:
+    """Takte und Gruppen aus den Optionen des Haupteintrags, sonst die Vorgaben."""
+    options = entry.options
+    minutes = {
+        key: int(options.get(key, default))
+        for key, (default, _low, _high) in INTERVAL_OPTIONS.items()
+    }
+    groups = options.get(CONF_DISABLED_GROUPS) or []
+    return PollSettings(
+        profile=minutes[CONF_PROFILE_MINUTES],
+        detail=minutes[CONF_DETAIL_MINUTES],
+        rare=minutes[CONF_RARE_MINUTES],
+        disabled=frozenset(e for g in groups for e in ENDPOINT_GROUPS.get(g, ())),
     )
 
 
@@ -218,7 +255,7 @@ class WowCoordinator(_CharacterMixin, DataUpdateCoordinator[dict[str, Any]]):
             _LOGGER,
             config_entry=entry,
             name=f"{DOMAIN} {subentry.title}",
-            update_interval=UPDATE_INTERVAL,
+            update_interval=timedelta(minutes=poll_settings(entry).profile),
         )
         self.client = client
         self._init_character(subentry)
@@ -390,8 +427,9 @@ class WowDetailCoordinator(_CharacterMixin, DataUpdateCoordinator[dict[str, Any]
             _LOGGER,
             config_entry=entry,
             name=f"{DOMAIN} {subentry.title} Details",
-            update_interval=DETAIL_INTERVAL,
+            update_interval=timedelta(minutes=poll_settings(entry).detail),
         )
+        self.settings = poll_settings(entry)
         self.client = client
         self._init_character(subentry)
         self._profile = profile
@@ -409,14 +447,14 @@ class WowDetailCoordinator(_CharacterMixin, DataUpdateCoordinator[dict[str, Any]
         # Medien-ID eines Items -> URL des Symbols; Symbole aendern sich nicht.
         self._item_icons: dict[int, str] = {}
         # Brackets mit Sensor; setzt sensor.py beim Anlegen, None bis dahin.
-        # Brackets ohne Sensor fragt die Integration nur alle DISCOVERY_MINUTES.
+        # Brackets ohne Sensor fragt die Integration nur im seltenen Takt ab.
         self.pvp_bracket_sensors: set[str] | None = None
         # Bracket -> letzte Abfrage, nur fuer Brackets ohne Sensor.
         self._bracket_checked: dict[str, float] = {}
         # True, sobald alle Plattformen ihre Entitaeten angelegt haben (setzt
         # __init__.py). Danach fragt die Integration Endpunkte ohne Entitaet
-        # nur noch alle DISCOVERY_MINUTES ab; neue Entitaeten legen die
-        # Plattformen aus den Antworten an.
+        # nur noch im seltenen Takt ab; neue Entitaeten legen die Plattformen
+        # aus den Antworten an.
         self.entities_ready = False
         # Talentbaeume der Spezialisierung je Pfad; statisch bis zum Neuladen.
         self._talent_trees: dict[str, dict[str, Any]] = {}
@@ -440,6 +478,10 @@ class WowDetailCoordinator(_CharacterMixin, DataUpdateCoordinator[dict[str, Any]
         entry = ent_reg.async_get(entity_id) if entity_id else None
         return entry is not None and entry.disabled_by is None
 
+    def key_allowed(self, key: str) -> bool:
+        """Entitaet anlegen? Nicht, wenn ihr Endpunkt in einer ausgeschalteten Gruppe ist."""
+        return endpoint_for_key(key) not in self.settings.disabled
+
     def needed_endpoints(self) -> set[str]:
         """Endpunkte, die abgefragt werden (siehe endpoint_intervals)."""
         return set(self.endpoint_intervals())
@@ -447,10 +489,11 @@ class WowDetailCoordinator(_CharacterMixin, DataUpdateCoordinator[dict[str, Any]
     def endpoint_intervals(self) -> dict[str, int]:
         """Endpunkt -> Mindestabstand in Minuten.
 
-        Mit aktiver Entitaet der Abstand aus DETAIL_ENDPOINTS. Ohne Entitaet
-        DISCOVERY_MINUTES, vor dem Anlegen der Entitaeten ebenfalls der
-        normale Abstand: Ob eine Entitaet entsteht, haengt an der Antwort.
-        Endpunkte, deren Entitaeten alle deaktiviert sind, fehlen.
+        Mit aktiver Entitaet der Takt "Details" oder "Seltene Details" je
+        nach Vorgabe in DETAIL_ENDPOINTS. Ohne Entitaet der seltene Takt, vor
+        dem Anlegen der Entitaeten der normale: Ob eine Entitaet entsteht,
+        haengt an der Antwort. Es fehlen Endpunkte, deren Entitaeten alle
+        deaktiviert sind, und Endpunkte ausgeschalteter Gruppen.
         """
         ent_reg = er.async_get(self.hass)
         prefix = f"{self.subentry.unique_id}-"
@@ -469,13 +512,16 @@ class WowDetailCoordinator(_CharacterMixin, DataUpdateCoordinator[dict[str, Any]
             registered |= endpoints
             if entry.disabled_by is None:
                 enabled |= endpoints
-        intervals = {e: DETAIL_ENDPOINTS[e][1] for e in enabled}
+        settings = self.settings
+        intervals = {e: settings.minutes(DETAIL_ENDPOINTS[e][1]) for e in enabled}
         for endpoint in set(DETAIL_ENDPOINTS) - registered:
             intervals[endpoint] = (
-                DISCOVERY_MINUTES
+                settings.rare
                 if self.entities_ready
-                else DETAIL_ENDPOINTS[endpoint][1]
+                else settings.minutes(DETAIL_ENDPOINTS[endpoint][1])
             )
+        for endpoint in settings.disabled:
+            intervals.pop(endpoint, None)
         if not self.mythic_plus:
             intervals.pop("mythic_season", None)
         return {
@@ -588,7 +634,7 @@ class WowDetailCoordinator(_CharacterMixin, DataUpdateCoordinator[dict[str, Any]
         """Je Bracket die Antwort; None, wenn die API 404 meldet.
 
         Vor dem Anlegen der Sensoren alle aus PVP_BRACKETS, danach die mit
-        Sensor bei jeder Abfrage und die ohne Sensor alle DISCOVERY_MINUTES.
+        Sensor bei jeder Abfrage und die ohne Sensor im seltenen Takt.
         Uebersprungene fehlen in der Antwort; sie haben keinen Sensor, denn
         ein Bracket mit Daten bekommt ihn gleich nach der Abfrage. Andere
         Fehler gelten fuer den ganzen Endpunkt (alter Stand bleibt).
@@ -601,7 +647,7 @@ class WowDetailCoordinator(_CharacterMixin, DataUpdateCoordinator[dict[str, Any]
                 if (
                     wanted is not None
                     and last is not None
-                    and now - last < DISCOVERY_MINUTES * 60 - _TOLERANCE
+                    and now - last < self.settings.rare * 60 - _TOLERANCE
                 ):
                     continue
                 self._bracket_checked[bracket] = now
@@ -902,8 +948,8 @@ class WowWorldCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self.mythic_plus: bool = GAME_VERSIONS[game_version]["mythic_plus"]
         self._fetched: dict[str, float] = {}
         # Gibt es den Sensor "WoW-Marke"? Setzt sensor.py beim Anlegen; None
-        # bis dahin. Ohne Sensor fragt die Spielwelt die WoW-Marke nur alle
-        # DISCOVERY_MINUTES ab; liefert sie einen Preis, entsteht der Sensor.
+        # bis dahin. Ohne Sensor fragt die Spielwelt die WoW-Marke nur im
+        # seltenen Takt ab; liefert sie einen Preis, entsteht der Sensor.
         self.token_sensor: bool | None = None
         # Realm-Slug -> (Anzeigename, ID des verbundenen Realms)
         self._realm_info: dict[str, tuple[str, int]] = {}
@@ -927,7 +973,8 @@ class WowWorldCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         data: dict[str, Any] = dict(self.data or {"realms": {}})
         data["realms"] = dict(data.get("realms") or {})
         parts: list[tuple[str, Any]] = []
-        token_every = DISCOVERY_MINUTES if self.token_sensor is False else 60
+        rare = poll_settings(self.config_entry).rare
+        token_every = rare if self.token_sensor is False else 60
         if self._due("token", token_every, now):
             parts.append(("token", self._token))
         if self.mythic_plus and self._due("period", 60, now):

@@ -442,7 +442,10 @@ async def async_setup_entry(
     runtime = entry.runtime_data
     for subentry_id, coordinator in runtime.coordinators.items():
         detail = runtime.details[subentry_id]
-        adder = EntityAdder(partial(async_add_entities, config_subentry_id=subentry_id))
+        adder = EntityAdder(
+            partial(async_add_entities, config_subentry_id=subentry_id),
+            detail.key_allowed,
+        )
 
         @callback
         def update(
