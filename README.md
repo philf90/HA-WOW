@@ -439,8 +439,10 @@ entity: sensor.mein_charakter_level   # eine beliebige Entität des Charakters
 
 Die Integration liefert eine eigene Karte mit, ohne zusätzliches HACS-Paket und
 ohne Eintrag unter den Dashboard-Ressourcen: Home Assistant lädt sie mit dem
-Frontend. Nach dem Update einmal die Seite neu laden. Sie zeichnet Klassen-,
-Spezialisierungs- und aktiven Heldenbaum aus dem Sensor „Talentbaum“ (Retail):
+Frontend. Nach dem Update einmal die Seite neu laden (fehlt die Karte danach,
+siehe [Ändern, Hinweise und Diagnose](#ändern-hinweise-und-diagnose)). Sie
+zeichnet Klassen-, Spezialisierungs- und aktiven Heldenbaum aus dem Sensor
+„Talentbaum“ (Retail):
 
 ```yaml
 type: custom:wow-talent-tree-card
@@ -488,6 +490,16 @@ trees: [class, spec, hero]
   Assistant mit dem Charakter. Spielwelt-Geräte und Realm-Entitäten ohne
   Charakter entfernt die Integration beim nächsten Start. Übrig gebliebene
   Geräte lassen sich auf ihrer Geräteseite löschen.
+- **Karte fehlt nach einem Update:** Zeigt das Dashboard statt einer Karte
+  „Custom element doesn't exist: wow-talent-tree-card“ (oder
+  `wow-arsenal-card`), hat die App oder der Browser die Datei der Karte nicht
+  geladen. Ein Fehler beim Laden steht nur in der Konsole des Browsers („Failed
+  to load extra module …“), nicht im Log von Home Assistant. Abhilfe: in der
+  Companion App den Frontend-Cache zurücksetzen (Einstellungen der App,
+  englisch „Reset frontend cache“), im Browser die Seite ohne Cache neu laden
+  (Strg+Umschalt+R). Live so aufgetreten nach dem Update auf 0.15.2 in der
+  iOS-App; die Datei der Karte war unverändert, nach dem Zurücksetzen des
+  Caches erschien die Karte wieder.
 - **Diagnose:** Einstellungen → Geräte & Dienste → WoW Charakter → ⋮ →
   **Diagnose herunterladen** liefert die API-Antworten ohne Client-ID und Secret.
   Damit lassen sich Feldnamen prüfen, wenn ein Wert fehlt. Vergebene Talente
