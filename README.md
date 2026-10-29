@@ -11,7 +11,7 @@ Home-Assistant-Integration für World-of-Warcraft-Charaktere: Level, Itemlevel,
 Ausrüstung, Raid- und Mythic+-Fortschritt, Berufe, Ruf, Erfolge und mehr als
 Sensoren, dazu WoW-Marke, wöchentlicher Reset und Serverstatus. Die Daten kommen
 aus der offiziellen Battle.net API. Unterstützt Retail, WoW Classic (Era,
-Progression, Anniversary) und ist für WoW Forever vorbereitet. Version 0.15.2.
+Progression, Anniversary) und ist für WoW Forever vorbereitet. Version 0.16.0.
 
 Zwei Dashboard-Karten liefert die Integration selbst mit: „WoW Arsenal“
 (`custom:wow-arsenal-card`) und „WoW Talentbaum“ (`custom:wow-talent-tree-card`,
@@ -435,6 +435,10 @@ entity: sensor.mein_charakter_level   # eine beliebige Entität des Charakters
 - Ganzkörperbild mit den 18 Plätzen in der Reihenfolge des Arsenals: Symbol mit
   Rand in der Qualitätsfarbe, Itemlevel daneben (ohne Itemlevel leer), ein
   Amber-Punkt bei leerem Sockel, leere Plätze gestrichelt.
+- Zusatzplätze außerhalb von Retail (seit 0.16.0): Jeder Sensor
+  „Ausrüstung {Platz}“ des Charakters (siehe [WoW Classic](#wow-classic)) steht
+  in der Waffenreihe hinter Waffen- und Schildhand. Ohne Zusatzplatz bleibt die
+  Waffenreihe wie bisher.
 - Mit der Maus zeigt ein Platz den Item-Tooltip; Antippen öffnet ihn als
   Fenster in der Karte (Escape oder ✕ schließt), browser_mod ist nicht nötig.
 - Kennzahlen: Raid in der höchsten Schwierigkeit mit Kills, Anzahl der Erfolge
@@ -586,7 +590,8 @@ Daten liefert:
   kommen.
 - Ausrüstungsplätze, die Retail nicht kennt, bekommen einen eigenen Sensor
   „Ausrüstung {Platz}“ mit dem Namen des Platzes aus der API, falls die Antwort
-  solche Plätze enthält.
+  solche Plätze enthält. Die Karte „WoW Arsenal“ zeigt sie seit 0.16.0 in der
+  Waffenreihe.
 
 Kommt ein Wert erst später dazu (z. B. erste Erfolge, ein belegter
 Zusatzplatz), erscheint sein Sensor nach dem nächsten Neuladen der Integration.
@@ -645,6 +650,15 @@ Automatische Tests laufen gegen Home Assistant 2026.2.3; live geprüft wurde unt
 Home Assistant 2026.10.4 mit Retail-Charakteren der Region EU, seit 0.11.2 auch
 mit einem Classic-Era-Charakter (siehe [WoW Classic](#wow-classic)).
 
+- **0.16.x:** 182 automatische Tests. 0.16.0: keine neuen Tests, geändert
+  ist nur die Karte „WoW Arsenal“ (JavaScript): Zusatzplätze außerhalb von
+  Retail in der Waffenreihe. In Chromium mit erfundenen Daten gezeichnet:
+  Retail 200 und 380 Pixel breit pixelgleich mit 0.15.2; Classic Era mit
+  einem belegten und einem leeren Zusatzplatz (380 Pixel eine Reihe, 200
+  Pixel zwei Reihen), Classic Progression mit Itemlevel; Fenster per
+  Antippen auch für den Zusatzplatz, ohne Fehler in der Konsole. **Nicht live
+  geprüft:** Welche Zusatzplätze Classic liefert, ist nicht dokumentiert, und
+  die Classic-Charaktere der Live-Instanz haben derzeit keinen.
 - **0.15.x:** 182 automatische Tests. 0.15.2: keine neuen Tests, geändert
   ist nur die Karte (JavaScript). Die Kachel „Erfolge“ zeigt die Anzahl der
   Erfolge statt der Erfolgspunkte. In Chromium mit erfundenen Daten 380 und
