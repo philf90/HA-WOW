@@ -35,13 +35,14 @@ from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.typing import ConfigType
 from homeassistant.loader import async_get_integration
 
-from .api import BattleNetAuthError, BattleNetClient, BattleNetError
+from .api import BattleNetAuthError, BattleNetClient, BattleNetError, api_language
 from .const import (
     CONF_CHARACTER,
     CONF_CHARACTER_ID,
     CONF_CLIENT_ID,
     CONF_CLIENT_SECRET,
     CONF_GAME_VERSION,
+    CONF_LANGUAGE,
     CONF_NAMESPACE_SUFFIX,
     CONF_REALM,
     CONF_REGION,
@@ -112,6 +113,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: WowConfigEntry) -> bool:
         async_get_clientsession(hass),
         entry.data[CONF_CLIENT_ID],
         entry.data[CONF_CLIENT_SECRET],
+        api_language(entry.options.get(CONF_LANGUAGE), hass.config.language),
     )
     # Ohne Token kommt keine Abfrage durch. Ein erfolgreicher Start ohne Daten
     # liesse Entitaeten weg, die nur aus der ersten Antwort entstehen (Berufe,

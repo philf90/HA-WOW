@@ -125,6 +125,28 @@ EQUIPMENT_SLOTS = (
 )
 REQUEST_TIMEOUT = 15
 
+# Sprache der Texte aus der API (Option am Haupteintrag). "region": je Region
+# die Sprache aus REGIONS wie vor 0.19.0; "home_assistant": die Sprache von
+# Home Assistant; sonst eine Sprache aus LANGUAGES.
+CONF_LANGUAGE = "language"
+LANGUAGE_REGION = "region"
+LANGUAGE_HOME_ASSISTANT = "home_assistant"
+# Sprache -> Locale je Region. Nur Locales, die sowohl @blizzard-api/core 4.2.0
+# (_regionLocaleMap) als auch blizzard.js 5.0.0 (endpoints) fuer die Region
+# nennen (geprueft 29.10.2026). pt_PT fuer EU nennt nur blizzard.js und fehlt
+# deshalb. Kennt eine Region die Sprache nicht, gilt die Sprache der Region.
+LANGUAGES: dict[str, dict[str, str]] = {
+    "de": {"eu": "de_DE"},
+    "en": {"eu": "en_GB", "us": "en_US", "kr": "en_US", "tw": "en_US"},
+    "es": {"eu": "es_ES", "us": "es_MX"},
+    "fr": {"eu": "fr_FR"},
+    "it": {"eu": "it_IT"},
+    "pt": {"us": "pt_BR"},
+    "ru": {"eu": "ru_RU"},
+    "ko": {"kr": "ko_KR"},
+    "zh": {"tw": "zh_TW"},
+}
+
 REGIONS = {
     "eu": {
         "api": "https://eu.api.blizzard.com",

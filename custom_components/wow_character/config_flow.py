@@ -29,6 +29,7 @@ from homeassistant.config_entries import (
     ConfigSubentry,
     ConfigSubentryData,
     ConfigSubentryFlow,
+    OptionsFlow,
     SubentryFlowResult,
 )
 from homeassistant.core import callback
@@ -57,6 +58,7 @@ from .api import (
     BattleNetForbidden,
     BattleNetLoginError,
     BattleNetNotFound,
+    api_language,
 )
 from .const import (
     AUTHORIZE_URL,
@@ -66,11 +68,15 @@ from .const import (
     CONF_CLIENT_ID,
     CONF_CLIENT_SECRET,
     CONF_GAME_VERSION,
+    CONF_LANGUAGE,
     CONF_NAMESPACE_SUFFIX,
     CONF_REALM,
     CONF_REGION,
     DOMAIN,
     GAME_VERSIONS,
+    LANGUAGE_HOME_ASSISTANT,
+    LANGUAGE_REGION,
+    LANGUAGES,
     LOGIN_SCOPE,
     MAIN_TITLE,
     REGIONS,
@@ -105,6 +111,24 @@ CHARACTER_BASE_SCHEMA = vol.Schema(
         ),
     }
 )
+
+
+OPTIONS_SCHEMA = vol.Schema(
+    {
+        vol.Required(CONF_LANGUAGE, default=LANGUAGE_REGION): SelectSelector(
+            SelectSelectorConfig(
+                options=[LANGUAGE_REGION, LANGUAGE_HOME_ASSISTANT, *LANGUAGES],
+                mode=SelectSelectorMode.DROPDOWN,
+                translation_key=CONF_LANGUAGE,
+            )
+        ),
+    }
+)
+
+
+def _entry_language(hass: Any, entry: ConfigEntry) -> str | None:
+    """Sprache der API laut Optionen des Haupteintrags."""
+    return api_language(entry.options.get(CONF_LANGUAGE), hass.config.language)
 
 
 async def _validate_credentials(hass, client_id: str, client_secret: str) -> str | None:
@@ -150,6 +174,10 @@ class _LoginSteps:
 
     def _existing_characters(self) -> list[ConfigSubentry]:
         return []
+
+    def _login_language(self) -> str | None:
+        """Sprache fuer die Charaktersuche; beim ersten Einrichten die der Region."""
+        return None
 
     def _finish(self, picked: list[dict[str, Any]]) -> Any:
         raise NotImplementedError
@@ -197,6 +225,7 @@ class _LoginSteps:
             async_get_clientsession(self.hass),
             self._credentials[CONF_CLIENT_ID],
             self._credentials[CONF_CLIENT_SECRET],
+            self._login_language(),
         )
         state = self._login.get("state") or {}
         try:
@@ -270,6 +299,11 @@ class WowCharacterConfigFlow(_LoginSteps, ConfigFlow, domain=DOMAIN):
         # Nur im Hilfsdialog: der Dialog "Charakter hinzufuegen", an den der
         # Ruecksprung weitergeht.
         self._relay_for: str | None = None
+
+    @staticmethod
+    @callback
+    def async_get_options_flow(config_entry: ConfigEntry) -> OptionsFlow:
+        return WowOptionsFlow()
 
     @classmethod
     @callback
@@ -383,6 +417,11 @@ class WowCharacterConfigFlow(_LoginSteps, ConfigFlow, domain=DOMAIN):
                 _LOGGER.debug("Dialog %s ist schon geschlossen", self._relay_for)
         return self.async_abort(reason="relay_done")
 
+    def _login_language(self) -> str | None:
+        if self.source != SOURCE_RECONFIGURE:
+            return None
+        return _entry_language(self.hass, self._get_reconfigure_entry())
+
     def _existing_characters(self) -> list[ConfigSubentry]:
         if self.source != SOURCE_RECONFIGURE:
             return []
@@ -462,6 +501,26 @@ def _move_world_unique_ids(hass: Any, entry: ConfigEntry, client_id: str) -> Non
         if ent_reg.async_get_entity_id(reg_entry.domain, DOMAIN, unique_id):
             continue
         ent_reg.async_update_entity(reg_entry.entity_id, new_unique_id=unique_id)
+
+
+class WowOptionsFlow(OptionsFlow):
+    """Optionen des Haupteintrags: Sprache der Texte aus der API.
+
+    Speichern laedt den Eintrag neu (Stand mit Optionen, siehe
+    config_snapshot); nachgeschlagene Namen kommen dann in der neuen Sprache.
+    """
+
+    async def async_step_init(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        if user_input is not None:
+            return self.async_create_entry(data=user_input)
+        return self.async_show_form(
+            step_id="init",
+            data_schema=self.add_suggested_values_to_schema(
+                OPTIONS_SCHEMA, self.config_entry.options
+            ),
+        )
 
 
 class _LoginUrl(LocalOAuth2Implementation):
@@ -703,6 +762,9 @@ class CharacterSubentryFlow(_LoginSteps, ConfigSubentryFlow):
     def async_remove(self) -> None:
         """Dialog geschlossen oder fertig: Hilfsdialog mit beenden."""
         self._abort_relay()
+
+    def _login_language(self) -> str | None:
+        return _entry_language(self.hass, self._get_entry())
 
     def _existing_characters(self) -> list[ConfigSubentry]:
         return [
