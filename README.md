@@ -72,11 +72,11 @@ Retail), ohne zusätzliche HACS-Karten oder Dashboard-Ressourcen.
      Instanz. Details und Fehlerbilder unter
      [Battle.net-Anmeldung](#battlenet-anmeldung-seit-0170).
    - **Ohne Anmeldung fortfahren:** Der Eintrag entsteht ohne Charaktere. Diese
-     dann von Hand anlegen: am Eintrag „Battle.net API“ → **Charakter
-     hinzufügen**, zuerst Region und Spielversion (Retail, Classic Era, Classic
-     Progression, Classic Anniversary oder Forever), dann Realm aus der Liste
-     wählen und Charakternamen eingeben. Von Hand geht auch für Charaktere
-     anderer Konten.
+     dann am Eintrag „Battle.net API“ über **Charakter hinzufügen** anlegen,
+     per Battle.net-Anmeldung oder **Von Hand eingeben**: zuerst Region und
+     Spielversion (Retail, Classic Era, Classic Progression, Classic
+     Anniversary oder Forever), dann Realm aus der Liste wählen und
+     Charakternamen eingeben. Von Hand geht auch für Charaktere anderer Konten.
 
 Danach ist jeder Charakter ein eigenes Gerät mit seinen Sensoren; die Werte für
 Region und Realm stehen im Gerät „WoW-Spielwelt EU“ (bzw. US, KR, TW).
@@ -151,12 +151,14 @@ zurück auf 0.16.x geht deshalb ohne Backup. Neu ist nur, was du nutzen kannst:
 
 1. Im Blizzard-Client unter **Manage Client** die Redirect-URL
    `https://my.home-assistant.io/redirect/oauth` ergänzen und speichern.
-2. Am Eintrag „Battle.net API“ ⋮ → **Neu konfigurieren** → **Charaktere
-   abgleichen**, anmelden und die noch fehlenden Charaktere ankreuzen. Bereits
-   eingerichtete erscheinen nicht in der Liste.
+2. Am Eintrag „Battle.net API“ → **Charakter hinzufügen** → **Mit Battle.net
+   anmelden und Charaktere wählen**, anmelden und die noch fehlenden
+   Charaktere ankreuzen. Bereits eingerichtete erscheinen nicht in der Liste.
 
-„Neu konfigurieren“ ist seit 0.17.0 ein Menü; das Ändern von Client-ID oder
-Secret steht dort unter **Client-ID oder Secret ändern**.
+„Charakter hinzufügen“ ist seit 0.17.1 ein Menü; das bisherige Formular steht
+dort unter **Von Hand eingeben**. „Neu konfigurieren“ ist ebenfalls ein Menü:
+**Charaktere abgleichen** (derselbe Ablauf) oder **Client-ID oder Secret
+ändern**.
 
 **Update von 0.1.x:** Beim ersten Start übernimmt die Integration (ab 0.2.0) die
 bisherigen Einträge (einer je Charakter) automatisch: Einträge mit derselben
@@ -172,8 +174,10 @@ laufenden Abfragen nutzen weiter Client-ID und Secret.
 
 **Neue Charaktere abgleichen:**
 
-1. Einstellungen → Geräte & Dienste → WoW Charakter → am Eintrag „Battle.net
-   API“ ⋮ → **Neu konfigurieren** → **Charaktere abgleichen**.
+1. Einstellungen → Geräte & Dienste → WoW Charakter → **Charakter
+   hinzufügen** → **Mit Battle.net anmelden und Charaktere wählen**. Derselbe
+   Ablauf steht auch am Eintrag „Battle.net API“ ⋮ → **Neu konfigurieren** →
+   **Charaktere abgleichen**.
 2. Im geöffneten Fenster bei Battle.net anmelden und den Zugriff auf die
    World-of-Warcraft-Charaktere erlauben.
 3. Die Liste zeigt nur Charaktere, die noch nicht eingerichtet sind. Ankreuzen,
@@ -186,13 +190,19 @@ nicht behält (siehe unten). Nach einem neuen Charakter im Spiel: einmal auslogg
 
 **Einzelheiten:**
 
-- **Wo:** beim Einrichten nach Client-ID und Secret, später am Eintrag
-  „Battle.net API“ ⋮ → **Neu konfigurieren** → **Charaktere abgleichen**. Der
-  Abgleich bietet nur Charaktere an, die noch nicht eingerichtet sind; ein
-  eingerichteter Charakter wird an seiner ID erkannt, ältere Einträge ohne ID am
-  Namen. Ein umbenannter Charakter erscheint deshalb nicht doppelt. Der Dialog
-  „Charakter hinzufügen“ bleibt von Hand: Home Assistant setzt nach der
-  Anmeldung nur Dialoge des Haupteintrags fort.
+- **Wo:** beim Einrichten nach Client-ID und Secret, später über
+  **Charakter hinzufügen** oder am Eintrag „Battle.net API“ ⋮ → **Neu
+  konfigurieren** → **Charaktere abgleichen**. Die Liste bietet nur Charaktere
+  an, die noch nicht eingerichtet sind; ein eingerichteter Charakter wird an
+  seiner ID erkannt, ältere Einträge ohne ID am Namen. Ein umbenannter
+  Charakter erscheint deshalb nicht doppelt.
+- **Hilfsdialog:** Nach der Anmeldung setzt Home Assistant über
+  `/auth/external/callback` nur Dialoge des Haupteintrags fort, nicht den
+  Dialog „Charakter hinzufügen“. Dafür startet die Integration im Hintergrund
+  einen Hilfsdialog am Haupteintrag, der den Rücksprung annimmt und
+  weitergibt (seit 0.17.1). Er läuft mit der Quelle „user“ und erscheint
+  deshalb nicht unter „Entdeckt“; schließt du „Charakter hinzufügen“, endet er
+  mit.
 - **Redirect-URL:** Blizzard leitet nach der Anmeldung nur an eine Adresse
   zurück, die im API-Client eingetragen ist; sonst zeigt Blizzard „400 –
   Umleitungs-URL ist nicht gültig“. Mit My Home Assistant (Teil von
@@ -642,8 +652,8 @@ trees: [class, spec, hero]
 - **Neues Secret:** am Eintrag „Battle.net API“ ⋮ → **Neu konfigurieren** →
   **Client-ID oder Secret ändern**. Lehnt Blizzard die Zugangsdaten ab, fragt
   Home Assistant von selbst nach neuen.
-- **Neue Charaktere:** am Eintrag „Battle.net API“ ⋮ → **Neu konfigurieren** →
-  **Charaktere abgleichen** (siehe [Battle.net-Anmeldung](#battlenet-anmeldung-seit-0170)).
+- **Neue Charaktere:** **Charakter hinzufügen** → **Mit Battle.net anmelden und
+  Charaktere wählen** (siehe [Battle.net-Anmeldung](#battlenet-anmeldung-seit-0170)).
 - **Charakter umbenannt oder transferiert:** am Charakter unter dem Eintrag
   „Battle.net API“ ⋮ → **Neu konfigurieren**, dann Realm und Namen ändern. Gerät,
   Entitäts-IDs und Verlauf bleiben; die Entitäts-IDs tragen weiter den alten
@@ -806,8 +816,15 @@ Automatische Tests laufen gegen Home Assistant 2026.2.3; live geprüft wurde unt
 Home Assistant 2026.10.4 mit Retail-Charakteren der Region EU, seit 0.11.2 auch
 mit einem Classic-Era-Charakter (siehe [WoW Classic](#wow-classic)).
 
-- **0.17.x:** 206 automatische Tests. 0.17.1: 4 neue Tests aus dem Live-Test:
-  Abgleich mit drei Charakteren richtet alle ein und lädt nur einmal neu; ein
+- **0.17.x:** 210 automatische Tests. 0.17.1: 4 Tests für die Anmeldung aus
+  „Charakter hinzufügen“ (Hilfsdialog gibt den Rücksprung weiter und ist nicht
+  unter „Entdeckt“, abgelehnte Anmeldung, Schließen beendet den Hilfsdialog)
+  und für einen während des Starts gelöschten Charakter (keine Meldung
+  „unknown subentry“). Gegenprobe: fünf Teile einzeln ausgebaut (keine
+  Weitergabe, eigene Quelle statt „user“, kein Beenden beim Schließen,
+  eingerichtete Charaktere nicht erkannt, gelöschte Charaktere trotzdem
+  eingerichtet), jedes Mal schlug ein Test fehl. Dazu 4 Tests aus dem
+  Live-Test: Abgleich mit drei Charakteren richtet alle ein und lädt nur einmal neu; ein
   während eines Neustarts angelegter Charakter wird danach eingerichtet; jede
   Änderung lädt neu, auch zurück zu einem früheren Stand; HTTP 403 der
   Forever-Kandidaten zählt nicht als Fehlabfrage. Gegenprobe: vier Teile der

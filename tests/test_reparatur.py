@@ -209,6 +209,10 @@ async def test_new_character_after_rename_gets_own_unique_id(
     result = await hass.config_entries.subentries.async_init(
         (entry.entry_id, "character"), context={"source": config_entries.SOURCE_USER}
     )
+    # Menue "Charaktere hinzufuegen": von Hand eingeben.
+    result = await hass.config_entries.subentries.async_configure(
+        result["flow_id"], {"next_step_id": "manual"}
+    )
     result = await hass.config_entries.subentries.async_configure(
         result["flow_id"], {"region": "eu", "game_version": "retail"}
     )

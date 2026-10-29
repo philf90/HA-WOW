@@ -145,6 +145,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: WowConfigEntry) -> bool:
         detail = WowDetailCoordinator(hass, entry, client, subentry, coordinator, world)
         await detail.async_refresh()
         runtime.details[subentry_id] = detail
+    # Waehrend der Abfragen geloeschte Charaktere nicht mehr einrichten; Home
+    # Assistant lehnt Entitaeten fuer unbekannte Untereintraege ab (Live-Test
+    # 29.10.2026: "Can't add entities to unknown subentry").
+    for subentry_id in runtime.coordinators.keys() - entry.subentries.keys():
+        del runtime.coordinators[subentry_id]
+        del runtime.details[subentry_id]
     entry.runtime_data = runtime
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
