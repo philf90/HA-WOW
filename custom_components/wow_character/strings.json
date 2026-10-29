@@ -151,14 +151,25 @@
     "step": {
       "init": {
         "title": "Options",
-        "description": "Language of the texts from the Battle.net API, e.g. names of classes, items, raids and realms. Entity names follow the language of Home Assistant. If a region does not offer the chosen language, the region's language applies. Saving reloads the integration.",
+        "description": "Language of the texts from the Battle.net API, how often the integration queries it, and which groups it leaves out. Entity names follow the language of Home Assistant. Saving reloads the integration.",
         "data": {
-          "language": "Language of the API texts"
+          "language": "Language of the API texts",
+          "profile_minutes": "Profile (minutes)",
+          "detail_minutes": "Details (minutes)",
+          "rare_minutes": "Rare details (minutes)",
+          "disabled_groups": "Switched-off groups"
         },
         "data_description": {
-          "language": "\"Region language\" keeps the previous behaviour: German in Europe, English in the Americas, Korean in Korea, Traditional Chinese in Taiwan."
+          "language": "\"Region language\" keeps the previous behaviour: German in Europe, English in the Americas, Korean in Korea, Traditional Chinese in Taiwan.",
+          "profile_minutes": "Level, item level, Mythic+ rating and other profile values. Default 15. Blizzard updates the profile only after logging out.",
+          "detail_minutes": "Equipment, raids, Mythic+ runs, PvP, achievements, character stats, guild activity, specialization. Default 60.",
+          "rare_minutes": "Professions, collections, reputation, titles, quests, game statistics, guild and its members, images, appearance, hunter pets; also checking for new entities. Default 360 (6 hours). At least as long as Details.",
+          "disabled_groups": "No queries and no entities for these groups. Existing entities keep their entity IDs and history and come back when switched on again."
         }
       }
+    },
+    "error": {
+      "rare_below_detail": "Rare details must not be queried more often than Details."
     }
   },
   "selector": {
@@ -192,6 +203,19 @@
         "ru": "Русский (Europe)",
         "ko": "한국어 (Korea)",
         "zh": "繁體中文 (Taiwan)"
+      }
+    },
+    "groups": {
+      "options": {
+        "guild": "Guild (members, activities)",
+        "collections": "Collections and titles (mounts, pets, toys, event New collectible)",
+        "achievements": "Achievements (event New achievement)",
+        "game_statistics": "Game statistics",
+        "quests": "Completed quests",
+        "reputations": "Reputation",
+        "professions": "Professions",
+        "raids": "Raids (event Boss killed)",
+        "pvp": "PvP (honor, brackets)"
       }
     }
   },

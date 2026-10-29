@@ -42,6 +42,9 @@ from homeassistant.helpers.config_entry_oauth2_flow import (
     async_get_redirect_uri,
 )
 from homeassistant.helpers.selector import (
+    NumberSelector,
+    NumberSelectorConfig,
+    NumberSelectorMode,
     SelectOptionDict,
     SelectSelector,
     SelectSelectorConfig,
@@ -67,13 +70,18 @@ from .const import (
     CONF_CHARACTERS,
     CONF_CLIENT_ID,
     CONF_CLIENT_SECRET,
+    CONF_DETAIL_MINUTES,
+    CONF_DISABLED_GROUPS,
     CONF_GAME_VERSION,
     CONF_LANGUAGE,
     CONF_NAMESPACE_SUFFIX,
+    CONF_RARE_MINUTES,
     CONF_REALM,
     CONF_REGION,
     DOMAIN,
+    ENDPOINT_GROUPS,
     GAME_VERSIONS,
+    INTERVAL_OPTIONS,
     LANGUAGE_HOME_ASSISTANT,
     LANGUAGE_REGION,
     LANGUAGES,
@@ -120,6 +128,27 @@ OPTIONS_SCHEMA = vol.Schema(
                 options=[LANGUAGE_REGION, LANGUAGE_HOME_ASSISTANT, *LANGUAGES],
                 mode=SelectSelectorMode.DROPDOWN,
                 translation_key=CONF_LANGUAGE,
+            )
+        ),
+        # Takte in Minuten mit Vorgabe und Grenzen aus INTERVAL_OPTIONS
+        **{
+            vol.Required(key, default=default): NumberSelector(
+                NumberSelectorConfig(
+                    min=low,
+                    max=high,
+                    step=1,
+                    mode=NumberSelectorMode.BOX,
+                    unit_of_measurement="min",
+                )
+            )
+            for key, (default, low, high) in INTERVAL_OPTIONS.items()
+        },
+        vol.Required(CONF_DISABLED_GROUPS, default=[]): SelectSelector(
+            SelectSelectorConfig(
+                options=list(ENDPOINT_GROUPS),
+                multiple=True,
+                mode=SelectSelectorMode.LIST,
+                translation_key="groups",
             )
         ),
     }
@@ -504,22 +533,33 @@ def _move_world_unique_ids(hass: Any, entry: ConfigEntry, client_id: str) -> Non
 
 
 class WowOptionsFlow(OptionsFlow):
-    """Optionen des Haupteintrags: Sprache der Texte aus der API.
+    """Optionen des Haupteintrags: Sprache, Takte und abgeschaltete Gruppen.
 
     Speichern laedt den Eintrag neu (Stand mit Optionen, siehe
-    config_snapshot); nachgeschlagene Namen kommen dann in der neuen Sprache.
+    config_snapshot); danach gelten Sprache, Takte und Gruppen.
     """
 
     async def async_step_init(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
+        errors: dict[str, str] = {}
         if user_input is not None:
-            return self.async_create_entry(data=user_input)
+            # Die Zahlenfelder liefern Kommazahlen; gespeichert werden Minuten.
+            user_input = {
+                **user_input,
+                **{key: int(user_input[key]) for key in INTERVAL_OPTIONS},
+            }
+            if user_input[CONF_RARE_MINUTES] < user_input[CONF_DETAIL_MINUTES]:
+                # Seltene Details haeufiger als die anderen ergaebe keinen Sinn.
+                errors["base"] = "rare_below_detail"
+            else:
+                return self.async_create_entry(data=user_input)
         return self.async_show_form(
             step_id="init",
             data_schema=self.add_suggested_values_to_schema(
-                OPTIONS_SCHEMA, self.config_entry.options
+                OPTIONS_SCHEMA, user_input or self.config_entry.options
             ),
+            errors=errors,
         )
 
 

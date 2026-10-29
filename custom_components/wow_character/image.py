@@ -24,7 +24,10 @@ async def async_setup_entry(
     async_add_entities: AddConfigEntryEntitiesCallback,
 ) -> None:
     for subentry_id, detail in entry.runtime_data.details.items():
-        adder = EntityAdder(partial(async_add_entities, config_subentry_id=subentry_id))
+        adder = EntityAdder(
+            partial(async_add_entities, config_subentry_id=subentry_id),
+            detail.key_allowed,
+        )
 
         @callback
         def update(

@@ -11,7 +11,7 @@ Home-Assistant-Integration für World-of-Warcraft-Charaktere: Level, Itemlevel,
 Ausrüstung, Raid- und Mythic+-Fortschritt, Berufe, Ruf, Erfolge und mehr als
 Sensoren, dazu WoW-Marke, wöchentlicher Reset und Serverstatus. Die Daten kommen
 aus der offiziellen Battle.net API. Unterstützt Retail, WoW Classic (Era,
-Progression, Anniversary) und ist für WoW Forever vorbereitet. Version 0.19.1.
+Progression, Anniversary) und ist für WoW Forever vorbereitet. Version 0.20.0.
 
 Zwei Dashboard-Karten liefert die Integration selbst mit: „WoW Arsenal“
 (`custom:wow-arsenal-card`) und „WoW Talentbaum“ (`custom:wow-talent-tree-card`,
@@ -146,6 +146,12 @@ neu starten. Wer von Hand aktualisiert, ersetzt den ganzen Ordner
 `custom_components/wow_character` samt `translations/`; sonst fehlen neue Texte,
 z. B. die Einträge im Menü „Charakter hinzufügen“. Was sich je Version ändert, steht in den
 [Release-Notes](https://github.com/philf90/HA-WOW/releases).
+
+**Update auf 0.20.0:** keine Migration. Neu sind im Optionsdialog die Takte
+(Profil, Details, seltene Details) und abschaltbare Gruppen (siehe
+[Takte und Gruppen](#takte-und-gruppen-seit-0200)); ohne Änderung bleibt
+alles wie bisher. Zurück auf 0.19.x geht ohne Backup; die neuen Optionen
+ignoriert 0.19.x.
 
 **Update auf 0.19.1:** keine Migration, nur Fehlerkorrekturen bei
 Störungen der Battle.net API (siehe [Abfragen und Takte](#abfragen-und-takte)).
@@ -294,6 +300,9 @@ Antwort entstehen. Scheitert nur das Mythic+-Profil, bleiben die übrigen
 Profilwerte verfügbar und die Wertung behält ihren letzten Stand (seit 0.17.2).
 
 ## Entitäten je Charakter
+
+Die Takte in den Tabellen sind die Vorgaben; seit 0.20.0 lassen sie sich
+ändern (siehe [Takte und Gruppen](#takte-und-gruppen-seit-0200)).
 
 | Wert | Typ | Takt | Quelle (Endpunkt, Feld) |
 |---|---|---|---|
@@ -568,6 +577,38 @@ Lange Attribute speichert Home Assistant nicht im Verlauf: `tooltip`, `factions`
 
 ## Abfragen und Takte
 
+### Takte und Gruppen (seit 0.20.0)
+
+Unter **Konfigurieren** am Eintrag „Battle.net API“ stehen neben der Sprache:
+
+| Option | Vorgabe | Erlaubt | Gilt für |
+|---|---|---|---|
+| Profil | 15 min | 5–120 min | Profil und Mythic+-Profil: Level, Itemlevel, Mythic+-Wertung usw. |
+| Details | 60 min | 15–720 min | Endpunkte mit 1 h in den Tabellen: Ausrüstung, Raids, Mythic+-Läufe, PvP, Erfolge, Charakterwerte, Gildenaktivitäten, Spezialisierung |
+| Seltene Details | 360 min | 60–1440 min | Endpunkte mit 6 h in den Tabellen (Berufe, Sammlungen, Ruf, Titel, Quests, Spielstatistik, Gilde und Mitglieder, Bilder, Aussehen, Jägerbegleiter), dazu Endpunkte ohne Entität, PvP-Brackets ohne Sensor und die WoW-Marke ohne Sensor |
+
+Seltene Details dürfen nicht häufiger laufen als Details; der Dialog lehnt das
+ab. Die Spielwelt (Realms, WoW-Marke, Reset) bleibt beim festen Takt von
+15 Minuten, der Status-Endpunkt bei einmal am Tag. Profildaten aktualisiert
+Blizzard erst nach dem Ausloggen; kürzere Profiltakte bringen deshalb selten
+früher neue Werte.
+
+**Ausgeschaltete Gruppen:** Gilde, Sammlungen und Titel, Erfolge,
+Spielstatistik, Quests, Ruf, Berufe, Raids, PvP. Für eine ausgeschaltete Gruppe
+fragt die Integration nichts ab und legt keine Entitäten an, auch nicht später
+ohne Neuladen; die Ereignisse der Gruppe (z. B. „Boss besiegt“ bei Raids, „Neu
+gesammelt“ bei Sammlungen) entfallen mit. Schon vorhandene Entitäten bleiben
+mit Entitäts-ID, Anpassungen und Verlauf in der Registry, stehen aber als
+„nicht verfügbar“ bzw. „nicht mehr bereitgestellt“ da; beim Einschalten kommen
+sie mit derselben Entitäts-ID zurück. Wer eine Gruppe dauerhaft nicht braucht,
+kann ihre Entitäten löschen. Bewusst nicht über die Registry deaktiviert: Das
+Wiedereinschalten ließe Home Assistant den Eintrag nach 30 Sekunden ein zweites
+Mal neu laden.
+
+Speichern lädt die Integration einmal neu.
+
+### Allgemein
+
 - Ein Endpunkt mit Entitäten wird nur abgefragt, wenn mindestens eine davon
   aktiviert ist; sind alle deaktiviert, entfällt er. Beim Start fragt die
   Integration alle Endpunkte einmal ab, weil manche Entitäten nur entstehen,
@@ -718,6 +759,8 @@ trees: [class, spec, hero]
 
 ## Ändern, Hinweise und Diagnose
 
+- **Takte und Gruppen:** **Konfigurieren** am Eintrag „Battle.net API“ (seit
+  0.20.0, siehe [Takte und Gruppen](#takte-und-gruppen-seit-0200)).
 - **Sprache der API-Texte:** **Konfigurieren** am Eintrag „Battle.net API“
   (seit 0.19.0, siehe [Sprache](#sprache)).
 - **Neues Secret:** am Eintrag „Battle.net API“ ⋮ → **Neu konfigurieren** →
@@ -891,6 +934,20 @@ Automatische Tests laufen gegen Home Assistant 2026.2.3; live geprüft wurde unt
 Home Assistant 2026.10.4 mit Retail-Charakteren der Region EU, seit 0.11.2 auch
 mit einem Classic-Era-Charakter (siehe [WoW Classic](#wow-classic)).
 
+- **0.20.x:** 279 automatische Tests. 0.20.0: 11 Tests für Takte und Gruppen
+  (Vorgaben unverändert; gewählte Takte für Profil, Details und seltene
+  Details samt Endpunkten ohne Entität; Brackets und WoW-Marke ohne Sensor im
+  seltenen Takt; Dialog speichert ganze Minuten, lehnt seltene unter Details
+  und Werte außerhalb der Grenzen ab; ausgeschaltete Gruppen ohne Abfragen,
+  Entitäten und Ereignisse; Aus- und Einschalten behält die Entitäts-ID;
+  Nachlegen beachtet ausgeschaltete Gruppen). Zwei Tests angepasst: Der
+  Übersetzungstest prüft die Fehler des Optionsdialogs unter `options`, der
+  Optionstest von 0.19.0 sucht das Sprachfeld unter mehreren Feldern.
+  Gegenprobe: zehn Teile einzeln ausgebaut (Takt Profil, Takt Details,
+  Zuordnung der Vorgaben, seltener Takt ohne Entität, für Brackets und für die
+  WoW-Marke, Gruppen ohne Abfrage, Gruppen ohne Entitäten, ganze Minuten,
+  seltene nicht unter Details), jedes Mal schlug ein Test fehl. **Nicht live
+  geprüft.**
 - **0.19.x:** 268 automatische Tests. 0.19.1: 11 Tests für Störungen der API
   (gleichzeitige Abfragen holen ein Token; Token-Antwort ohne Token, als
   Liste und als HTML, beim Start mit neuem Versuch; Profil als HTML und als
