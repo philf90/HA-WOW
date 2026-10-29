@@ -104,13 +104,14 @@ PVP_BRACKET_PREFIX = "pvp_bracket_"
 
 
 def config_snapshot(entry: ConfigEntry) -> Any:
-    """Stand von Eintrag und Untereintraegen, mit dem der Eintrag laeuft."""
+    """Stand von Eintrag, Untereintraegen und Optionen, mit dem der Eintrag laeuft."""
     return (
         dict(entry.data),
         {
             subentry_id: (subentry.title, dict(subentry.data))
             for subentry_id, subentry in entry.subentries.items()
         },
+        dict(entry.options),
     )
 
 

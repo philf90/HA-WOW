@@ -11,7 +11,7 @@ Home-Assistant-Integration für World-of-Warcraft-Charaktere: Level, Itemlevel,
 Ausrüstung, Raid- und Mythic+-Fortschritt, Berufe, Ruf, Erfolge und mehr als
 Sensoren, dazu WoW-Marke, wöchentlicher Reset und Serverstatus. Die Daten kommen
 aus der offiziellen Battle.net API. Unterstützt Retail, WoW Classic (Era,
-Progression, Anniversary) und ist für WoW Forever vorbereitet. Version 0.18.0.
+Progression, Anniversary) und ist für WoW Forever vorbereitet. Version 0.19.0.
 
 Zwei Dashboard-Karten liefert die Integration selbst mit: „WoW Arsenal“
 (`custom:wow-arsenal-card`) und „WoW Talentbaum“ (`custom:wow-talent-tree-card`,
@@ -146,6 +146,11 @@ neu starten. Wer von Hand aktualisiert, ersetzt den ganzen Ordner
 `custom_components/wow_character` samt `translations/`; sonst fehlen neue Texte,
 z. B. die Einträge im Menü „Charakter hinzufügen“. Was sich je Version ändert, steht in den
 [Release-Notes](https://github.com/philf90/HA-WOW/releases).
+
+**Update auf 0.19.0:** keine Migration. Neu ist die Option „Sprache der
+API-Texte“ am Eintrag „Battle.net API“ (siehe [Sprache](#sprache)); ohne
+Änderung bleibt alles in der Sprache der Region wie bisher. Zurück auf 0.18.x
+geht ohne Backup; eine gewählte Sprache ignoriert 0.18.x.
 
 **Update auf 0.18.0:** keine Migration. Neue Entitäten entstehen jetzt ohne
 Neuladen, sobald die API Daten dafür liefert, z. B. ein neu gelernter Beruf, die
@@ -522,9 +527,33 @@ Aus den statischen Spieldaten, je Objekt einmal nachgeschlagen:
 
 ### Sprache
 
-Texte kommen in der Sprache der Region (EU: Deutsch). Ausnahmen: Die Berufe-Seite
-und die Erfolge-Seite eines Charakters liefern Namen auf Englisch, auch mit
-deutscher Spracheinstellung. Die Integration schlägt Berufe, Berufsstufen und
+Texte aus der API (Namen von Klassen, Gegenständen, Raids, Realms usw.) kommen
+in der Sprache, die unter **Konfigurieren** am Eintrag „Battle.net API“ als
+„Sprache der API-Texte“ eingestellt ist (seit 0.19.0). Die Namen der Entitäten
+selbst folgen wie bei jeder Integration der Sprache von Home Assistant.
+
+| Auswahl | Europa | Amerika | Korea | Taiwan |
+|---|---|---|---|---|
+| Sprache der Region (Vorgabe, wie vor 0.19.0) | `de_DE` | `en_US` | `ko_KR` | `zh_TW` |
+| English | `en_GB` | `en_US` | `en_US` | `en_US` |
+| Deutsch, Français, Italiano, Русский | `de_DE`, `fr_FR`, `it_IT`, `ru_RU` | – | – | – |
+| Español | `es_ES` | `es_MX` | – | – |
+| Português do Brasil | – | `pt_BR` | – | – |
+| 한국어 | – | – | `ko_KR` | – |
+| 繁體中文 | – | – | – | `zh_TW` |
+
+„–“ heißt: Die Region kennt die Sprache nicht, es gilt die Sprache der Region.
+„Sprache von Home Assistant“ nimmt die Sprache der Oberfläche (z. B. `fr` aus
+„fr“, `en` aus „en-GB“) und wählt danach wie in der Tabelle. Die Zuordnung
+stammt aus den Bibliotheken `@blizzard-api/core` 4.2.0 und `blizzard.js` 5.0.0
+(geprüft am 29.10.2026); die Integration nutzt nur Sprachen, die beide nennen.
+`pt_PT` für Europa nennt nur `blizzard.js`, es fehlt deshalb. Speichern lädt die
+Integration neu; die Entitäts-IDs bleiben, Namen mit Teilen aus der API (z. B.
+Beruf oder Realm) übernehmen die neue Sprache. Die Diagnose zeigt die Option
+und die genutzte Sprache je Region (`options`, `locales`).
+
+Ausnahmen: Die Berufe-Seite und die Erfolge-Seite eines Charakters liefern Namen
+auf Englisch, auch mit deutscher Spracheinstellung. Die Integration schlägt Berufe, Berufsstufen und
 Erfolgskategorien deshalb einmalig in den statischen Spieldaten nach; klappt das
 nicht, bleibt der englische Name. Raidnamen kommen weiterhin auf Englisch.
 
@@ -678,6 +707,8 @@ trees: [class, spec, hero]
 
 ## Ändern, Hinweise und Diagnose
 
+- **Sprache der API-Texte:** **Konfigurieren** am Eintrag „Battle.net API“
+  (seit 0.19.0, siehe [Sprache](#sprache)).
 - **Neues Secret:** am Eintrag „Battle.net API“ ⋮ → **Neu konfigurieren** →
   **Client-ID oder Secret ändern**. Lehnt Blizzard die Zugangsdaten ab, fragt
   Home Assistant von selbst nach neuen. Eine andere Client-ID geht ebenfalls;
@@ -849,6 +880,17 @@ Automatische Tests laufen gegen Home Assistant 2026.2.3; live geprüft wurde unt
 Home Assistant 2026.10.4 mit Retail-Charakteren der Region EU, seit 0.11.2 auch
 mit einem Classic-Era-Charakter (siehe [WoW Classic](#wow-classic)).
 
+- **0.19.x:** 257 automatische Tests. 0.19.0: 29 Tests für die Sprache der
+  API-Texte (Locale je Region und Sprache mit Rückfall auf die Region, 16
+  Fälle; Auswahl „Sprache von Home Assistant“, 6 Fälle; ohne Option wie bisher;
+  gewählte Sprache in allen Abfragen und in der Diagnose; Sprache von Home
+  Assistant; Optionsdialog mit Vorgabe, Speichern lädt genau einmal neu;
+  Realm-Liste beim Hinzufügen von Hand; Charaktersuche aus „Abgleichen“ und
+  „Hinzufügen“). Gegenprobe: zehn Teile einzeln ausgebaut (Locale in den
+  Abfragen, Sprache an den Client, Optionen im Stand für das Neuladen,
+  Optionsdialog, Sprache beim Abgleichen, beim Hinzufügen und an die
+  Charaktersuche, Sprache von Home Assistant, Rückfall auf die Region, Locales
+  in der Diagnose), jedes Mal schlug ein Test fehl. **Nicht live geprüft.**
 - **0.18.x:** 228 automatische Tests. 0.18.0: 9 Tests für Entitäten ohne
   Neuladen (neuer Beruf; Gildenbeitritt mit Werten nach der nächsten
   Detailabfrage; erste Wertung in 2v2, danach stündlich, ohne doppelte

@@ -10,7 +10,14 @@ from urllib.parse import quote
 
 import aiohttp
 
-from .const import REGIONS, REQUEST_TIMEOUT, TOKEN_URL
+from .const import (
+    LANGUAGE_HOME_ASSISTANT,
+    LANGUAGE_REGION,
+    LANGUAGES,
+    REGIONS,
+    REQUEST_TIMEOUT,
+    TOKEN_URL,
+)
 
 # Interne Realms von Blizzard in der Realm-Liste (Stand EU, Oktober 2026),
 # z. B. "EU1A Account Realm" (eu1a-account-realm), "EU4A1-INST-BFA"
@@ -20,6 +27,23 @@ _INTERNAL_REALM = re.compile(r"^(?:(?:eu|us|kr|tw)(?:\d|-arena-pass)|rdb-|zzz)")
 
 def is_internal_realm(slug: str) -> bool:
     return bool(_INTERNAL_REALM.match(slug))
+
+
+def api_language(choice: str | None, ha_language: str) -> str | None:
+    """Sprache aus der Option; None heisst: Sprache der Region.
+
+    ha_language wie in Home Assistant, z. B. "de", "en-GB" oder "zh-Hant".
+    """
+    if choice in (None, LANGUAGE_REGION):
+        return None
+    if choice == LANGUAGE_HOME_ASSISTANT:
+        return ha_language.split("-")[0].lower()
+    return choice
+
+
+def region_locale(region: str, language: str | None) -> str:
+    """Locale fuer die Abfragen einer Region, z. B. ("eu", "en") -> "en_GB"."""
+    return LANGUAGES.get(language or "", {}).get(region) or REGIONS[region]["locale"]
 
 
 class BattleNetError(Exception):
@@ -54,9 +78,12 @@ class BattleNetClient:
         session: aiohttp.ClientSession,
         client_id: str,
         client_secret: str,
+        language: str | None = None,
     ) -> None:
         self._session = session
         self._auth = aiohttp.BasicAuth(client_id, client_secret)
+        # Sprache der Texte; None heisst Sprache der Region (siehe api_language).
+        self.language = language
         self._token: str | None = None
         self._token_expires = 0.0
 
@@ -128,11 +155,13 @@ class BattleNetClient:
         login_token: str | None = None,
     ) -> dict[str, Any]:
         token = login_token or await self._get_token()
-        urls = REGIONS[region]
         try:
             async with self._session.get(
-                f"{urls['api']}{path}",
-                params={"namespace": namespace, "locale": urls["locale"]},
+                f"{REGIONS[region]['api']}{path}",
+                params={
+                    "namespace": namespace,
+                    "locale": region_locale(region, self.language),
+                },
                 headers={"Authorization": f"Bearer {token}"},
                 timeout=aiohttp.ClientTimeout(total=REQUEST_TIMEOUT),
             ) as resp:

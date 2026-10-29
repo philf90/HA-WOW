@@ -8,7 +8,7 @@ from typing import Any
 from homeassistant.components.diagnostics import async_redact_data
 from homeassistant.core import HomeAssistant
 
-from .api import BattleNetError
+from .api import BattleNetError, region_locale
 from .const import CONF_CLIENT_ID, CONF_CLIENT_SECRET
 from .coordinator import WowConfigEntry, WowDetailCoordinator
 
@@ -267,6 +267,12 @@ async def async_get_config_entry_diagnostics(
         }
     return {
         "entry": async_redact_data(dict(entry.data), TO_REDACT),
+        "options": dict(entry.options),
+        # Locale je Region der Spielwelten, wie sie die Abfragen nutzen
+        "locales": {
+            f"{region}{suffix}": region_locale(region, runtime.client.language)
+            for region, suffix in runtime.worlds
+        },
         "characters": characters,
         "worlds": {
             f"{region}{suffix}": world.data

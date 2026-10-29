@@ -76,11 +76,13 @@ def mock_login(
     accounts: dict[tuple[str, str], dict | int],
     scope: str = "wow.profile",
     code_status: int = 200,
+    locales: dict[str, str] = LOCALES,
 ) -> None:
     """Token-Endpunkt fuer beide Flows und /profile/user/wow aller Namespaces.
 
     accounts: (Region, Namespace-Suffix) -> Antwort oder HTTP-Status; alle
-    anderen Namespaces antworten mit 404 (kein Konto).
+    anderen Namespaces antworten mit 404 (kein Konto). locales: erwartete
+    Sprache je Region; Abfragen mit anderer Sprache haben keine Antwort.
     """
 
     async def token(method, url, data):
@@ -104,7 +106,7 @@ def mock_login(
                 f"https://{region}.api.blizzard.com/profile/user/wow",
                 params={
                     "namespace": f"profile{suffix}-{region}",
-                    "locale": LOCALES[region],
+                    "locale": locales[region],
                 },
                 status=answer if isinstance(answer, int) else 200,
                 json=None if isinstance(answer, int) else answer,
@@ -375,9 +377,13 @@ def _renamed_subentry() -> ConfigSubentryData:
     )
 
 
-async def _start_sync(hass: HomeAssistant, *subentries) -> tuple:
+async def _start_sync(
+    hass: HomeAssistant, *subentries, options: dict | None = None
+) -> tuple:
     entry = main_entry(*subentries)
     entry.add_to_hass(hass)
+    if options is not None:
+        hass.config_entries.async_update_entry(entry, options=options)
     assert await hass.config_entries.async_setup(entry.entry_id)
     await hass.async_block_till_done()
     result = await entry.start_reconfigure_flow(hass)
@@ -566,9 +572,13 @@ async def test_subentry_added_during_reload_gets_set_up(
 # Anmeldung aus "Charakter hinzufuegen"
 
 
-async def _start_add(hass: HomeAssistant, *subentries) -> tuple:
+async def _start_add(
+    hass: HomeAssistant, *subentries, options: dict | None = None
+) -> tuple:
     entry = main_entry(*subentries)
     entry.add_to_hass(hass)
+    if options is not None:
+        hass.config_entries.async_update_entry(entry, options=options)
     assert await hass.config_entries.async_setup(entry.entry_id)
     await hass.async_block_till_done()
     result = await hass.config_entries.subentries.async_init(
@@ -700,3 +710,38 @@ async def test_setup_skips_character_deleted_meanwhile(
     await hass.async_block_till_done()
     assert "unknown subentry" not in caplog.text
     assert set(entry.runtime_data.coordinators) == {first.subentry_id}
+
+
+# Sprache der API (seit 0.19.0)
+
+ENGLISH = {"eu": "en_GB", "us": "en_US", "kr": "en_US", "tw": "en_US"}
+
+
+@pytest.mark.parametrize("flow", ["sync", "add"])
+async def test_login_search_uses_language(
+    hass: HomeAssistant, aioclient_mock, hass_client_no_auth, callback_view, flow
+) -> None:
+    """Charaktersuche aus "Abgleichen" und "Hinzufuegen" in der gewaehlten Sprache.
+
+    Die Abfragen der Charaktere selbst laufen mit dem Eintrag, ihre Mocks
+    pruefen die Sprache nicht.
+    """
+    mock_login(
+        aioclient_mock, {("eu", ""): _account(TESTCHAR, ZWEITCHAR)}, locales=ENGLISH
+    )
+    mock_characters(aioclient_mock)
+    start = _start_sync if flow == "sync" else _start_add
+    _entry, result = await start(hass, character_subentry(), options={"language": "en"})
+    if flow == "sync":
+        result = await _return(hass, hass_client_no_auth, result, "code=abcd")
+    else:
+        state = parse_qs(urlparse(result["url"]).query)["state"][0]
+        client = await hass_client_no_auth()
+        resp = await client.get(f"/auth/external/callback?code=abcd&state={state}")
+        assert resp.status == 200
+        result = await hass.config_entries.subentries.async_configure(result["flow_id"])
+    assert result["step_id"] == "select"
+    (option,) = _options(result)
+    assert option["label"].startswith("Zweitchar – Aegwynn")
+    calls = _account_calls(aioclient_mock)
+    assert {c[1].query["locale"] for c in calls} == set(ENGLISH.values())

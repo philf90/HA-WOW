@@ -147,6 +147,20 @@
       }
     }
   },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Optionen",
+        "description": "Sprache der Texte aus der Battle.net API, z. B. Namen von Klassen, Gegenständen, Raids und Realms. Die Namen der Entitäten folgen der Sprache von Home Assistant. Bietet eine Region die gewählte Sprache nicht an, gilt die Sprache der Region. Speichern lädt die Integration neu.",
+        "data": {
+          "language": "Sprache der API-Texte"
+        },
+        "data_description": {
+          "language": "„Sprache der Region“ ist das bisherige Verhalten: Deutsch in Europa, Englisch in Amerika, Koreanisch in Korea, traditionelles Chinesisch in Taiwan."
+        }
+      }
+    }
+  },
   "selector": {
     "region": {
       "options": {
@@ -163,6 +177,21 @@
         "classic_era": "WoW Classic Era",
         "classic_progression": "WoW Classic Progression (derzeit Mists of Pandaria)",
         "classic_anniversary": "WoW Classic Anniversary (derzeit Burning Crusade)"
+      }
+    },
+    "language": {
+      "options": {
+        "region": "Sprache der Region (Europa Deutsch, Amerika Englisch, Korea Koreanisch, Taiwan Chinesisch)",
+        "home_assistant": "Sprache von Home Assistant",
+        "de": "Deutsch (Europa)",
+        "en": "English (alle Regionen)",
+        "es": "Español (Europa, Amerika)",
+        "fr": "Français (Europa)",
+        "it": "Italiano (Europa)",
+        "pt": "Português do Brasil (Amerika)",
+        "ru": "Русский (Europa)",
+        "ko": "한국어 (Korea)",
+        "zh": "繁體中文 (Taiwan)"
       }
     }
   },
