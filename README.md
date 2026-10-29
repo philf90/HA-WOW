@@ -11,7 +11,7 @@ Home-Assistant-Integration für World-of-Warcraft-Charaktere: Level, Itemlevel,
 Ausrüstung, Raid- und Mythic+-Fortschritt, Berufe, Ruf, Erfolge und mehr als
 Sensoren, dazu WoW-Marke, wöchentlicher Reset und Serverstatus. Die Daten kommen
 aus der offiziellen Battle.net API. Unterstützt Retail, WoW Classic (Era,
-Progression, Anniversary) und ist für WoW Forever vorbereitet. Version 0.15.1.
+Progression, Anniversary) und ist für WoW Forever vorbereitet. Version 0.15.2.
 
 <p align="center">
   <img src="https://raw.githubusercontent.com/philf90/HA-WOW/main/assets/vorschau-karten.png" alt="Arsenal-, Charaktere-, Berufe- und Raid-Karte im Nachtblau-Stil mit Beispieldaten" width="100%">
@@ -421,8 +421,10 @@ entity: sensor.mein_charakter_level   # eine beliebige Entität des Charakters
   Amber-Punkt bei leerem Sockel, leere Plätze gestrichelt.
 - Mit der Maus zeigt ein Platz den Item-Tooltip; Antippen öffnet ihn als
   Fenster in der Karte (Escape oder ✕ schließt), browser_mod ist nicht nötig.
-- Kennzahlen: Raid in der höchsten Schwierigkeit mit Kills, Erfolgspunkte,
-  Reittiere und Ehrenstufe, ohne Ehrenstufe die ehrenhaften Siege. Es erscheinen
+- Kennzahlen: Raid in der höchsten Schwierigkeit mit Kills, Anzahl der Erfolge
+  (Sensor „Erfolge“, seit 0.15.2; vorher die Erfolgspunkte unter dem Namen
+  „Erfolge“), Reittiere und Ehrenstufe, ohne Ehrenstufe die ehrenhaften Siege.
+  Es erscheinen
   nur Kennzahlen, deren Entität es gibt; Classic Era zeigt deshalb von selbst
   weniger.
 - Die Karte findet die Entitäten über das Gerät des Charakters und die
@@ -615,7 +617,11 @@ Automatische Tests laufen gegen Home Assistant 2026.2.3; live geprüft wurde unt
 Home Assistant 2026.10.4 mit Retail-Charakteren der Region EU, seit 0.11.2 auch
 mit einem Classic-Era-Charakter (siehe [WoW Classic](#wow-classic)).
 
-- **0.15.x:** 182 automatische Tests. 0.15.1: keine neuen Tests, geändert
+- **0.15.x:** 182 automatische Tests. 0.15.2: keine neuen Tests, geändert
+  ist nur die Karte (JavaScript). Die Kachel „Erfolge“ zeigt die Anzahl der
+  Erfolge statt der Erfolgspunkte. In Chromium mit erfundenen Daten 380 und
+  200 Pixel breit gezeichnet, ohne Fehler in der Konsole. **Nicht live
+  geprüft:** die Karte in 0.15.2. 0.15.1: keine neuen Tests, geändert
   ist nur die Karte (JavaScript). Live in Home Assistant 2026.10.4 (Handy,
   Abschnittsansicht) geprüft: alle 18 Itemlevel, Itemlevel 253, M+ 170
   (`api_rating`), Raid LFR 6/7 und 3 Amber-Punkte (Hals, beide Ringe) stimmen

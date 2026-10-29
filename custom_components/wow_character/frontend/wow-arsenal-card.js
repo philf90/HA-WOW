@@ -332,7 +332,7 @@ class WowArsenalCard extends HTMLElement {
     // Nur Kennzahlen, die der Charakter hat (Classic: keine Raids, Erfolge
     // oder Sammlungen); ohne Ehrenstufe die ehrenhaften Siege.
     const liste = [
-      ["achievement_points", "achievements"],
+      ["achievements", "achievements"],
       ["mounts", "mounts"],
       this._st("honor_level") ? ["honor_level", "honorLevel"] : ["honorable_kills", "honorableKills"],
     ];
