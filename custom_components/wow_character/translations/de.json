@@ -504,6 +504,68 @@
     },
     "character_invalid": {
       "message": "Blizzard meldet {character} als nicht mehr gültig."
+    },
+    "not_loaded": {
+      "message": "Der Eintrag Battle.net API ist nicht geladen."
+    },
+    "device_not_found": {
+      "message": "Das Gerät {device} gehört zu keinem geladenen Eintrag von WoW Charakter."
+    },
+    "refresh_failed": {
+      "message": "Aktualisieren fehlgeschlagen für: {names}."
+    },
+    "entry_required": {
+      "message": "Es gibt mehr als einen Eintrag Battle.net API; bitte den API-Client wählen."
+    },
+    "entry_not_found": {
+      "message": "Der Eintrag {entry} ist kein Eintrag von WoW Charakter."
+    },
+    "realms_not_found": {
+      "message": "Keine Realm-Liste für diese Region und Spielversion."
+    },
+    "realm_not_found": {
+      "message": "Realm {realm} in dieser Region und Spielversion nicht gefunden."
+    },
+    "lookup_not_found": {
+      "message": "Charakter {character} nicht gefunden."
+    }
+  },
+  "services": {
+    "refresh": {
+      "name": "Aktualisieren",
+      "description": "Fragt Charaktere sofort ab, statt den nächsten Takt abzuwarten, z. B. nach dem Ausloggen. Blizzard aktualisiert das Profil erst nach dem Ausloggen.",
+      "fields": {
+        "device_id": {
+          "name": "Geräte",
+          "description": "Geräte von Charakteren oder Spielwelten. Leer: alle Charaktere."
+        }
+      }
+    },
+    "get_character": {
+      "name": "Charakter nachschlagen",
+      "description": "Liefert das Profil eines beliebigen Charakters als Antwort, ohne ihn einzurichten.",
+      "fields": {
+        "config_entry_id": {
+          "name": "API-Client",
+          "description": "Eintrag Battle.net API, dessen Zugang benutzt wird. Nur bei mehreren Einträgen nötig."
+        },
+        "region": {
+          "name": "Region",
+          "description": "Region des Charakters."
+        },
+        "game_version": {
+          "name": "Spielversion",
+          "description": "Spielversion des Charakters."
+        },
+        "realm": {
+          "name": "Realm",
+          "description": "Name oder Slug des Realms, z. B. Die Aldor oder die-aldor."
+        },
+        "character": {
+          "name": "Charakter",
+          "description": "Name des Charakters."
+        }
+      }
     }
   }
 }

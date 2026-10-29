@@ -61,6 +61,7 @@ from .coordinator import (
     config_snapshot,
     issue_id,
 )
+from .services import async_setup_services
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -78,6 +79,7 @@ _RELOADING = f"{DOMAIN}_reloading"
 async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     await async_migrate_integration(hass)
     await _async_register_card(hass)
+    async_setup_services(hass)
     return True
 
 

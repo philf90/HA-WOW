@@ -504,6 +504,68 @@
     },
     "character_invalid": {
       "message": "Blizzard reports {character} as no longer valid."
+    },
+    "not_loaded": {
+      "message": "The Battle.net API entry is not loaded."
+    },
+    "device_not_found": {
+      "message": "Device {device} does not belong to a loaded WoW Character entry."
+    },
+    "refresh_failed": {
+      "message": "Refresh failed for: {names}."
+    },
+    "entry_required": {
+      "message": "There is more than one Battle.net API entry; choose the API client."
+    },
+    "entry_not_found": {
+      "message": "Entry {entry} is not a WoW Character entry."
+    },
+    "realms_not_found": {
+      "message": "No realm list for this region and game version."
+    },
+    "realm_not_found": {
+      "message": "Realm {realm} not found in this region and game version."
+    },
+    "lookup_not_found": {
+      "message": "Character {character} not found."
+    }
+  },
+  "services": {
+    "refresh": {
+      "name": "Refresh",
+      "description": "Queries characters now instead of waiting for the next interval, e.g. after logging out. Blizzard updates the profile only after logout.",
+      "fields": {
+        "device_id": {
+          "name": "Devices",
+          "description": "Character or game world devices. Empty: all characters."
+        }
+      }
+    },
+    "get_character": {
+      "name": "Look up character",
+      "description": "Returns the profile of any character as a response, without setting it up.",
+      "fields": {
+        "config_entry_id": {
+          "name": "API client",
+          "description": "Battle.net API entry whose access is used. Needed only with more than one entry."
+        },
+        "region": {
+          "name": "Region",
+          "description": "Region of the character."
+        },
+        "game_version": {
+          "name": "Game version",
+          "description": "Game version of the character."
+        },
+        "realm": {
+          "name": "Realm",
+          "description": "Name or slug of the realm, e.g. Die Aldor or die-aldor."
+        },
+        "character": {
+          "name": "Character",
+          "description": "Name of the character."
+        }
+      }
     }
   }
 }

@@ -11,7 +11,7 @@ Home-Assistant-Integration für World-of-Warcraft-Charaktere: Level, Itemlevel,
 Ausrüstung, Raid- und Mythic+-Fortschritt, Berufe, Ruf, Erfolge und mehr als
 Sensoren, dazu WoW-Marke, wöchentlicher Reset und Serverstatus. Die Daten kommen
 aus der offiziellen Battle.net API. Unterstützt Retail, WoW Classic (Era,
-Progression, Anniversary) und ist für WoW Forever vorbereitet. Version 0.20.0.
+Progression, Anniversary) und ist für WoW Forever vorbereitet. Version 0.21.0.
 
 Zwei Dashboard-Karten liefert die Integration selbst mit: „WoW Arsenal“
 (`custom:wow-arsenal-card`) und „WoW Talentbaum“ (`custom:wow-talent-tree-card`,
@@ -129,6 +129,7 @@ Client ohne Redirect-URL lässt sich unter **Manage Client** ergänzen.
 - [Entitäten der Spielwelt](#entitäten-der-spielwelt)
 - [Attribute im Detail](#attribute-im-detail)
 - [Abfragen und Takte](#abfragen-und-takte)
+- [Aktionen](#aktionen-seit-0210)
 - [Dashboard-Karten](#dashboard-karten)
 - [Ändern, Hinweise und Diagnose](#ändern-hinweise-und-diagnose)
 - [WoW Classic](#wow-classic)
@@ -146,6 +147,11 @@ neu starten. Wer von Hand aktualisiert, ersetzt den ganzen Ordner
 `custom_components/wow_character` samt `translations/`; sonst fehlen neue Texte,
 z. B. die Einträge im Menü „Charakter hinzufügen“. Was sich je Version ändert, steht in den
 [Release-Notes](https://github.com/philf90/HA-WOW/releases).
+
+**Update auf 0.21.0:** keine Migration. Neu sind die Aktionen
+`wow_character.refresh` und `wow_character.get_character` (siehe
+[Aktionen](#aktionen-seit-0210)). Zurück auf 0.20.x geht ohne Backup;
+Automationen mit diesen Aktionen schlagen dort fehl.
 
 **Update auf 0.20.0:** keine Migration. Neu sind im Optionsdialog die Takte
 (Profil, Details, seltene Details) und abschaltbare Gruppen (siehe
@@ -654,6 +660,69 @@ Speichern lädt die Integration einmal neu.
 - Die Realm-Liste beim Hinzufügen zeigt keine internen Realms von Blizzard (z. B.
   „EU1A Account Realm“, „EU4A1-INST“, „RDB EU“).
 
+## Aktionen (seit 0.21.0)
+
+### Aktualisieren (`wow_character.refresh`)
+
+Fragt Charaktere sofort ab, statt den nächsten Takt abzuwarten: Profil und
+alle Detail-Endpunkte, die sonst im Takt laufen, auch die seltenen und die
+Suche nach neuen Entitäten (PvP-Brackets ohne Sensor usw.). Abgeschaltete
+Gruppen und Endpunkte, deren Entitäten alle deaktiviert sind, bleiben aus.
+
+| Feld | Pflicht | Bedeutung |
+|---|---|---|
+| `device_id` | nein | Geräte von Charakteren oder Spielwelten. Leer: alle Charaktere aller geladenen Einträge. Ein Spielwelt-Gerät fragt WoW-Marke, Reset und Season sofort ab (Realms ohnehin bei jedem Lauf). |
+
+Scheitert eine Abfrage, meldet die Aktion die betroffenen Charaktere als
+Fehler; die Entitäten behalten wie beim Takt den letzten Stand bzw. werden
+nicht verfügbar. Je Charakter sind das 20 bis 26 Abfragen (je nach Gilde,
+Klasse und aktivierten Entitäten), dazu Symbole, die noch nicht bekannt sind;
+das Abfragelimit von Blizzard liegt bei 100 je Sekunde (siehe
+[Allgemein](#allgemein)). Blizzard
+aktualisiert das Profil erst nach dem Ausloggen; eine Automation sollte also
+nach dem Ausloggen aufrufen, nicht im Spiel.
+
+```yaml
+action: wow_character.refresh
+data:
+  device_id: 0123456789abcdef0123456789abcdef  # Gerät des Charakters
+```
+
+### Charakter nachschlagen (`wow_character.get_character`)
+
+Liefert das Profil eines beliebigen Charakters als Antwort, ohne ihn
+einzurichten, z. B. für Freunde oder Gildenmitglieder. Es entstehen weder
+Gerät noch Entitäten.
+
+| Feld | Pflicht | Bedeutung |
+|---|---|---|
+| `config_entry_id` | nur bei mehreren Einträgen | Eintrag „Battle.net API“, dessen Zugang benutzt wird |
+| `region` | ja | `eu`, `us`, `kr` oder `tw` |
+| `game_version` | nein | `retail` (Vorgabe), `forever`, `classic_era`, `classic_progression`, `classic_anniversary` |
+| `realm` | ja | Name oder Slug, Groß- und Kleinschreibung egal, z. B. `Die Aldor` oder `die-aldor` |
+| `character` | ja | Name des Charakters |
+
+Die Antwort enthält `name`, `id`, `realm`, `realm_slug`, `region`,
+`game_version`, `level`, `class`, `spec`, `race`, `faction`, `guild`, `title`,
+`achievement_points`, `equipped_item_level`, `average_item_level`,
+`last_login` (ISO-Zeit), `mythic_rating` (nur Retail; Wert der API ohne
+Season-Prüfung, wie im Arsenal) und `avatar` (Bildadresse). Fehlt ein Wert,
+steht `null` da. Texte kommen in der Sprache aus den Optionen (siehe
+[Sprache](#sprache)).
+
+Abfragen: Realm-Liste der Region (einmal je Start von Home Assistant bzw.
+Neuladen), Profil, Mythic+-Profil (nur Retail) und Bilder. Unbekannter Realm
+oder Charakter ergibt eine Fehlermeldung statt einer Antwort.
+
+```yaml
+action: wow_character.get_character
+data:
+  region: eu
+  realm: Die Aldor
+  character: Testchar
+response_variable: charakter
+```
+
 ## Dashboard-Karten
 
 Zwei Karten liefert die Integration selbst mit; Home Assistant lädt sie mit dem
@@ -934,6 +1003,15 @@ Automatische Tests laufen gegen Home Assistant 2026.2.3; live geprüft wurde unt
 Home Assistant 2026.10.4 mit Retail-Charakteren der Region EU, seit 0.11.2 auch
 mit einem Classic-Era-Charakter (siehe [WoW Classic](#wow-classic)).
 
+- **0.21.x:** 296 automatische Tests. 0.21.0: 17 Tests für die Aktionen
+  (refresh ohne Gerät oder mit leerer Geräteliste für alle Charaktere samt seltener Endpunkte und Brackets
+  ohne Sensor, nur gewähltes Gerät, Spielwelt-Gerät, unbekanntes Gerät,
+  Fehlermeldung bei gescheiterter Abfrage, Eintrag nicht geladen;
+  get_character mit Antwort ohne Gerät und Untereintrag, Realm per Slug in
+  beliebiger Schreibweise und zwischengespeicherter Realm-Liste, ohne
+  Mythic+-Lauf, Classic ohne Mythic+-Abfrage, unbekannter Realm oder
+  Charakter, API-Fehler, Wahl des Eintrags; services.yaml, Schemas und
+  Übersetzungen stimmen überein).
 - **0.20.x:** 279 automatische Tests. 0.20.0: 11 Tests für Takte und Gruppen
   (Vorgaben unverändert; gewählte Takte für Profil, Details und seltene
   Details samt Endpunkten ohne Entität; Brackets und WoW-Marke ohne Sensor im
