@@ -82,6 +82,11 @@ DETAIL_ENDPOINTS: dict[str, tuple[str, int]] = {
     # Nur Jaeger; fuer andere Klassen meldet die API laut Doku 404.
     "hunter_pets": ("hunter-pets", 360),
 }
+# Mindestabstand in Minuten fuer Endpunkte ohne Entitaet (z. B. Berufe ohne
+# Beruf, PvP-Brackets ohne Wertung, Erfolge in Classic Era) und fuer die
+# WoW-Marke ohne Sensor: Liefern sie spaeter Daten, entsteht die Entitaet ohne
+# Neuladen. Endpunkte, deren Entitaeten alle deaktiviert sind, bleiben aus.
+DISCOVERY_MINUTES = 360
 # Endpunkte, bei denen ein 404 laut Blizzard-Doku etwas Dauerhaftes ueber den
 # Charakter sagt. hunter-pets: "If the character is a hunter, returns a summary
 # of the character's hunter pets. Otherwise, returns an HTTP 404 Not Found

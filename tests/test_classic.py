@@ -14,7 +14,7 @@ from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers import entity_registry as er
 
 from custom_components.wow_character import _parse_world_key
-from custom_components.wow_character.const import DOMAIN
+from custom_components.wow_character.const import DISCOVERY_MINUTES, DOMAIN
 
 from .conftest import (
     ACHIEVEMENTS,
@@ -439,10 +439,16 @@ def _detail_calls(aioclient_mock, path: str) -> int:
     )
 
 
-async def test_endpoint_without_entity_not_queried_again(
+def _age(times: dict[str, float], minutes: int) -> None:
+    """Abfragezeiten um minutes Minuten zurueckdatieren."""
+    for key in times:
+        times[key] -= minutes * 60
+
+
+async def test_endpoint_without_entity_queried_rarely(
     hass: HomeAssistant, aioclient_mock
 ) -> None:
-    """Classic Era kennt keine Erfolge (404): ohne Entitaet keine weitere Abfrage."""
+    """Classic Era kennt keine Erfolge (404): ohne Entitaet nur alle 6 Stunden."""
     mock_token(aioclient_mock)
     mock_api(
         aioclient_mock,
@@ -456,13 +462,18 @@ async def test_endpoint_without_entity_not_queried_again(
     assert [_detail_calls(aioclient_mock, path) for path in paths] == [1, 1, 1]
 
     detail = entry.runtime_data.details[next(iter(entry.subentries))]
-    # Alle Abstaende zuruecksetzen: Jeder Endpunkt waere wieder faellig.
-    detail._fetched.clear()
+    # Eine Stunde spaeter: Die Ausruestung hat Sensoren und wird abgefragt.
+    _age(detail._fetched, 61)
     await detail.async_refresh()
     await hass.async_block_till_done()
     assert detail.last_update_success
-    # Die Ausruestung hat Sensoren und wird weiter abgefragt.
     assert [_detail_calls(aioclient_mock, path) for path in paths] == [1, 1, 2]
+
+    # Sechs Stunden spaeter auch die Endpunkte ohne Entitaet.
+    _age(detail._fetched, DISCOVERY_MINUTES)
+    await detail.async_refresh()
+    await hass.async_block_till_done()
+    assert [_detail_calls(aioclient_mock, path) for path in paths] == [2, 2, 3]
 
 
 def test_parse_classic_world_keys() -> None:
@@ -495,10 +506,10 @@ async def _refresh_world(hass: HomeAssistant, world) -> None:
     await hass.async_block_till_done()
 
 
-async def test_classic_without_token_stops_asking(
+async def test_classic_without_token_asks_rarely(
     hass: HomeAssistant, aioclient_mock
 ) -> None:
-    """Kein Preis beim Start: kein Sensor, danach keine Abfrage bis zum Neuladen."""
+    """Kein Preis beim Start: kein Sensor, danach nur alle 6 Stunden gefragt."""
     mock_token(aioclient_mock)
     mock_api(aioclient_mock, {f"{GAME}/token/index": 404})
     entry = await _setup(hass, _classic_subentry())
@@ -506,9 +517,11 @@ async def test_classic_without_token_stops_asking(
     assert _eid(hass, "sensor", f"{WORLD}-token") is None
     assert _token_calls(aioclient_mock) == 1
 
-    await _refresh_world(hass, world)
+    # Eine Stunde spaeter: keine WoW-Marke, die Realms aber weiter.
+    _age(world._fetched, 61)
+    await world.async_refresh()
+    await hass.async_block_till_done()
     assert _token_calls(aioclient_mock) == 1
-    # Die Realms werden weiter abgefragt.
     assert world.last_update_success
     assert world.data["realms"]["die-aldor"]["status"] == "UP"
 

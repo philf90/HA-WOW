@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
+from functools import partial
 from typing import Any
 
 from homeassistant.components.event import EventEntity
@@ -11,7 +12,7 @@ from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from . import parsers as p
 from .coordinator import WowConfigEntry, WowCoordinator, WowDetailCoordinator
-from .entity import WowCharacterEntity
+from .entity import EntityAdder, WowCharacterEntity
 from .sensor import detail_available
 
 # Nur Coordinator-Entitaeten ohne eigene Abfragen: keine Begrenzung noetig.
@@ -25,23 +26,38 @@ async def async_setup_entry(
 ) -> None:
     runtime = entry.runtime_data
     for subentry_id, detail in runtime.details.items():
-        entities: list[EventEntity] = [
-            WowEvent(detail, key, event_type, endpoint, fn)
-            for key, event_type, endpoint, fn in (
-                ("boss_killed", "boss_killed", "raids", p.boss_kills),
-                (
-                    "new_achievement",
-                    "achievement",
-                    "achievements",
-                    p.recent_achievements,
-                ),
-            )
-            if detail_available(detail, key)
-        ]
-        if detail_available(detail, "new_collectible"):
-            entities.append(WowCollectibleEvent(detail))
-        entities.append(WowLevelEvent(runtime.coordinators[subentry_id]))
-        async_add_entities(entities, config_subentry_id=subentry_id)
+        coordinator = runtime.coordinators[subentry_id]
+        adder = EntityAdder(partial(async_add_entities, config_subentry_id=subentry_id))
+
+        @callback
+        def update(
+            detail: WowDetailCoordinator = detail,
+            coordinator: WowCoordinator = coordinator,
+            adder: EntityAdder = adder,
+        ) -> None:
+            adder.add(_events(detail, coordinator))
+
+        update()
+        # Z. B. erste Erfolge in Classic: Ereignis ohne Neuladen anlegen.
+        entry.async_on_unload(detail.async_add_listener(update))
+
+
+# Schluessel, event_type, Endpunkt, Auswertung
+EVENTS = (
+    ("boss_killed", "boss_killed", "raids", p.boss_kills),
+    ("new_achievement", "achievement", "achievements", p.recent_achievements),
+)
+
+
+def _events(
+    detail: WowDetailCoordinator, coordinator: WowCoordinator
+) -> Iterator[tuple[str, Callable[[], EventEntity]]]:
+    for key, event_type, endpoint, fn in EVENTS:
+        if detail_available(detail, key):
+            yield key, partial(WowEvent, detail, key, event_type, endpoint, fn)
+    if detail_available(detail, "new_collectible"):
+        yield "new_collectible", partial(WowCollectibleEvent, detail)
+    yield "level_up", partial(WowLevelEvent, coordinator)
 
 
 class WowEvent(WowCharacterEntity, EventEntity):

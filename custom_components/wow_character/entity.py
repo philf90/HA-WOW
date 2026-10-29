@@ -2,9 +2,12 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable, Iterable
 from typing import Any
 
+from homeassistant.core import callback
 from homeassistant.helpers.device_registry import DeviceEntryType, DeviceInfo
+from homeassistant.helpers.entity import Entity
 from homeassistant.helpers.update_coordinator import (
     CoordinatorEntity,
     DataUpdateCoordinator,
@@ -12,6 +15,32 @@ from homeassistant.helpers.update_coordinator import (
 
 from .const import DOMAIN, GAME_VERSIONS
 from .coordinator import WowWorldCoordinator
+
+
+class EntityAdder:
+    """Legt Entitaeten an, sobald ihre Bedingung erfuellt ist, auch nach dem Start.
+
+    Die Plattformen rufen add() beim Start und bei jeder Aktualisierung ihrer
+    Coordinators mit allen Entitaeten auf, die es nach den Daten geben soll,
+    als (Schluessel, Fabrik). Neu angelegt wird nur, was noch fehlt. Faellt eine
+    Bedingung spaeter weg (z. B. Gilde verlassen), bleibt die Entitaet bis zum
+    Neuladen und zeigt "unbekannt".
+    """
+
+    def __init__(self, add_entities: Callable[[list[Entity]], None]) -> None:
+        self._add_entities = add_entities
+        # Schluessel nach der unique_id des Charakters bzw. der Spielwelt
+        self.known: set[str] = set()
+
+    @callback
+    def add(self, candidates: Iterable[tuple[str, Callable[[], Entity]]]) -> None:
+        new = []
+        for key, factory in candidates:
+            if key not in self.known:
+                self.known.add(key)
+                new.append(factory())
+        if new:
+            self._add_entities(new)
 
 
 class WowCharacterEntity(CoordinatorEntity[DataUpdateCoordinator[dict[str, Any]]]):

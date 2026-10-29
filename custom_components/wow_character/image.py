@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from functools import partial
+
 from homeassistant.components.image import ImageEntity
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
@@ -9,7 +11,7 @@ from homeassistant.util import dt as dt_util
 
 from . import parsers as p
 from .coordinator import WowConfigEntry, WowDetailCoordinator
-from .entity import WowCharacterEntity
+from .entity import EntityAdder, WowCharacterEntity
 from .sensor import detail_available
 
 # Nur Coordinator-Entitaeten ohne eigene Abfragen: keine Begrenzung noetig.
@@ -22,14 +24,21 @@ async def async_setup_entry(
     async_add_entities: AddConfigEntryEntitiesCallback,
 ) -> None:
     for subentry_id, detail in entry.runtime_data.details.items():
-        async_add_entities(
-            [
-                WowImage(hass, detail, key)
+        adder = EntityAdder(partial(async_add_entities, config_subentry_id=subentry_id))
+
+        @callback
+        def update(
+            detail: WowDetailCoordinator = detail, adder: EntityAdder = adder
+        ) -> None:
+            adder.add(
+                (key, partial(WowImage, hass, detail, key))
                 for key in ("avatar", "full_body")
                 if detail_available(detail, key)
-            ],
-            config_subentry_id=subentry_id,
-        )
+            )
+
+        update()
+        # Bilder, die erst spaeter kommen, ohne Neuladen anlegen.
+        entry.async_on_unload(detail.async_add_listener(update))
 
 
 class WowImage(WowCharacterEntity, ImageEntity):

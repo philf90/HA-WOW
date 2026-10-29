@@ -9,7 +9,7 @@ import pytest
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import entity_registry as er
 
-from custom_components.wow_character.const import DOMAIN
+from custom_components.wow_character.const import DISCOVERY_MINUTES, DOMAIN
 from custom_components.wow_character.diagnostics import (
     async_get_config_entry_diagnostics,
 )
@@ -238,8 +238,8 @@ async def test_failed_first_query_is_retried(
 ) -> None:
     """Ein Fehler (kein 404) sagt nichts ueber die Klasse.
 
-    Ohne Sensor braucht die Antwort bis zum Neuladen niemand; danach wird der
-    Endpunkt wieder abgefragt und der Sensor entsteht.
+    Ohne Sensor fragt die Integration den Endpunkt alle 6 Stunden ab; liefert
+    er dann Begleiter, entsteht der Sensor ohne Neuladen.
     """
     mock_token(aioclient_mock)
     mock_api(aioclient_mock, {f"{API}/hunter-pets": 500})
@@ -247,12 +247,14 @@ async def test_failed_first_query_is_retried(
     detail = entry.runtime_data.details[next(iter(entry.subentries))]
     assert "hunter_pets" not in detail._absent
     assert _eid(hass, f"{UID1}-hunter_pets") is None
-    assert "hunter_pets" not in detail.needed_endpoints()
+    assert detail.endpoint_intervals()["hunter_pets"] == DISCOVERY_MINUTES
 
     aioclient_mock.clear_requests()
     mock_token(aioclient_mock)
     mock_api(aioclient_mock, {f"{API}/hunter-pets": HUNTER_PETS})
-    assert await hass.config_entries.async_reload(entry.entry_id)
+    for endpoint in detail._fetched:
+        detail._fetched[endpoint] -= DISCOVERY_MINUTES * 60
+    await detail.async_refresh()
     await hass.async_block_till_done()
     assert _hunter_pet_calls(aioclient_mock) == 1
     assert hass.states.get(_eid(hass, f"{UID1}-hunter_pets")).state == "3"

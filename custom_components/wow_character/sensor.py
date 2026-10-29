@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
 from dataclasses import dataclass
 from datetime import datetime
+from functools import partial
 from typing import Any
 
 from homeassistant.components.sensor import (
@@ -14,11 +15,11 @@ from homeassistant.components.sensor import (
     SensorStateClass,
 )
 from homeassistant.const import PERCENTAGE
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from . import parsers as p
-from .const import EQUIPMENT_SLOTS
+from .const import EQUIPMENT_SLOTS, PVP_BRACKETS
 from .coordinator import (
     EQUIPMENT_PREFIX,
     PROFESSION_PREFIX,
@@ -29,7 +30,7 @@ from .coordinator import (
     WowWorldCoordinator,
     endpoint_for_key,
 )
-from .entity import WowCharacterEntity, WowWorldEntity
+from .entity import EntityAdder, WowCharacterEntity, WowWorldEntity
 
 # Nur Coordinator-Entitaeten ohne eigene Abfragen: keine Begrenzung noetig.
 PARALLEL_UPDATES = 0
@@ -402,8 +403,8 @@ DETAIL_SENSORS: tuple[WowSensorDescription, ...] = (
 def detail_available(coordinator: WowDetailCoordinator, key: str) -> bool:
     """Entitaet anlegen? Nie fuer Endpunkte, die die Spielversion nicht kennt.
 
-    Ausserhalb von Retail (Forever, Classic) nur, wenn der Endpunkt beim Start
-    Daten liefert oder noch nicht abgefragt werden konnte.
+    Ausserhalb von Retail (Forever, Classic) nur, wenn der Endpunkt Daten
+    liefert oder noch nicht abgefragt werden konnte.
     """
     endpoint = endpoint_for_key(key)
     if endpoint is not None and not coordinator.supports_endpoint(endpoint):
@@ -418,7 +419,7 @@ def has_value(
     coordinator: WowCoordinator | WowDetailCoordinator,
     description: WowSensorDescription,
 ) -> bool:
-    """Ausserhalb von Retail nur Sensoren anlegen, die beim Start einen Wert haben.
+    """Ausserhalb von Retail nur Sensoren anlegen, die einen Wert haben.
 
     Blizzard dokumentiert keine Antwortfelder; fuer Forever und Classic ist
     nicht belegt, welche Felder von Retail es dort gibt. Ohne Antwort (Abfrage
@@ -441,90 +442,122 @@ async def async_setup_entry(
     runtime = entry.runtime_data
     for subentry_id, coordinator in runtime.coordinators.items():
         detail = runtime.details[subentry_id]
-        entities: list[SensorEntity] = [
-            WowLevelSensor(coordinator, d, detail)
-            if d.key == "level"
-            else WowSensor(coordinator, d)
-            for d in PROFILE_SENSORS
-            if (coordinator.mythic_plus or not d.mythic_plus_only)
-            and has_value(coordinator, d)
-        ]
-        entities += [
-            WowSensor(detail, d)
-            for d in DETAIL_SENSORS
-            if (detail.mythic_plus or not d.mythic_plus_only)
+        adder = EntityAdder(partial(async_add_entities, config_subentry_id=subentry_id))
+
+        @callback
+        def update(
+            coordinator: WowCoordinator = coordinator,
+            detail: WowDetailCoordinator = detail,
+            adder: EntityAdder = adder,
+        ) -> None:
+            adder.add(_character_sensors(coordinator, detail))
+            # Brackets mit Sensor fragt der Detail-Coordinator stuendlich ab.
+            detail.pvp_bracket_sensors = {
+                bracket
+                for bracket in PVP_BRACKETS
+                if f"{PVP_BRACKET_PREFIX}{bracket.lower()}" in adder.known
+            }
+
+        update()
+        # Neue Berufe, Gilde, Brackets usw. ohne Neuladen anlegen.
+        entry.async_on_unload(coordinator.async_add_listener(update))
+        entry.async_on_unload(detail.async_add_listener(update))
+
+    for world in runtime.worlds.values():
+        adder = EntityAdder(async_add_entities)
+
+        @callback
+        def update_world(
+            world: WowWorldCoordinator = world, adder: EntityAdder = adder
+        ) -> None:
+            adder.add(_world_sensors(world))
+            # Ohne Sensor fragt die Spielwelt die WoW-Marke nur selten ab.
+            world.token_sensor = "token" in adder.known
+
+        update_world()
+        entry.async_on_unload(world.async_add_listener(update_world))
+
+
+Candidates = Iterator[tuple[str, Callable[[], SensorEntity]]]
+
+
+def _character_sensors(
+    coordinator: WowCoordinator, detail: WowDetailCoordinator
+) -> Candidates:
+    """Sensoren eines Charakters, die es nach den aktuellen Daten geben soll."""
+    for d in PROFILE_SENSORS:
+        if (coordinator.mythic_plus or not d.mythic_plus_only) and has_value(
+            coordinator, d
+        ):
+            if d.key == "level":
+                yield d.key, partial(WowLevelSensor, coordinator, d, detail)
+            else:
+                yield d.key, partial(WowSensor, coordinator, d)
+    for d in DETAIL_SENSORS:
+        if (
+            (detail.mythic_plus or not d.mythic_plus_only)
             and not (d.non_retail_only and detail.is_retail)
             and detail_available(detail, d.key)
             and has_value(detail, d)
-        ]
-        # Berufe: je Beruf ein Sensor, angelegt aus der ersten Antwort.
-        for prof_id in _professions(detail):
-            entities.append(WowProfessionSensor(detail, prof_id))
-        # Ausruestung: alle Plaetze, auch leere, damit Karten feste IDs haben.
-        # Ausserhalb von Retail bekommen weitere Plaetze der ersten Antwort
-        # einen eigenen Sensor mit dem Namen des Platzes aus der API; welche
-        # Plaetze Classic liefert, ist nicht dokumentiert.
-        if detail_available(detail, f"{EQUIPMENT_PREFIX}head"):
-            items = _items(detail.data or {}) or {}
-            extra = (
-                [] if detail.is_retail else sorted(items.keys() - {*EQUIPMENT_SLOTS})
-            )
-            entities += [
-                WowEquipmentSensor(detail, slot) for slot in (*EQUIPMENT_SLOTS, *extra)
-            ]
-        if detail_available(detail, "reputation"):
-            entities.append(WowReputationSensor(detail))
-        # Gilde: nur fuer Charaktere, die beim Start in einer Gilde sind.
-        if p.guild_path((coordinator.data or {}).get("profile")):
-            entities.append(WowGuildSensor(detail))
-        # Jaegerbegleiter: nur wenn die API beim Start Begleiter liefert;
-        # fuer andere Klassen meldet sie 404.
-        if (
-            detail_available(detail, "hunter_pets")
-            and (detail.data or {}).get("hunter_pets") is not None
         ):
-            entities.append(WowHunterPetsSensor(detail))
-        # PvP-Brackets: je Bracket mit Daten beim Start ein Sensor. Brackets
-        # ohne Sensor fragt der Detail-Coordinator danach nicht mehr ab.
-        brackets = (detail.data or {}).get("pvp_brackets") or {}
-        detail.pvp_bracket_sensors = (
-            {bracket for bracket, value in brackets.items() if value is not None}
-            if detail_available(detail, f"{PVP_BRACKET_PREFIX}3v3")
-            else set()
+            yield d.key, partial(WowSensor, detail, d)
+    # Berufe: je Beruf ein Sensor, auch fuer spaeter gelernte.
+    for prof_id in _professions(detail):
+        yield (
+            f"{PROFESSION_PREFIX}{prof_id}",
+            partial(WowProfessionSensor, detail, prof_id),
         )
-        entities += [
-            WowPvpBracketSensor(detail, bracket)
-            for bracket in sorted(detail.pvp_bracket_sensors)
-        ]
-        async_add_entities(entities, config_subentry_id=subentry_id)
+    # Ausruestung: alle Plaetze, auch leere, damit Karten feste IDs haben.
+    # Ausserhalb von Retail bekommen weitere Plaetze aus der Antwort einen
+    # eigenen Sensor mit dem Namen des Platzes aus der API; welche Plaetze
+    # Classic liefert, ist nicht dokumentiert.
+    if detail_available(detail, f"{EQUIPMENT_PREFIX}head"):
+        items = _items(detail.data or {}) or {}
+        extra = [] if detail.is_retail else sorted(items.keys() - {*EQUIPMENT_SLOTS})
+        for slot in (*EQUIPMENT_SLOTS, *extra):
+            yield (
+                f"{EQUIPMENT_PREFIX}{slot.lower()}",
+                partial(WowEquipmentSensor, detail, slot),
+            )
+    if detail_available(detail, "reputation"):
+        yield "reputation", partial(WowReputationSensor, detail)
+    # Gilde: nur fuer Charaktere in einer Gilde, auch nach spaeterem Beitritt.
+    if p.guild_path((coordinator.data or {}).get("profile")):
+        yield "guild", partial(WowGuildSensor, detail)
+    # Jaegerbegleiter: nur wenn die API Begleiter liefert; fuer andere
+    # Klassen meldet sie 404.
+    if (
+        detail_available(detail, "hunter_pets")
+        and (detail.data or {}).get("hunter_pets") is not None
+    ):
+        yield "hunter_pets", partial(WowHunterPetsSensor, detail)
+    # PvP-Brackets: je Bracket mit Daten ein Sensor.
+    if detail_available(detail, f"{PVP_BRACKET_PREFIX}3v3"):
+        brackets = (detail.data or {}).get("pvp_brackets") or {}
+        for bracket in sorted(b for b, value in brackets.items() if value is not None):
+            yield (
+                f"{PVP_BRACKET_PREFIX}{bracket.lower()}",
+                partial(WowPvpBracketSensor, detail, bracket),
+            )
 
-    for world in runtime.worlds.values():
-        async_add_entities(_world_sensors(world))
 
-
-def _world_sensors(world: WowWorldCoordinator) -> list[SensorEntity]:
+def _world_sensors(world: WowWorldCoordinator) -> Candidates:
     data = world.data or {}
-    # Retail kennt WoW-Marke und Reset sicher; Forever nur, wenn die API antwortet.
-    known = not world.suffix
-    entities: list[SensorEntity] = []
-    # Ohne Sensor fragt die Spielwelt die WoW-Marke nicht mehr ab, z. B. in
-    # Classic-Regionen ohne WoW-Marke.
-    world.token_sensor = known or data.get("token") is not None
-    if world.token_sensor:
-        entities.append(WowTokenSensor(world))
+    # Retail kennt die WoW-Marke sicher; sonst erst, wenn die API einen Preis
+    # liefert, z. B. nie in Classic-Regionen ohne WoW-Marke.
+    if not world.suffix or data.get("token") is not None:
+        yield "token", partial(WowTokenSensor, world)
     if world.mythic_plus:
-        entities.append(WowResetSensor(world))
+        yield "weekly_reset", partial(WowResetSensor, world)
     for slug in realm_slugs(world):
-        entities.append(WowRealmPopulationSensor(world, slug))
-    return entities
+        yield f"realm-{slug}-population", partial(WowRealmPopulationSensor, world, slug)
 
 
 def realm_slugs(world: WowWorldCoordinator) -> list[str]:
     """Realms mit Entitaeten.
 
-    Retail: alle Realms der Charaktere, auch wenn die erste Abfrage scheiterte;
-    sonst fehlten sie bis zum Neuladen. Forever und Classic: nur Realms, fuer
-    die die API beim Start antwortet.
+    Retail: alle Realms der Charaktere, auch wenn die erste Abfrage scheiterte.
+    Forever und Classic: nur Realms, fuer die die API geantwortet hat.
     """
     if not world.suffix:
         return sorted(world.realms)

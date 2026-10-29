@@ -2,15 +2,18 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable, Iterator
+from functools import partial
+
 from homeassistant.components.binary_sensor import (
     BinarySensorDeviceClass,
     BinarySensorEntity,
 )
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from .coordinator import WowConfigEntry, WowWorldCoordinator
-from .entity import WowWorldEntity
+from .entity import EntityAdder, WowWorldEntity
 from .sensor import realm_slugs
 
 # Nur Coordinator-Entitaeten ohne eigene Abfragen: keine Begrenzung noetig.
@@ -23,10 +26,23 @@ async def async_setup_entry(
     async_add_entities: AddConfigEntryEntitiesCallback,
 ) -> None:
     for world in entry.runtime_data.worlds.values():
-        for slug in realm_slugs(world):
-            async_add_entities(
-                [WowRealmStatus(world, slug), WowRealmQueue(world, slug)]
-            )
+        adder = EntityAdder(async_add_entities)
+
+        @callback
+        def update(world: WowWorldCoordinator = world, adder: EntityAdder = adder):
+            adder.add(_realm_entities(world))
+
+        update()
+        # Forever und Classic: Realms, die erst spaeter antworten, ohne Neuladen.
+        entry.async_on_unload(world.async_add_listener(update))
+
+
+def _realm_entities(
+    world: WowWorldCoordinator,
+) -> Iterator[tuple[str, Callable[[], BinarySensorEntity]]]:
+    for slug in realm_slugs(world):
+        yield f"realm-{slug}-status", partial(WowRealmStatus, world, slug)
+        yield f"realm-{slug}-queue", partial(WowRealmQueue, world, slug)
 
 
 class _RealmEntity(WowWorldEntity, BinarySensorEntity):
