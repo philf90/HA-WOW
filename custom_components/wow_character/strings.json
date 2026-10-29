@@ -23,7 +23,7 @@
       },
       "select": {
         "title": "Pick characters",
-        "description": "Found {count} characters that are not set up yet. Each picked character becomes its own device. Failed queries (characters there may be missing): {failed}.",
+        "description": "Characters found that are not set up yet: {count}. Each picked character becomes its own device. Failed queries (characters there may be missing): {failed}.",
         "data": {
           "characters": "Characters"
         }
@@ -105,7 +105,7 @@
         },
         "select": {
           "title": "Pick characters",
-          "description": "Found {count} characters that are not set up yet. Each picked character becomes its own device. Failed queries (characters there may be missing): {failed}.",
+          "description": "Characters found that are not set up yet: {count}. Each picked character becomes its own device. Failed queries (characters there may be missing): {failed}.",
           "data": {
             "characters": "Characters"
           }
@@ -181,7 +181,7 @@
     },
     "language": {
       "options": {
-        "region": "Region language (Europe German, Americas English, Korea Korean, Taiwan Chinese)",
+        "region": "Region language (as before)",
         "home_assistant": "Language of Home Assistant",
         "de": "Deutsch (Europe)",
         "en": "English (all regions)",

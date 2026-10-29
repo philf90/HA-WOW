@@ -23,7 +23,7 @@
       },
       "select": {
         "title": "Charaktere wählen",
-        "description": "{count} Charaktere gefunden, die noch nicht eingerichtet sind. Jeder gewählte Charakter wird ein eigenes Gerät. Fehlgeschlagene Abfragen (dort fehlen eventuell Charaktere): {failed}.",
+        "description": "Gefundene Charaktere, die noch nicht eingerichtet sind: {count}. Jeder gewählte Charakter wird ein eigenes Gerät. Fehlgeschlagene Abfragen (dort fehlen eventuell Charaktere): {failed}.",
         "data": {
           "characters": "Charaktere"
         }
@@ -105,7 +105,7 @@
         },
         "select": {
           "title": "Charaktere wählen",
-          "description": "{count} Charaktere gefunden, die noch nicht eingerichtet sind. Jeder gewählte Charakter wird ein eigenes Gerät. Fehlgeschlagene Abfragen (dort fehlen eventuell Charaktere): {failed}.",
+          "description": "Gefundene Charaktere, die noch nicht eingerichtet sind: {count}. Jeder gewählte Charakter wird ein eigenes Gerät. Fehlgeschlagene Abfragen (dort fehlen eventuell Charaktere): {failed}.",
           "data": {
             "characters": "Charaktere"
           }
@@ -181,7 +181,7 @@
     },
     "language": {
       "options": {
-        "region": "Sprache der Region (Europa Deutsch, Amerika Englisch, Korea Koreanisch, Taiwan Chinesisch)",
+        "region": "Sprache der Region (wie bisher)",
         "home_assistant": "Sprache von Home Assistant",
         "de": "Deutsch (Europa)",
         "en": "English (alle Regionen)",
