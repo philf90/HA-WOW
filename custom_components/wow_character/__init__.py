@@ -184,8 +184,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: WowConfigEntry) -> bool:
     entry.runtime_data = runtime
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
-    # Die Entitaeten stehen fest: Endpunkte ohne Entitaet, z. B. Erfolge in
-    # Classic Era, fragen die Detail-Coordinators bis zum Neuladen nicht ab.
+    # Die Entitaeten des Starts stehen: Endpunkte ohne Entitaet, z. B. Erfolge
+    # in Classic Era, fragen die Detail-Coordinators nur noch selten ab.
     for detail in runtime.details.values():
         detail.entities_ready = True
         # Symbole des Talentbaums laedt erst dieser Lauf (siehe _talent_tree).

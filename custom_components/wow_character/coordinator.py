@@ -33,6 +33,7 @@ from .const import (
     CONF_REGION,
     DETAIL_ENDPOINTS,
     DETAIL_INTERVAL,
+    DISCOVERY_MINUTES,
     DOMAIN,
     GAME_VERSIONS,
     NOT_FOUND_IS_FINAL,
@@ -407,11 +408,14 @@ class WowDetailCoordinator(_CharacterMixin, DataUpdateCoordinator[dict[str, Any]
         # Medien-ID eines Items -> URL des Symbols; Symbole aendern sich nicht.
         self._item_icons: dict[int, str] = {}
         # Brackets mit Sensor; setzt sensor.py beim Anlegen, None bis dahin.
-        # Brackets ohne Sensor werden bis zum Neuladen nicht abgefragt.
+        # Brackets ohne Sensor fragt die Integration nur alle DISCOVERY_MINUTES.
         self.pvp_bracket_sensors: set[str] | None = None
+        # Bracket -> letzte Abfrage, nur fuer Brackets ohne Sensor.
+        self._bracket_checked: dict[str, float] = {}
         # True, sobald alle Plattformen ihre Entitaeten angelegt haben (setzt
-        # __init__.py). Danach entsteht bis zum Neuladen keine neue Entitaet;
-        # Endpunkte ohne Entitaet werden nicht mehr abgefragt.
+        # __init__.py). Danach fragt die Integration Endpunkte ohne Entitaet
+        # nur noch alle DISCOVERY_MINUTES ab; neue Entitaeten legen die
+        # Plattformen aus den Antworten an.
         self.entities_ready = False
         # Talentbaeume der Spezialisierung je Pfad; statisch bis zum Neuladen.
         self._talent_trees: dict[str, dict[str, Any]] = {}
@@ -436,10 +440,16 @@ class WowDetailCoordinator(_CharacterMixin, DataUpdateCoordinator[dict[str, Any]
         return entry is not None and entry.disabled_by is None
 
     def needed_endpoints(self) -> set[str]:
-        """Endpunkte mit mindestens einer aktiven Entitaet.
+        """Endpunkte, die abgefragt werden (siehe endpoint_intervals)."""
+        return set(self.endpoint_intervals())
 
-        Vor dem Anlegen der Entitaeten zaehlen auch Endpunkte, fuer die noch
-        keine Entitaet existiert: Ob sie entsteht, haengt an der Antwort.
+    def endpoint_intervals(self) -> dict[str, int]:
+        """Endpunkt -> Mindestabstand in Minuten.
+
+        Mit aktiver Entitaet der Abstand aus DETAIL_ENDPOINTS. Ohne Entitaet
+        DISCOVERY_MINUTES, vor dem Anlegen der Entitaeten ebenfalls der
+        normale Abstand: Ob eine Entitaet entsteht, haengt an der Antwort.
+        Endpunkte, deren Entitaeten alle deaktiviert sind, fehlen.
         """
         ent_reg = er.async_get(self.hass)
         prefix = f"{self.subentry.unique_id}-"
@@ -458,16 +468,19 @@ class WowDetailCoordinator(_CharacterMixin, DataUpdateCoordinator[dict[str, Any]
             registered |= endpoints
             if entry.disabled_by is None:
                 enabled |= endpoints
-        needed = set(enabled)
-        if not self.entities_ready:
-            needed |= set(DETAIL_ENDPOINTS) - registered
+        intervals = {e: DETAIL_ENDPOINTS[e][1] for e in enabled}
+        for endpoint in set(DETAIL_ENDPOINTS) - registered:
+            intervals[endpoint] = (
+                DISCOVERY_MINUTES
+                if self.entities_ready
+                else DETAIL_ENDPOINTS[endpoint][1]
+            )
         if not self.mythic_plus:
-            needed.discard("mythic_season")
-        if self.pvp_bracket_sensors == set():
-            # Kein Bracket mit Sensor: nichts abzufragen.
-            needed.discard("pvp_brackets")
+            intervals.pop("mythic_season", None)
         return {
-            e for e in needed if self.supports_endpoint(e) and e not in self._absent
+            e: minutes
+            for e, minutes in intervals.items()
+            if self.supports_endpoint(e) and e not in self._absent
         }
 
     def _season_id(self) -> int | None:
@@ -491,8 +504,8 @@ class WowDetailCoordinator(_CharacterMixin, DataUpdateCoordinator[dict[str, Any]
         now = time.monotonic()
         data = dict(self.data or {})
         attempted = failed = 0
-        for endpoint in sorted(self.needed_endpoints()):
-            resource, every = DETAIL_ENDPOINTS[endpoint]
+        for endpoint, every in sorted(self.endpoint_intervals().items()):
+            resource = DETAIL_ENDPOINTS[endpoint][0]
             last = self._fetched.get(endpoint)
             if last is not None and now - last < every * 60 - _TOLERANCE:
                 continue
@@ -516,7 +529,7 @@ class WowDetailCoordinator(_CharacterMixin, DataUpdateCoordinator[dict[str, Any]
                         self.region, self.suffix, resource.format(guild=guild)
                     )
                 elif "{bracket}" in resource:
-                    data[endpoint] = await self._pvp_brackets(resource)
+                    data[endpoint] = await self._pvp_brackets(resource, now)
                 else:
                     data[endpoint] = await self.client.get_character_resource(
                         self.region, self.realm, self.character, self.suffix, resource
@@ -570,17 +583,27 @@ class WowDetailCoordinator(_CharacterMixin, DataUpdateCoordinator[dict[str, Any]
         data["media_urls"] = self._media.urls()
         return data
 
-    async def _pvp_brackets(self, resource: str) -> dict[str, Any]:
+    async def _pvp_brackets(self, resource: str, now: float) -> dict[str, Any]:
         """Je Bracket die Antwort; None, wenn die API 404 meldet.
 
-        Vor dem Anlegen der Sensoren alle aus PVP_BRACKETS, danach nur die mit
-        Sensor. Andere Fehler gelten fuer den ganzen Endpunkt (alter Stand bleibt).
+        Vor dem Anlegen der Sensoren alle aus PVP_BRACKETS, danach die mit
+        Sensor bei jeder Abfrage und die ohne Sensor alle DISCOVERY_MINUTES.
+        Uebersprungene fehlen in der Antwort; sie haben keinen Sensor, denn
+        ein Bracket mit Daten bekommt ihn gleich nach der Abfrage. Andere
+        Fehler gelten fuer den ganzen Endpunkt (alter Stand bleibt).
         """
         result: dict[str, Any] = {}
         wanted = self.pvp_bracket_sensors
         for bracket in PVP_BRACKETS:
-            if wanted is not None and bracket not in wanted:
-                continue
+            if wanted is None or bracket not in wanted:
+                last = self._bracket_checked.get(bracket)
+                if (
+                    wanted is not None
+                    and last is not None
+                    and now - last < DISCOVERY_MINUTES * 60 - _TOLERANCE
+                ):
+                    continue
+                self._bracket_checked[bracket] = now
             try:
                 result[bracket] = await self.client.get_character_resource(
                     self.region,
@@ -871,7 +894,8 @@ class WowWorldCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self.mythic_plus: bool = GAME_VERSIONS[game_version]["mythic_plus"]
         self._fetched: dict[str, float] = {}
         # Gibt es den Sensor "WoW-Marke"? Setzt sensor.py beim Anlegen; None
-        # bis dahin. Ohne Sensor wird die WoW-Marke nicht mehr abgefragt.
+        # bis dahin. Ohne Sensor fragt die Spielwelt die WoW-Marke nur alle
+        # DISCOVERY_MINUTES ab; liefert sie einen Preis, entsteht der Sensor.
         self.token_sensor: bool | None = None
         # Realm-Slug -> (Anzeigename, ID des verbundenen Realms)
         self._realm_info: dict[str, tuple[str, int]] = {}
@@ -895,7 +919,8 @@ class WowWorldCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         data: dict[str, Any] = dict(self.data or {"realms": {}})
         data["realms"] = dict(data.get("realms") or {})
         parts: list[tuple[str, Any]] = []
-        if self.token_sensor is not False and self._due("token", 60, now):
+        token_every = DISCOVERY_MINUTES if self.token_sensor is False else 60
+        if self._due("token", token_every, now):
             parts.append(("token", self._token))
         if self.mythic_plus and self._due("period", 60, now):
             parts.append(("period", self._weekly_reset))

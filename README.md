@@ -11,7 +11,7 @@ Home-Assistant-Integration für World-of-Warcraft-Charaktere: Level, Itemlevel,
 Ausrüstung, Raid- und Mythic+-Fortschritt, Berufe, Ruf, Erfolge und mehr als
 Sensoren, dazu WoW-Marke, wöchentlicher Reset und Serverstatus. Die Daten kommen
 aus der offiziellen Battle.net API. Unterstützt Retail, WoW Classic (Era,
-Progression, Anniversary) und ist für WoW Forever vorbereitet. Version 0.17.2.
+Progression, Anniversary) und ist für WoW Forever vorbereitet. Version 0.18.0.
 
 Zwei Dashboard-Karten liefert die Integration selbst mit: „WoW Arsenal“
 (`custom:wow-arsenal-card`) und „WoW Talentbaum“ (`custom:wow-talent-tree-card`,
@@ -146,6 +146,13 @@ neu starten. Wer von Hand aktualisiert, ersetzt den ganzen Ordner
 `custom_components/wow_character` samt `translations/`; sonst fehlen neue Texte,
 z. B. die Einträge im Menü „Charakter hinzufügen“. Was sich je Version ändert, steht in den
 [Release-Notes](https://github.com/philf90/HA-WOW/releases).
+
+**Update auf 0.18.0:** keine Migration. Neue Entitäten entstehen jetzt ohne
+Neuladen, sobald die API Daten dafür liefert, z. B. ein neu gelernter Beruf, die
+erste Wertung in einem PvP-Bracket oder der Beitritt zu einer Gilde (siehe
+[Abfragen und Takte](#abfragen-und-takte)). Dafür fragt die Integration
+Endpunkte ohne Entität alle 6 Stunden ab, statt gar nicht mehr. Zurück auf
+0.17.x geht ohne Backup.
 
 **Update auf 0.17.2:** keine Migration, nur Fehlerkorrekturen. Wer unter
 0.17.1 oder früher die Client-ID gewechselt hat, hat die Spielwelt-Entitäten
@@ -307,7 +314,7 @@ Profilwerte verfügbar und die Wertung behält ihren letzten Stand (seit 0.17.2)
 | Mythic+-Wertung der aktuellen Season (Farbe, Season, `api_rating` als Attribute) | Sensor | 15 min | Mythic+-Profil, `current_mythic_rating` |
 | Höchster Mythic+-Schlüssel (beste Läufe als Attribut), Läufe in Zeit | Sensoren | 1 h | `mythic-keystone-profile/season/{aktuelle Season}` |
 | Ehrenstufe, ehrenhafte Siege | Sensoren | 1 h | `pvp-summary` |
-| PvP-Wertung je Bracket (2v2, 3v3, RBG), nur Brackets mit Daten beim Start | Sensoren | 1 h; Brackets ohne Sensor nicht mehr | `pvp-bracket/{bracket}` |
+| PvP-Wertung je Bracket (2v2, 3v3, RBG), nur Brackets mit Daten | Sensoren | 1 h; Brackets ohne Sensor 6 h | `pvp-bracket/{bracket}` |
 | Beruf (je Beruf, Stufe als Attribut) | Sensor | 6 h | `professions`; Namen aus `profession/{id}` |
 | Ruf (Anzahl der Fraktionen, je Fraktion Stufe und Fortschritt als Attribut) | Sensor | 6 h | `reputations` |
 | **Erfolge und Sammlungen** | | | |
@@ -401,8 +408,10 @@ Kommen in einer Abfrage mehrere neue Einträge, löst jeder ein eigenes Ereignis
 
 ### Gilde
 
-Den Sensor gibt es nur für Charaktere, die beim Start von Home Assistant in einer
-Gilde sind. Zustand ist die Zahl der Mitglieder; Attribute `name`, `realm`,
+Den Sensor gibt es nur für Charaktere in einer Gilde; tritt ein Charakter später
+einer bei, entsteht er mit der nächsten Profilabfrage (seit 0.18.0, vorher erst
+nach dem Neuladen), die Werte folgen mit der nächsten Detailabfrage.
+Zustand ist die Zahl der Mitglieder; Attribute `name`, `realm`,
 `faction`, `achievement_points`, `created`, `activities` (die zehn neuesten
 Einträge: Erfolge von Mitgliedern mit `character` und `achievement`, Bosskills
 mit `boss` und `difficulty`, je mit `type` und `timestamp`) und `members` (seit
@@ -428,16 +437,18 @@ klappt das nicht, bleibt `class` leer. Namen der Ränge liefert die API nicht.
   `weekly_lost` und `season_id`. Abgefragt werden die Brackets `2v2`, `3v3` und
   `rbg` (`3v3` nennt die Classic-Doku als Beispiel, alle drei die
   Typdefinitionen von `@blizzard-api/wow`); einen Sensor gibt es für jedes, das
-  beim Start Daten liefert. Brackets ohne Sensor fragt die Integration danach
-  bis zum Neuladen nicht mehr ab (seit 0.11.1), Brackets mit Sensor stündlich,
-  auch nach einem späteren 404. `5v5` aus Classic ist nirgends dokumentiert und
-  fehlt deshalb.
+  Daten liefert. Brackets mit Sensor fragt die Integration stündlich ab, auch
+  nach einem späteren 404, Brackets ohne Sensor alle 6 Stunden; liefert eines
+  dann Daten, entsteht sein Sensor ohne Neuladen (seit 0.18.0; von 0.11.1 bis
+  0.17.x gar nicht mehr bis zum Neuladen). `5v5` aus Classic ist nirgends
+  dokumentiert und fehlt deshalb.
 
 ### Jägerbegleiter
 
-Den Sensor gibt es nur, wenn die API beim Start Begleiter liefert. Für andere
-Klassen meldet sie laut Blizzard-Doku 404; scheitert die erste Abfrage, entsteht
-der Sensor beim nächsten Neuladen. Zustand ist die Zahl der Begleiter.
+Den Sensor gibt es nur, wenn die API Begleiter liefert. Für andere Klassen
+meldet sie laut Blizzard-Doku 404; scheitert die erste Abfrage, fragt die
+Integration alle 6 Stunden erneut und legt den Sensor dann ohne Neuladen an
+(seit 0.18.0). Zustand ist die Zahl der Begleiter.
 
 Klassenprüfung (seit 0.10.1): Meldet die API für einen Charakter 404, ist er
 laut Doku kein Jäger, und die Integration fragt den Endpunkt bis zum nächsten
@@ -476,7 +487,8 @@ Aus den statischen Spieldaten, je Objekt einmal nachgeschlagen:
   Gruppe, bei Gleichstand alle diese Bäume („Elementar / Verstärkung“).
   Attribute: `total_points` und `trees`, je Baum `name`, `points` und `talents`
   (je Talent `name`, `rank`, `description`). Die Antwort nennt nur Bäume mit
-  Punkten; ohne Punkte beim Start gibt es keinen Sensor.
+  Punkten; ohne Punkte gibt es keinen Sensor, er entsteht mit den ersten
+  Punkten (seit 0.18.0 ohne Neuladen).
 - **Talentbaum** (seit 0.13.0, Retail): Zustand ist die Spezialisierung.
   Attribute: `hero` (aktiver Heldenbaum), `class_nodes`, `spec_nodes` und
   `hero_nodes` (je Knoten `id`, `row`, `col`, `type`, `max_rank`, `rank`,
@@ -524,11 +536,16 @@ Lange Attribute speichert Home Assistant nicht im Verlauf: `tooltip`, `factions`
 
 ## Abfragen und Takte
 
-- Ein Endpunkt wird nur abgefragt, wenn mindestens eine seiner Entitäten
-  aktiviert ist. Beim Start fragt die Integration alle Endpunkte einmal ab, weil
-  manche Entitäten nur entstehen, wenn Daten kommen. Endpunkte, für die dabei
-  keine Entitäten entstanden sind (z. B. Erfolge in Classic Era), fragt sie bis
-  zum Neuladen nicht mehr ab (seit 0.11.3).
+- Ein Endpunkt mit Entitäten wird nur abgefragt, wenn mindestens eine davon
+  aktiviert ist; sind alle deaktiviert, entfällt er. Beim Start fragt die
+  Integration alle Endpunkte einmal ab, weil manche Entitäten nur entstehen,
+  wenn Daten kommen. Endpunkte, für die keine Entität entstanden ist (z. B.
+  Berufe ohne Beruf, Erfolge in Classic Era), fragt sie danach alle 6 Stunden
+  ab. Liefern sie Daten, entstehen die Entitäten ohne Neuladen, ebenso neue
+  Berufe, Gilde, PvP-Brackets, Zusatzplätze, Realms und Sensoren, die erst
+  später einen Wert haben (seit 0.18.0; von 0.11.3 bis 0.17.x fragte sie solche
+  Endpunkte bis zum Neuladen gar nicht ab). Fällt eine Bedingung weg (z. B.
+  Gilde verlassen), bleibt die Entität und zeigt „unbekannt“.
 - Ereignisse lösen nur für Einträge aus, die nach dem Start von Home Assistant
   dazukommen.
 - Abfragelimit: Blizzard erlaubt laut Doku („Getting Started“, Throttling)
@@ -540,8 +557,8 @@ Lange Attribute speichert Home Assistant nicht im Verlauf: `tooltip`, `factions`
   einmal je Start und Spezialisierung, die Symbole einmal je Talent, erst nach
   dem Anlegen der Entitäten (bei einer Klasse rund 100 Abfragen, einmalig). Ist
   der Sensor „Talentbaum“ deaktiviert, entfällt beides.
-- Berufs-Sensoren entstehen aus der ersten Antwort; ein neu gelernter Beruf
-  erscheint nach dem nächsten Neuladen der Integration.
+- Berufs-Sensoren entstehen aus den Antworten; ein neu gelernter Beruf
+  erscheint spätestens nach 6 Stunden, ohne Neuladen (seit 0.18.0).
 - Das Token holt die Integration über den globalen Endpunkt
   `https://oauth.battle.net/token` (seit 0.2.0), wie die Bibliotheken
   `@blizzard-api/core` und `blizzard.js`.
@@ -550,8 +567,9 @@ Lange Attribute speichert Home Assistant nicht im Verlauf: `tooltip`, `factions`
 - Spielwelt: WoW-Marke, Reset, Season und jeder Realm werden einzeln abgefragt.
   Fällt eine Abfrage aus, behält ihr Wert den letzten Stand; nicht verfügbar wird
   die Spielwelt erst, wenn alle ausfallen. Gibt es keinen Sensor „WoW-Marke“
-  (Classic und Forever ohne Preis beim Start), wird sie bis zum Neuladen nicht
-  mehr abgefragt (seit 0.10.2).
+  (Classic und Forever ohne Preis), fragt sie die Integration nur alle 6 Stunden
+  ab und legt den Sensor an, sobald ein Preis kommt (seit 0.18.0; von 0.10.2 bis
+  0.17.x gar nicht mehr bis zum Neuladen).
 - Die Realm-Liste beim Hinzufügen zeigt keine internen Realms von Blizzard (z. B.
   „EU1A Account Realm“, „EU4A1-INST“, „RDB EU“).
 
@@ -747,7 +765,7 @@ steckt, ändert Blizzard mit der Zeit; der Namespace bleibt.
 | Namen der Transmog-Gegenstände | ja, wenn die IDs belegt Item-IDs sind | `item/{id}` |
 | Jägerbegleiter, nur für Jäger | ja | `hunter-pets` |
 | Server, Warteschlange, Bevölkerung je Realm | ja | `realm/{slug}`, `connected-realm/{id}` |
-| WoW-Marke | nur wenn die API beim Start einen Preis liefert; sonst bis zum Neuladen keine weitere Abfrage | `token/index` |
+| WoW-Marke | nur wenn die API einen Preis liefert; ohne Sensor alle 6 Stunden geprüft | `token/index` |
 | Klassen-Symbol (`class_icon`) | ja | `media/playable-class/{id}` |
 | Raids, Boss besiegt, Mythic+, wöchentlicher Reset | nein, nicht in der Doku | – |
 | Berufe, Ruf, Titel, Quests, Sammlungen, Neu gesammelt | nein, nicht in der Doku | – |
@@ -756,12 +774,12 @@ steckt, ändert Blizzard mit der Zeit; der Namespace bleibt.
 
 **Was die Antworten enthalten, sagt die Doku nicht** (sie nennt Endpunkte und
 Parameter, keine Antwortfelder). Die Integration liest Classic deshalb wie
-Retail und legt für Classic (wie für Forever) nur an, was beim Start wirklich
-Daten liefert:
+Retail und legt für Classic (wie für Forever) nur an, was wirklich Daten
+liefert:
 
 - Entitäten eines Endpunkts nur, wenn er antwortet (z. B. keine Erfolge, falls
   Classic Era dafür 404 meldet).
-- Sensoren nur, wenn sie beim Start einen Wert haben (z. B. kein Sensor
+- Sensoren nur, wenn sie einen Wert haben (z. B. kein Sensor
   „Meisterschaft“, wenn die Antwort keinen Wert dafür enthält). Ist die erste
   Abfrage gescheitert, werden sie angelegt und bleiben „unbekannt“, bis Daten
   kommen.
@@ -771,8 +789,8 @@ Daten liefert:
   Waffenreihe.
 
 Kommt ein Wert erst später dazu (z. B. erste Erfolge, ein belegter
-Zusatzplatz), erscheint sein Sensor nach dem nächsten Neuladen der Integration.
-Bis dahin fragt die Integration Endpunkte ohne Entität nicht ab (seit 0.11.3).
+Zusatzplatz), erscheint sein Sensor ohne Neuladen (seit 0.18.0). Endpunkte ohne
+Entität fragt die Integration dafür alle 6 Stunden ab.
 
 **Live geprüft mit Classic Era** (28.10.2026, ein Charakter auf Stufe 10, EU):
 Namespace `profile-classic1x-eu`, Profil, Ausrüstung, Verzauberungen,
@@ -798,9 +816,9 @@ seit 0.17.2; vorher brach das Hinzufügen mit „Verbindung fehlgeschlagen“ ab
 Kandidaten sind **unbestätigt**. Sobald Blizzard den Namespace nennt, dort
 eintragen; schlägt das Hinzufügen fehl, ist das die wahrscheinlichste Ursache.
 
-Für Forever-Charaktere legt die Integration nur Entitäten an, deren Endpunkt beim
-Start Daten liefert, und (seit 0.9.0) nur Sensoren, die beim Start einen Wert
-haben, wie bei [Classic](#wow-classic).
+Für Forever-Charaktere legt die Integration nur Entitäten an, deren Endpunkt
+Daten liefert, und (seit 0.9.0) nur Sensoren, die einen Wert haben, wie bei
+[Classic](#wow-classic); seit 0.18.0 auch später ohne Neuladen.
 
 ## Grenzen
 
@@ -831,6 +849,22 @@ Automatische Tests laufen gegen Home Assistant 2026.2.3; live geprüft wurde unt
 Home Assistant 2026.10.4 mit Retail-Charakteren der Region EU, seit 0.11.2 auch
 mit einem Classic-Era-Charakter (siehe [WoW Classic](#wow-classic)).
 
+- **0.18.x:** 228 automatische Tests. 0.18.0: 9 Tests für Entitäten ohne
+  Neuladen (neuer Beruf; Gildenbeitritt mit Werten nach der nächsten
+  Detailabfrage; erste Wertung in 2v2, danach stündlich, ohne doppelte
+  Entitäten; deaktivierter Endpunkt bleibt aus; in Classic Erfolge mit
+  Ereignis, Zusatzplatz, Bilder, WoW-Marke und ein später antwortender Realm).
+  Vier Tests an das neue Verhalten angepasst: Endpunkte ohne Entität, Brackets
+  ohne Sensor, WoW-Marke ohne Sensor und Jägerbegleiter nach gescheiterter
+  erster Abfrage werden jetzt alle 6 Stunden statt bis zum Neuladen gar nicht
+  mehr abgefragt. Gegenprobe: zwölf Teile einzeln ausgebaut (je ein Listener
+  in Sensor für Profil, Details und Spielwelt, in Binärsensor, Ereignis und
+  Bild; seltene Abfrage von Endpunkten ohne Entität, von Brackets ohne Sensor
+  und der WoW-Marke ohne Sensor; stündliche Abfrage neuer Brackets und der
+  neuen WoW-Marke; jede Entität nur einmal), jedes Mal schlug ein Test fehl.
+  Die letzte Probe fiel erst nach einer Prüfung des Logs auf doppelte IDs auf,
+  weil Home Assistant doppelte Entitäten selbst verwirft. **Nicht live
+  geprüft.**
 - **0.17.x:** 219 automatische Tests. 0.17.2: 9 Tests für die Korrekturen
   (Start ohne Token wird wiederholt und legt danach Beruf, PvP-Bracket und
   Realm-Entitäten an; Realm-Entitäten in Retail auch ohne erste Antwort;

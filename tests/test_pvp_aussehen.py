@@ -8,7 +8,7 @@ Werte erfunden.
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import entity_registry as er
 
-from custom_components.wow_character.const import DOMAIN
+from custom_components.wow_character.const import DISCOVERY_MINUTES, DOMAIN
 from custom_components.wow_character.diagnostics import (
     async_get_config_entry_diagnostics,
 )
@@ -166,7 +166,11 @@ async def _refresh_detail(hass: HomeAssistant, entry, aioclient_mock, override=N
 async def test_brackets_without_sensor_not_asked_again(
     hass: HomeAssistant, aioclient_mock
 ) -> None:
-    """2v2 und rbg ohne Sensor (404 beim Start): danach keine Abfrage mehr."""
+    """2v2 und rbg ohne Sensor (404 beim Start): nicht stuendlich abgefragt.
+
+    _refresh_detail setzt nur die Abstaende der Endpunkte zurueck; Brackets
+    ohne Sensor haben eigene, laengere (siehe test_nachlegen.py).
+    """
     mock_token(aioclient_mock)
     mock_api(aioclient_mock)
     entry = await _setup(hass)
@@ -177,13 +181,13 @@ async def test_brackets_without_sensor_not_asked_again(
 
 
 async def test_no_pvp_no_bracket_queries(hass: HomeAssistant, aioclient_mock) -> None:
-    """Kein Bracket mit Daten beim Start: Endpunkt faellt bis zum Neuladen weg."""
+    """Kein Bracket mit Daten beim Start: nur noch alle 6 Stunden geprueft."""
     mock_token(aioclient_mock)
     mock_api(aioclient_mock, {f"{API}/pvp-bracket/3v3": 404})
     entry = await _setup(hass)
     assert _calls(aioclient_mock, "/pvp-bracket/") == 3
     detail = await _refresh_detail(hass, entry, aioclient_mock)
-    assert "pvp_brackets" not in detail.needed_endpoints()
+    assert detail.endpoint_intervals()["pvp_brackets"] == DISCOVERY_MINUTES
     assert _calls(aioclient_mock, "/pvp-bracket/") == 0
     assert detail.last_update_success
 
