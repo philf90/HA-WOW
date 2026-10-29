@@ -150,8 +150,9 @@ z. B. die Einträge im Menü „Charakter hinzufügen“. Was sich je Version ä
 
 **Update auf 0.21.0:** keine Migration. Neu sind die Aktionen
 `wow_character.refresh` und `wow_character.get_character` (siehe
-[Aktionen](#aktionen-seit-0210)). Zurück auf 0.20.x geht ohne Backup;
-Automationen mit diesen Aktionen schlagen dort fehl.
+[Aktionen](#aktionen-seit-0210)). 0.21.0 enthält auch 0.20.0, das nicht als
+eigenes Release erschienen ist. Zurück auf 0.19.x geht ohne Backup;
+Automationen mit den neuen Aktionen schlagen dort fehl.
 
 **Update auf 0.20.0:** keine Migration. Neu sind im Optionsdialog die Takte
 (Profil, Details, seltene Details) und abschaltbare Gruppen (siehe
