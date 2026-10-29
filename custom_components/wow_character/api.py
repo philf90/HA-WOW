@@ -86,28 +86,47 @@ class BattleNetClient:
         self.language = language
         self._token: str | None = None
         self._token_expires = 0.0
+        # Laeuft das Token ab, waehrend mehrere Coordinators abfragen, holt
+        # nur der erste ein neues; die anderen warten und nehmen es.
+        self._token_lock = asyncio.Lock()
 
-    async def _get_token(self) -> str:
+    def _valid_token(self) -> str | None:
         if self._token and time.monotonic() < self._token_expires:
             return self._token
-        try:
-            async with self._session.post(
-                TOKEN_URL,
-                data={"grant_type": "client_credentials"},
-                auth=self._auth,
-                timeout=aiohttp.ClientTimeout(total=REQUEST_TIMEOUT),
-            ) as resp:
-                if resp.status in (400, 401):
-                    raise BattleNetAuthError("Client-ID oder Secret ungueltig")
-                if resp.status != 200:
-                    raise BattleNetError(f"Token-Abruf: HTTP {resp.status}")
-                data = await resp.json()
-        except (aiohttp.ClientError, TimeoutError) as err:
-            raise BattleNetError(f"Token-Abruf fehlgeschlagen: {err}") from err
-        self._token = data["access_token"]
-        # 60 s Puffer, damit kein Token kurz vor Ablauf benutzt wird.
-        self._token_expires = time.monotonic() + int(data.get("expires_in", 0)) - 60
-        return self._token
+        return None
+
+    async def _get_token(self) -> str:
+        if token := self._valid_token():
+            return token
+        async with self._token_lock:
+            if token := self._valid_token():
+                return token
+            try:
+                async with self._session.post(
+                    TOKEN_URL,
+                    data={"grant_type": "client_credentials"},
+                    auth=self._auth,
+                    timeout=aiohttp.ClientTimeout(total=REQUEST_TIMEOUT),
+                ) as resp:
+                    if resp.status in (400, 401):
+                        raise BattleNetAuthError("Client-ID oder Secret ungueltig")
+                    if resp.status != 200:
+                        raise BattleNetError(f"Token-Abruf: HTTP {resp.status}")
+                    data = await resp.json()
+            except (aiohttp.ClientError, TimeoutError, ValueError) as err:
+                # ValueError: Antwort ist kein JSON (z. B. Wartungsseite).
+                raise BattleNetError(f"Token-Abruf fehlgeschlagen: {err}") from err
+            token = data.get("access_token") if isinstance(data, dict) else None
+            if not isinstance(token, str) or not token:
+                raise BattleNetError("Token-Abruf: Antwort ohne access_token")
+            try:
+                expires_in = int(data.get("expires_in", 0))
+            except (TypeError, ValueError):
+                expires_in = 0
+            self._token = token
+            # 60 s Puffer, damit kein Token kurz vor Ablauf benutzt wird.
+            self._token_expires = time.monotonic() + expires_in - 60
+            return token
 
     async def validate(self) -> None:
         """Zugangsdaten pruefen, indem ein Token geholt wird."""
@@ -139,9 +158,9 @@ class BattleNetClient:
                 if resp.status != 200:
                     raise BattleNetError(f"Code-Tausch: HTTP {resp.status}")
                 data = await resp.json()
-        except (aiohttp.ClientError, TimeoutError) as err:
+        except (aiohttp.ClientError, TimeoutError, ValueError) as err:
             raise BattleNetError(f"Code-Tausch fehlgeschlagen: {err}") from err
-        if not data.get("access_token"):
+        if not isinstance(data, dict) or not data.get("access_token"):
             raise BattleNetLoginError("Antwort ohne access_token")
         return data
 
@@ -195,7 +214,7 @@ class BattleNetClient:
                     raise BattleNetRateLimited(path)
                 if resp.status != 200:
                     raise BattleNetError(f"{path}: HTTP {resp.status}")
-                return await resp.json()
+                data = await resp.json()
         except TimeoutError as err:
             # TimeoutError hat keinen eigenen Text; ohne diesen Zusatz endete
             # die Meldung im Log nach dem Pfad.
@@ -204,6 +223,13 @@ class BattleNetClient:
             ) from err
         except aiohttp.ClientError as err:
             raise BattleNetError(f"{path}: {type(err).__name__} {err}".strip()) from err
+        except ValueError as err:
+            # Antwort ist kein JSON; ohne diese Umwandlung landete sie als
+            # "Unexpected error" mit Traceback im Log.
+            raise BattleNetError(f"{path}: Antwort ist kein JSON") from err
+        if not isinstance(data, dict):
+            raise BattleNetError(f"{path}: Antwort ist kein JSON-Objekt")
+        return data
 
     @staticmethod
     def namespace(kind: str, suffix: str, region: str) -> str:

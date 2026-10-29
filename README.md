@@ -11,7 +11,7 @@ Home-Assistant-Integration für World-of-Warcraft-Charaktere: Level, Itemlevel,
 Ausrüstung, Raid- und Mythic+-Fortschritt, Berufe, Ruf, Erfolge und mehr als
 Sensoren, dazu WoW-Marke, wöchentlicher Reset und Serverstatus. Die Daten kommen
 aus der offiziellen Battle.net API. Unterstützt Retail, WoW Classic (Era,
-Progression, Anniversary) und ist für WoW Forever vorbereitet. Version 0.19.0.
+Progression, Anniversary) und ist für WoW Forever vorbereitet. Version 0.19.1.
 
 Zwei Dashboard-Karten liefert die Integration selbst mit: „WoW Arsenal“
 (`custom:wow-arsenal-card`) und „WoW Talentbaum“ (`custom:wow-talent-tree-card`,
@@ -146,6 +146,9 @@ neu starten. Wer von Hand aktualisiert, ersetzt den ganzen Ordner
 `custom_components/wow_character` samt `translations/`; sonst fehlen neue Texte,
 z. B. die Einträge im Menü „Charakter hinzufügen“. Was sich je Version ändert, steht in den
 [Release-Notes](https://github.com/philf90/HA-WOW/releases).
+
+**Update auf 0.19.1:** keine Migration, nur Fehlerkorrekturen bei
+Störungen der Battle.net API (siehe [Abfragen und Takte](#abfragen-und-takte)).
 
 **Update auf 0.19.0:** keine Migration. Neu ist die Option „Sprache der
 API-Texte“ am Eintrag „Battle.net API“ (siehe [Sprache](#sprache)); ohne
@@ -580,8 +583,16 @@ Lange Attribute speichert Home Assistant nicht im Verlauf: `tooltip`, `factions`
 - Abfragelimit: Blizzard erlaubt laut Doku („Getting Started“, Throttling)
   100 Abfragen je Sekunde und meldet darüber HTTP 429 bis zum Ende der Sekunde.
   Bei 429 wartet die Integration eine Sekunde und fragt einmal erneut (seit
-  0.14.1). Kommt dann wieder 429, bricht sie das Nachschlagen von Symbolen ab
-  und holt den Rest beim nächsten Takt.
+  0.14.1). Kommt dann wieder 429, bricht sie das Nachschlagen von Symbolen und
+  (seit 0.19.1) von Berufsnamen ab und holt den Rest beim nächsten Takt.
+- Störungen (seit 0.19.1): Läuft das Token ab, während mehrere Abfragen
+  gleichzeitig laufen, holt die Integration nur ein neues. Antwortet Blizzard
+  mit etwas anderem als einem JSON-Objekt (z. B. einer Wartungsseite) oder
+  einer Token-Antwort ohne Token, gilt das als gewöhnlicher Abfragefehler:
+  kurze Meldung im Log, Werte bis zum nächsten Takt nicht verfügbar, beim Start
+  ein neuer Versuch. Lehnt Blizzard beim Nachschlagen der Berufsnamen die
+  Zugangsdaten ab, fragt Home Assistant wie bei allen anderen Abfragen nach
+  einer erneuten Anmeldung.
 - Talentbaum (seit 0.13.0): Den Baum der Spezialisierung lädt die Integration
   einmal je Start und Spezialisierung, die Symbole einmal je Talent, erst nach
   dem Anlegen der Entitäten (bei einer Klasse rund 100 Abfragen, einmalig). Ist
@@ -880,7 +891,15 @@ Automatische Tests laufen gegen Home Assistant 2026.2.3; live geprüft wurde unt
 Home Assistant 2026.10.4 mit Retail-Charakteren der Region EU, seit 0.11.2 auch
 mit einem Classic-Era-Charakter (siehe [WoW Classic](#wow-classic)).
 
-- **0.19.x:** 257 automatische Tests. 0.19.0: 29 Tests für die Sprache der
+- **0.19.x:** 268 automatische Tests. 0.19.1: 11 Tests für Störungen der API
+  (gleichzeitige Abfragen holen ein Token; Token-Antwort ohne Token, als
+  Liste und als HTML, beim Start mit neuem Versuch; Profil als HTML und als
+  Liste ohne „Unexpected error“ im Log; Code-Tausch der Anmeldung mit HTML und
+  Liste; Berufsnamen mit abgelehnten Zugangsdaten und mit 429). Gegenprobe:
+  acht Teile einzeln ausgebaut (Sperre beim Token, Prüfung auf `access_token`,
+  ValueError beim Token, bei Abfragen und beim Code-Tausch, nur JSON-Objekte,
+  Berufsnamen mit abgelehnten Zugangsdaten und Abbruch bei 429), jedes Mal
+  schlug ein Test fehl. **Nicht live geprüft.** 0.19.0: 29 Tests für die Sprache der
   API-Texte (Locale je Region und Sprache mit Rückfall auf die Region, 16
   Fälle; Auswahl „Sprache von Home Assistant“, 6 Fälle; ohne Option wie bisher;
   gewählte Sprache in allen Abfragen und in der Diagnose; Sprache von Home

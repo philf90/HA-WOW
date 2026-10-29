@@ -804,6 +804,13 @@ class WowDetailCoordinator(_CharacterMixin, DataUpdateCoordinator[dict[str, Any]
                     static = await self.client.get_static_data(
                         self.region, self.suffix, f"profession/{prof_id}"
                     )
+                except BattleNetAuthError as err:
+                    raise _auth_failed(err) from err
+                except BattleNetRateLimited as err:
+                    # Auch nach einer Sekunde Pause noch am Limit: Rest beim
+                    # naechsten Takt.
+                    _LOGGER.debug("Berufsnamen: %s", err)
+                    return
                 except BattleNetError as err:
                     _LOGGER.debug("Beruf %s nicht nachgeschlagen: %s", prof_id, err)
                     continue
