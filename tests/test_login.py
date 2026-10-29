@@ -127,6 +127,10 @@ async def callback_view(hass: HomeAssistant) -> None:
     assert await async_setup_component(hass, "http", {})
     hass.http.register_view(OAuth2AuthorizeCallbackView())
     hass.config.components.add("my")
+    # Die Integration registriert in async_setup die Dateien ihrer Karten.
+    # Das muss vor dem Start des Test-Clients geschehen: Je nach Umgebung
+    # friert der Test-Server den Router beim Start ein (so in der CI).
+    assert await async_setup_component(hass, DOMAIN, {})
 
 
 async def _start_login(hass: HomeAssistant) -> dict:
