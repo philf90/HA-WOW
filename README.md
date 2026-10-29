@@ -142,7 +142,9 @@ Client ohne Redirect-URL lässt sich unter **Manage Client** ergänzen.
 ## Aktualisieren
 
 HACS zeigt neue Versionen als Update an. Nach dem Herunterladen Home Assistant
-neu starten. Was sich je Version ändert, steht in den
+neu starten. Wer von Hand aktualisiert, ersetzt den ganzen Ordner
+`custom_components/wow_character` samt `translations/`; sonst fehlen neue Texte,
+z. B. die Einträge im Menü „Charakter hinzufügen“. Was sich je Version ändert, steht in den
 [Release-Notes](https://github.com/philf90/HA-WOW/releases).
 
 **Update auf 0.17.1:** keine Migration. Einträge, Geräte, Entitäts-IDs,
@@ -818,41 +820,47 @@ mit einem Classic-Era-Charakter (siehe [WoW Classic](#wow-classic)).
 
 - **0.17.x:** 210 automatische Tests. 0.17.1: 4 Tests für die Anmeldung aus
   „Charakter hinzufügen“ (Hilfsdialog gibt den Rücksprung weiter und ist nicht
-  unter „Entdeckt“, abgelehnte Anmeldung, Schließen beendet den Hilfsdialog)
-  und für einen während des Starts gelöschten Charakter (keine Meldung
-  „unknown subentry“). Gegenprobe: fünf Teile einzeln ausgebaut (keine
-  Weitergabe, eigene Quelle statt „user“, kein Beenden beim Schließen,
-  eingerichtete Charaktere nicht erkannt, gelöschte Charaktere trotzdem
-  eingerichtet), jedes Mal schlug ein Test fehl. Dazu 4 Tests aus dem
-  Live-Test: Abgleich mit drei Charakteren richtet alle ein und lädt nur einmal neu; ein
-  während eines Neustarts angelegter Charakter wird danach eingerichtet; jede
-  Änderung lädt neu, auch zurück zu einem früheren Stand; HTTP 403 der
-  Forever-Kandidaten zählt nicht als Fehlabfrage. Gegenprobe: vier Teile der
-  Korrektur einzeln ausgebaut (kein Abgeben vor dem Vergleich, kein Merker für
-  das laufende Neuladen, kein Nachladen nach einer Änderung während des Starts,
-  403 als Fehler), jedes Mal schlug ein Test fehl. Zwei Teile lassen sich so
-  nicht trennen: das Aufräumen des Merkers (ein neues Neuladen überschreibt ihn
-  ohnehin) und der Stand vom Beginn des Starts (das Nachladen deckt ihn mit ab).
-  **Live geprüft mit 0.17.0** (29.10.2026, Konto mit Retail- und
-  Classic-Era-Charakteren in EU): Hinweis im Dialog „Charakter hinzufügen“,
-  Anmeldung, Rücksprung über My Home Assistant und Auswahlliste mit den sechs
-  noch nicht eingerichteten Charakteren; eingerichtete, auch der Classic-Era-
-  Charakter, erschienen nicht. Dabei fielen die beiden Fehler auf, die 0.17.1
-  behebt: Nach dem Anlegen mehrerer Charaktere bekamen sie kein Gerät, und die
-  Liste nannte 8 Fehlabfragen (HTTP 403 der Forever-Kandidaten). **Nicht live
-  geprüft:** 0.17.1; Neueinrichtung mit Anmeldung, Companion-App,
-  Fehlerfälle. 0.17.0: 202 automatische Tests, davon 17 neu. 3 prüfen, dass die
-  Übersetzungen keine URLs enthalten (Regel von hassfest). 14 gelten der
-  Battle.net-Anmeldung: Login-Adresse mit Scope und Redirect-URL, Code-Tausch
-  mit derselben Redirect-URL, Charaktersuche nur mit dem Login-Token (24
-  Abfragen), Auswahl nach Level, Untereinträge mit denselben Daten und
+  unter „Entdeckt“, abgelehnte Anmeldung, Schließen beendet den Hilfsdialog) und
+  für einen während des Starts gelöschten Charakter (keine Meldung „unknown
+  subentry“). Gegenprobe: fünf Teile einzeln ausgebaut (keine Weitergabe, eigene
+  Quelle statt „user“, kein Beenden beim Schließen, eingerichtete Charaktere
+  nicht erkannt, gelöschte Charaktere trotzdem eingerichtet), jedes Mal schlug
+  ein Test fehl. Dazu 4 Tests aus dem Live-Test: Abgleich mit drei Charakteren
+  richtet alle ein und lädt nur einmal neu; ein während eines Neustarts
+  angelegter Charakter wird danach eingerichtet; jede Änderung lädt neu, auch
+  zurück zu einem früheren Stand; HTTP 403 der Forever-Kandidaten zählt nicht
+  als Fehlabfrage. Gegenprobe: vier Teile der Korrektur einzeln ausgebaut (kein
+  Abgeben vor dem Vergleich, kein Merker für das laufende Neuladen, kein
+  Nachladen nach einer Änderung während des Starts, 403 als Fehler), jedes Mal
+  schlug ein Test fehl. Zwei Teile lassen sich so nicht trennen: das Aufräumen
+  des Merkers (ein neues Neuladen überschreibt ihn ohnehin) und der Stand vom
+  Beginn des Starts (das Nachladen deckt ihn mit ab). **Live geprüft mit
+  0.17.1** (29.10.2026, dasselbe Konto): Menü in „Charakter hinzufügen“,
+  Anmeldung über den Hilfsdialog, Auswahlliste mit „Fehlgeschlagene Abfragen:
+  0“, mehrere Charaktere auf einmal angelegt, alle mit Gerät; Reauth nach dem
+  Erneuern des Secrets („Authentifizierung abgelaufen“, mit dem neuen Secret
+  behoben). Nach einem Kopieren von Hand ohne den Ordner `translations/` fehlten
+  die Menütexte; mit dem ganzen Ordner stimmten sie. **Live geprüft mit 0.17.0**
+  (29.10.2026, Konto mit Retail- und Classic-Era-Charakteren in EU): Hinweis im
+  Dialog „Charakter hinzufügen“, Anmeldung, Rücksprung über My Home Assistant
+  und Auswahlliste mit den sechs noch nicht eingerichteten Charakteren;
+  eingerichtete, auch der Classic-Era- Charakter, erschienen nicht. Dabei fielen
+  die beiden Fehler auf, die 0.17.1 behebt: Nach dem Anlegen mehrerer Charaktere
+  bekamen sie kein Gerät, und die Liste nannte 8 Fehlabfragen (HTTP 403 der
+  Forever-Kandidaten). **Nicht live geprüft:** Neueinrichtung mit Anmeldung,
+  Companion-App, Fehlerfälle der Anmeldung, Classic Progression und Anniversary
+  mit Konto, Forever. 0.17.0: 202 automatische Tests, davon 17 neu. 3 prüfen,
+  dass die Übersetzungen keine URLs enthalten (Regel von hassfest). 14 gelten
+  der Battle.net-Anmeldung: Login-Adresse mit Scope und Redirect-URL,
+  Code-Tausch mit derselben Redirect-URL, Charaktersuche nur mit dem Login-Token
+  (24 Abfragen), Auswahl nach Level, Untereinträge mit denselben Daten und
   `unique_id` wie von Hand, ohne Auswahl, Forever-Kandidat, gezählte
   Fehlabfrage, sechs Abbruchgründe, fehlende Adresse; Abgleich bietet nur neue
   Charaktere an (per Name und per ID erkannt), nichts Neues, gleicher Name mit
   anderer ID. 3 bestehende Tests an die neuen Menüs angepasst. Gegenprobe: elf
   Fehler einzeln eingebaut (Scope nicht geprüft, Scope nicht angefordert,
-  falsche Redirect-URL beim Code-Tausch, Abgleich nur per Name, nur per ID,
-  ohne Filter, Login-Token wie Client-Token behandelt, Client-Token statt
+  falsche Redirect-URL beim Code-Tausch, Abgleich nur per Name, nur per ID, ohne
+  Filter, Login-Token wie Client-Token behandelt, Client-Token statt
   Login-Token, Fehlabfragen nicht gezählt, erster Forever-Kandidat gewinnt auch
   ohne Konto, abgelehnte Anmeldung nicht abgebrochen), jedes Mal schlug
   mindestens ein Test fehl. Von Hand mit curl gegen die echte API geprüft
