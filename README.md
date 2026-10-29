@@ -33,9 +33,14 @@ Retail), ohne zusätzliche HACS-Karten oder Dashboard-Ressourcen.
 - **[HACS](https://hacs.xyz)** für die Installation per Klick (ohne HACS geht es
   auch, siehe unten)
 - **Battle.net-API-Client** (kostenlos): Client-ID und Secret, angelegt mit einem
-  Blizzard-Konto auf <https://develop.battle.net>. Für die Suche nach Charakteren
+  Blizzard-Konto auf <https://develop.battle.net>. Blizzard verlangt dafür einen
+  Authenticator (Zwei-Faktor-Anmeldung) am Konto. Für die Suche nach Charakteren
   per Battle.net-Anmeldung zusätzlich die Redirect-URL
-  `https://my.home-assistant.io/redirect/oauth` im Client (seit 0.17.0)
+  `https://my.home-assistant.io/redirect/oauth` im Client (seit 0.17.0), siehe
+  [API-Client anlegen](#api-client-anlegen)
+- **My Home Assistant** (Teil von `default_config`, also meist schon aktiv) für
+  die Battle.net-Anmeldung; ohne siehe
+  [Ohne My Home Assistant](#ohne-my-home-assistant)
 - Charaktere in den Regionen **EU, US, KR oder TW** (China wird nicht unterstützt)
 
 ## Installation
@@ -43,9 +48,9 @@ Retail), ohne zusätzliche HACS-Karten oder Dashboard-Ressourcen.
 [![In HACS öffnen](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=philf90&repository=HA-WOW&category=integration)
 [![Integration hinzufügen](https://my.home-assistant.io/badges/config_flow_start.svg)](https://my.home-assistant.io/redirect/config_flow_start/?domain=wow_character)
 
-1. **API-Client anlegen:** auf <https://develop.battle.net> anmelden, einen Client
-   erstellen, unter „Redirect URIs“ `https://my.home-assistant.io/redirect/oauth`
-   eintragen, Client-ID und Secret notieren.
+1. **API-Client anlegen:** auf <https://develop.battle.net> einen Client
+   erstellen, mit der Redirect-URL `https://my.home-assistant.io/redirect/oauth`;
+   Schritt für Schritt unter [API-Client anlegen](#api-client-anlegen).
 2. **Integration herunterladen:** Erste Schaltfläche oben → HACS fragt, ob das
    Repository hinzugefügt werden soll → **Hinzufügen** → **Herunterladen**.
    Von Hand: HACS → ⋮ → **Benutzerdefinierte Repositories** →
@@ -55,19 +60,53 @@ Retail), ohne zusätzliche HACS-Karten oder Dashboard-Ressourcen.
    `config/custom_components/` kopieren.
 3. **Home Assistant neu starten.**
 4. **Einrichten:** Zweite Schaltfläche oben, oder Einstellungen → Geräte & Dienste
-   → Integration hinzufügen → „WoW Charakter“. Client-ID und Secret eingeben.
-5. **Charaktere wählen:** **Mit Battle.net anmelden und Charaktere wählen**. Die
-   Integration sucht alle Charaktere des Kontos in EU, US, KR und TW und in allen
-   Spielversionen und legt die angekreuzten an (seit 0.17.0, siehe
-   [Battle.net-Anmeldung](#battlenet-anmeldung-seit-0170)). Alternativ
-   **Ohne Anmeldung fortfahren** und Charaktere von Hand anlegen: am Eintrag
-   „Battle.net API“ → **Charakter hinzufügen**, zuerst Region und Spielversion
-   (Retail, Classic Era, Classic Progression, Classic Anniversary oder Forever),
-   dann Realm aus der Liste wählen und Charakternamen eingeben. Von Hand geht
-   auch für Charaktere anderer Konten.
+   → Integration hinzufügen → „WoW Charakter“. Client-ID und Secret eingeben;
+   die Integration prüft sie sofort bei Blizzard.
+5. **Charaktere wählen**, eine von zwei Möglichkeiten:
+   - **Mit Battle.net anmelden und Charaktere wählen** (seit 0.17.0): Ein
+     Fenster mit der Battle.net-Anmeldung öffnet sich. Anmelden und den Zugriff
+     auf die World-of-Warcraft-Charaktere erlauben. Das Fenster schließt sich,
+     und Home Assistant zeigt alle Charaktere des Kontos aus EU, US, KR und TW
+     und allen Spielversionen, nach Level sortiert. Die gewünschten ankreuzen und
+     **Absenden**. Beim ersten Mal fragt My Home Assistant nach der Adresse deiner
+     Instanz. Details und Fehlerbilder unter
+     [Battle.net-Anmeldung](#battlenet-anmeldung-seit-0170).
+   - **Ohne Anmeldung fortfahren:** Der Eintrag entsteht ohne Charaktere. Diese
+     dann von Hand anlegen: am Eintrag „Battle.net API“ → **Charakter
+     hinzufügen**, zuerst Region und Spielversion (Retail, Classic Era, Classic
+     Progression, Classic Anniversary oder Forever), dann Realm aus der Liste
+     wählen und Charakternamen eingeben. Von Hand geht auch für Charaktere
+     anderer Konten.
 
 Danach ist jeder Charakter ein eigenes Gerät mit seinen Sensoren; die Werte für
 Region und Realm stehen im Gerät „WoW-Spielwelt EU“ (bzw. US, KR, TW).
+
+### API-Client anlegen
+
+Laut Blizzard („Getting Started“) braucht das Battle.net-Konto einen
+Authenticator, und die Blizzard Developer API Terms of Use müssen akzeptiert
+sein. Dann:
+
+1. <https://develop.battle.net> öffnen, anmelden, oben **API Access** →
+   **Create New Client**.
+2. Die Felder ausfüllen:
+
+   | Feld | Eintrag |
+   |---|---|
+   | Client Name | frei wählbar, muss bei Blizzard weltweit eindeutig sein, z. B. „Home Assistant WoW“ mit einem eigenen Zusatz |
+   | Redirect URIs | `https://my.home-assistant.io/redirect/oauth`, zeichengenau: `https`, kein `/` am Ende. Ohne My Home Assistant siehe [unten](#ohne-my-home-assistant) |
+   | Service URL | Kästchen für „keine Service-URL“ ankreuzen |
+   | Intended Use | kurz beschreiben, z. B. „Home Assistant integration for my own World of Warcraft characters“ |
+
+3. **Create**. In der Übersicht des Clients (**Manage Client**) stehen Client-ID
+   und Client-Secret.
+
+Das Secret gehört nur in Home Assistant: nicht weitergeben, nicht in Screenshots
+oder Foren zeigen (Nutzungsbedingungen, Abschnitt 2(l)). Ist es doch
+sichtbar geworden: **Generate New Secret**, für das alte eine kurze Ablauffrist
+wählen und das neue in Home Assistant eintragen (siehe
+[Ändern, Hinweise und Diagnose](#ändern-hinweise-und-diagnose)). Ein bestehender
+Client ohne Redirect-URL lässt sich unter **Manage Client** ergänzen.
 
 **Gut zu wissen:**
 
@@ -106,6 +145,19 @@ HACS zeigt neue Versionen als Update an. Nach dem Herunterladen Home Assistant
 neu starten. Was sich je Version ändert, steht in den
 [Release-Notes](https://github.com/philf90/HA-WOW/releases).
 
+**Update auf 0.17.0:** keine Migration. Einträge, Geräte, Entitäts-IDs,
+Verlauf und Abfragen bleiben, wie sie sind; das Speicherformat ist unverändert,
+zurück auf 0.16.x geht deshalb ohne Backup. Neu ist nur, was du nutzen kannst:
+
+1. Im Blizzard-Client unter **Manage Client** die Redirect-URL
+   `https://my.home-assistant.io/redirect/oauth` ergänzen und speichern.
+2. Am Eintrag „Battle.net API“ ⋮ → **Neu konfigurieren** → **Charaktere
+   abgleichen**, anmelden und die noch fehlenden Charaktere ankreuzen. Bereits
+   eingerichtete erscheinen nicht in der Liste.
+
+„Neu konfigurieren“ ist seit 0.17.0 ein Menü; das Ändern von Client-ID oder
+Secret steht dort unter **Client-ID oder Secret ändern**.
+
 **Update von 0.1.x:** Beim ersten Start übernimmt die Integration (ab 0.2.0) die
 bisherigen Einträge (einer je Charakter) automatisch: Einträge mit derselben
 Client-ID werden zu einem Eintrag „Battle.net API“ zusammengefasst, jeder Charakter
@@ -117,6 +169,22 @@ nicht mehr lesen; zurück geht es nur über das Backup.
 
 Die Anmeldung dient nur dazu, die Charaktere des Kontos zu finden. Alle
 laufenden Abfragen nutzen weiter Client-ID und Secret.
+
+**Neue Charaktere abgleichen:**
+
+1. Einstellungen → Geräte & Dienste → WoW Charakter → am Eintrag „Battle.net
+   API“ ⋮ → **Neu konfigurieren** → **Charaktere abgleichen**.
+2. Im geöffneten Fenster bei Battle.net anmelden und den Zugriff auf die
+   World-of-Warcraft-Charaktere erlauben.
+3. Die Liste zeigt nur Charaktere, die noch nicht eingerichtet sind. Ankreuzen,
+   **Absenden**. Die Meldung nennt die Zahl der neuen Charaktere; der Eintrag lädt
+   neu und legt ihre Geräte an.
+
+Neue Charaktere findet die Integration nicht von selbst, weil sie das Login-Token
+nicht behält (siehe unten). Nach einem neuen Charakter im Spiel: einmal ausloggen
+(Blizzard aktualisiert Profildaten erst dann), dann abgleichen.
+
+**Einzelheiten:**
 
 - **Wo:** beim Einrichten nach Client-ID und Secret, später am Eintrag
   „Battle.net API“ ⋮ → **Neu konfigurieren** → **Charaktere abgleichen**. Der
@@ -134,8 +202,8 @@ laufenden Abfragen nutzen weiter Client-ID und Secret.
 - **Was Blizzard liefert:** Scope `wow.profile`, Endpunkt `/profile/user/wow`
   („Account Profile Summary“) je Region und Spielversion: 4 Regionen × 6
   Namespaces (Forever mit zwei Kandidaten) = höchstens 24 Abfragen je Suche,
-  parallel. HTTP 404 heißt „kein Konto dort“. Je Charakter nutzt die Integration Name, ID,
-  Level, Klasse und Realm (Name und Slug).
+  parallel. HTTP 404 heißt „kein Konto dort“. Je Charakter nutzt die
+  Integration Name, ID, Level, Klasse und Realm (Name und Slug).
 - **Was gespeichert wird:** nur die Untereinträge der gewählten Charaktere, mit
   denselben Daten und Entitäts-IDs wie von Hand angelegt. Das Login-Token nicht:
   Es gilt 24 Stunden, und ein Refresh-Token gibt Blizzard nicht aus (getestet am
@@ -148,6 +216,31 @@ laufenden Abfragen nutzen weiter Client-ID und Secret.
   abgelehnt, Freigabe für die WoW-Charaktere abgewählt, Code-Tausch abgelehnt,
   keine Charaktere gefunden. Schlagen einzelne Abfragen fehl, nennt die
   Auswahlliste ihre Zahl; dort fehlen dann eventuell Charaktere.
+
+**Fehlerbilder:**
+
+| Was du siehst | Ursache | Abhilfe |
+|---|---|---|
+| Blizzard-Seite „400 – Ungültiger Authorisierungscode oder Umleitungs-URL ist nicht gültig“ | Redirect-URL fehlt im Client oder weicht ab (z. B. `/` am Ende) | Unter **Manage Client** die Adresse eintragen, die der Anmeldeschritt in Home Assistant anzeigt; Fenster schließen, Abgleich neu starten |
+| Seite „Invalid state. Is My Home Assistant configured to go to the right instance?“ | My Home Assistant leitet an eine andere Instanz weiter, als der Dialog läuft | Auf <https://my.home-assistant.io> die Adresse der richtigen Instanz einstellen, Abgleich neu starten |
+| „Home Assistant konnte seine eigene Adresse für die Anmeldung nicht ermitteln“ | My Home Assistant ist nicht aktiv, und die Oberfläche nennt keine Adresse | `my:` oder `default_config:` in `configuration.yaml`, oder [Ohne My Home Assistant](#ohne-my-home-assistant) |
+| „Der Zugriff auf deine World-of-Warcraft-Charaktere wurde nicht erlaubt“ | Freigabe bei Battle.net abgewählt | Erneut abgleichen und die Freigabe erteilen |
+| „Battle.net hat die Anmeldung abgelehnt“ | Code-Tausch abgelehnt, z. B. Code schon verwendet (er gilt nur einmal) oder Secret nicht mehr gültig | Erneut versuchen; sonst Client-ID, Secret und Redirect-URL prüfen |
+| „Alle Charaktere dieses Kontos sind bereits eingerichtet“ | nichts Neues auf dem Konto | Neuer Charakter? Einmal im Spiel ausloggen, dann erneut abgleichen |
+| „Keine Charaktere gefunden“ | Konto ohne WoW-Charaktere in EU, US, KR, TW | Anderes Konto? Bei Battle.net abmelden und mit dem richtigen anmelden |
+
+Die Freigabe für den Client lässt sich in den Einstellungen des Battle.net-Kontos
+wieder entziehen; die Integration läuft danach unverändert weiter.
+
+### Ohne My Home Assistant
+
+Ohne My Home Assistant nutzt Home Assistant als Rücksprung
+`<Adresse von Home Assistant>/auth/external/callback`, mit der Adresse, unter
+der du die Oberfläche gerade geöffnet hast. Diese Adresse muss als Redirect-URL
+im Blizzard-Client stehen, und laut Blizzard-Doku muss sie mit `https://`
+beginnen. Eine Adresse wie `http://homeassistant.local:8123` nimmt Blizzard
+damit nicht an. Der Anmeldeschritt zeigt die genutzte Adresse an. Ohne
+HTTPS-Adresse bleibt das Anlegen von Hand.
 
 ## Aufbau
 
