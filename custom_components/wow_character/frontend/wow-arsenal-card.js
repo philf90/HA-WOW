@@ -3,7 +3,8 @@
  *
  * Charakterseite wie im Arsenal des Spiels: Kopf mit Avatar, Name, Titel,
  * Spielversion, Stufe, Volk, Spezialisierung und Klasse; Ganzkoerperbild mit
- * den Ausruestungsplaetzen links, rechts und darunter; Kennzahlen unten.
+ * den Ausruestungsplaetzen links, rechts und darunter (ausserhalb von Retail
+ * auch Zusatzplaetze wie Distanz neben den Waffen); Kennzahlen unten.
  * Mit der Maus zeigt ein Platz den Item-Tooltip, Antippen oeffnet ihn.
  *
  * Die Karte findet die Entitaeten des Charakters ueber das Geraet und die
@@ -44,6 +45,9 @@ const QUALITAET = {
   HEIRLOOM: "#00ccff",
   WOW_TOKEN: "#00ccff",
 };
+
+// Schluessel-Praefix fuer Zusatzplaetze (Uebersetzungsschluessel equipment_other)
+const ZUSATZ = "equipment_other:";
 
 // Plaetze in der Reihenfolge des Arsenals (Uebersetzungsschluessel)
 const LINKS = ["head", "neck", "shoulder", "back", "chest", "shirt", "tabard", "wrist"];
@@ -188,10 +192,19 @@ class WowArsenalCard extends HTMLElement {
     }
     for (const e of Object.values(hass.entities || {})) {
       if (e.device_id === eintrag.device_id && e.platform === "wow_character" && e.translation_key) {
-        result[e.translation_key] = e.entity_id;
+        // Zusatzplaetze ausserhalb von Retail teilen sich einen Schluessel
+        const key = e.translation_key === "equipment_other" ? `${ZUSATZ}${e.entity_id}` : e.translation_key;
+        result[key] = e.entity_id;
       }
     }
     return result;
+  }
+
+  _zusatz() {
+    // Sensoren "Ausruestung {Platz}" fuer Plaetze, die Retail nicht kennt
+    return Object.keys(this._entitaeten || {})
+      .filter((key) => key.startsWith(ZUSATZ))
+      .sort();
   }
 
   _st(key) {
@@ -211,10 +224,9 @@ class WowArsenalCard extends HTMLElement {
       inhalt = `
         ${this._kopf(lvl)}
         <div class="mitte">
-          ${LINKS.map((s, i) => this._platz(s, "links", `l${i + 1}`)).join("")}
-          ${RECHTS.map((s, i) => this._platz(s, "rechts", `r${i + 1}`)).join("")}
-          ${this._platz("main_hand", "rechts", "w1")}
-          ${this._platz("off_hand", "links", "w2")}
+          ${LINKS.map((s, i) => this._platz(`equipment_${s}`, "links", `l${i + 1}`)).join("")}
+          ${RECHTS.map((s, i) => this._platz(`equipment_${s}`, "rechts", `r${i + 1}`)).join("")}
+          ${this._waffen()}
           <div class="bild" style="grid-area:bild">${this._bild()}</div>
         </div>
         ${this._leiste()}`;
@@ -284,8 +296,22 @@ class WowArsenalCard extends HTMLElement {
     return bild ? `<img src="${esc(bild)}" alt="">` : "";
   }
 
-  _platz(slot, seite, area) {
-    const e = this._st(`equipment_${slot}`);
+  _waffen() {
+    const zusatz = this._zusatz();
+    if (!zusatz.length) {
+      return `${this._platz("equipment_main_hand", "rechts", "w1")}
+        ${this._platz("equipment_off_hand", "links", "w2")}`;
+    }
+    // Mit Zusatzplaetzen (z. B. Distanz in Classic) eine zentrierte Reihe
+    return `<div class="waffen">
+      ${this._platz("equipment_main_hand", "rechts")}
+      ${this._platz("equipment_off_hand", "links")}
+      ${zusatz.map((key) => this._platz(key, "links")).join("")}
+    </div>`;
+  }
+
+  _platz(key, seite, area) {
+    const e = this._st(key);
     const a = e?.attributes || {};
     const belegt = !!a.tooltip;
     const farbe = QUALITAET[a.quality] || FARBEN.rand;
@@ -300,8 +326,9 @@ class WowArsenalCard extends HTMLElement {
     const stufe = zahl(e);
     const text = `<span class="stufe">${stufe === null ? "" : Math.round(stufe)}</span>`;
     const label = belegt ? a.tooltip.name || a.name || "" : this._t("noItem");
-    const waffe = area.startsWith("w") ? ` ${area}` : "";
-    return `<button class="platz ${seite}${waffe}" style="grid-area:${area}" data-entity="${esc(e?.entity_id || "")}"
+    const waffe = area?.startsWith("w") ? ` ${area}` : "";
+    const lage = area ? ` style="grid-area:${area}"` : "";
+    return `<button class="platz ${seite}${waffe}"${lage} data-entity="${esc(e?.entity_id || "")}"
         data-seite="${seite}" ${belegt ? "" : "disabled"} aria-label="${esc(label)}">
       ${seite === "links" ? symbol + text : text + symbol}
     </button>`;
@@ -544,6 +571,8 @@ const STYLE = `
   .platz.rechts { justify-self: end; }
   .platz.w1 { justify-self: end; margin-right: 3px; margin-top: 1px; }
   .platz.w2 { justify-self: start; margin-left: 3px; margin-top: 1px; }
+  .waffen { grid-column: 1 / -1; grid-row: 9; display: flex; flex-wrap: wrap; justify-content: center; gap: 5px 8px; margin-top: 1px; }
+  .waffen .stufe:empty { display: none; }
   .platz:focus-visible { outline: 2px solid var(--primary-color, #03a9f4); outline-offset: 2px; }
   .symbol { position: relative; flex: none; width: 34px; height: 34px; box-sizing: border-box; border-radius: 8px; border: 2px solid; background: ${FARBEN.kachel}; overflow: hidden; }
   .symbol img { display: block; width: 100%; height: 100%; object-fit: cover; }
