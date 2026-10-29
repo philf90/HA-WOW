@@ -11,7 +11,7 @@ Home-Assistant-Integration für World-of-Warcraft-Charaktere: Level, Itemlevel,
 Ausrüstung, Raid- und Mythic+-Fortschritt, Berufe, Ruf, Erfolge und mehr als
 Sensoren, dazu WoW-Marke, wöchentlicher Reset und Serverstatus. Die Daten kommen
 aus der offiziellen Battle.net API. Unterstützt Retail, WoW Classic (Era,
-Progression, Anniversary) und ist für WoW Forever vorbereitet. Version 0.16.0.
+Progression, Anniversary) und ist für WoW Forever vorbereitet. Version 0.16.1.
 
 Zwei Dashboard-Karten liefert die Integration selbst mit: „WoW Arsenal“
 (`custom:wow-arsenal-card`) und „WoW Talentbaum“ (`custom:wow-talent-tree-card`,
@@ -326,9 +326,21 @@ Aus den statischen Spieldaten, je Objekt einmal nachgeschlagen:
   28.10.2026: Die IDs der vergebenen Talente sind die Knoten-IDs; die Knoten der
   Heldenbäume stehen in der Antwort auch unter den Knoten der Spezialisierung und
   werden dort herausgenommen; Knoten ohne Talent (vermutlich die Wahl des
-  Heldenbaums) fallen weg. Steht ein Knoten mehrfach in der Verteilung, zählt der
-  höchste Rang und `talent` bleibt leer, weil nicht belegt ist, welches gilt.
-  Classic liefert keinen Talentbaum.
+  Heldenbaums) fallen weg. Classic liefert keinen Talentbaum.
+  **Apex-Talent** (seit 0.16.1): Laut
+  [Blizzard](https://worldofwarcraft.blizzard.com/news/24244472/) kostet es
+  „a total of four specialization talent points“ in drei Stufen (1, 2 und 1
+  Punkt), ab Stufe 81. Die API zeigt das so: Der Baum führt den Apex-Knoten mit
+  einem Rang und nur der ersten Stufe; im Profil steht jede gelernte Stufe als
+  eigener Eintrag mit derselben Knoten-ID, eigener Talent-ID und eigenem Rang
+  (echte Antwort, Frost: Knoten 110422 dreimal, Rang 1, 2 und 1). Der Knoten
+  bekommt deshalb `rank` als Summe der Stufen, `max_rank` 4 (aus Blizzards
+  Angabe, die API nennt sie nicht), `talent` die erste Stufe, falls gelernt, und
+  `stages` (je Stufe `id`, `name`, `spell_id`, `description`, `icon`, `rank`; die
+  erste aus dem Baum, die weiteren aus dem Profil). Als Apex gilt der einzige
+  Knoten in der untersten Zeile des Spezialisierungsbaums; Blizzard: „beneath the
+  (currently) final section of the specialization tree“. Die Symbole der
+  weiteren Stufen kosten zwei Abfragen mehr, einmalig.
 - **Mythic+-Läufe:** Der Sensor „Höchster Mythic+-Schlüssel“ hat `best_runs`
   (Kurzform je Dungeon) und `runs`: je Lauf `dungeon`, `dungeon_id`, `level`,
   `timed`, `duration` (Sekunden), `completed`, `rating`, `color`, `affixes` und
@@ -475,13 +487,13 @@ trees: [class, spec, hero]
 - Vergebene Talente in Farbe mit goldenem Rahmen (Höchstrang) oder grünem
   (teilweise), nicht vergebene grau. Rang („2/3“) bei Talenten mit mehreren
   Rängen; meldet die API mehr Ränge als der Baum kennt, steht das so da (z. B.
-  „2/1“).
+  „2/1“). Das Apex-Talent zeigt die Punkte aller Stufen („4/4“, seit 0.16.1).
 - Pfeile aus `unlocks`, golden, wenn beide Enden vergeben sind; gestrichelte
   Linien für die Punkte-Schwellen der API.
 - Die Zahl hinter dem Baumnamen ist die Summe der vergebenen Ränge laut API,
   einschließlich vorgegebener Punkte.
 - Antippen zeigt Name, Rang und Beschreibung unter dem Baum, bei Wahlknoten
-  beide Talente mit Haken am gewählten.
+  beide Talente mit Haken am gewählten, beim Apex-Talent alle Stufen mit Rang.
 - Fehlt ein Symbol, steht ein Platzhalter mit den Anfangsbuchstaben.
 - In der Kartenauswahl heißt sie „WoW Talentbaum“; der Editor bietet die
   Sensoren der Integration an.
@@ -650,7 +662,18 @@ Automatische Tests laufen gegen Home Assistant 2026.2.3; live geprüft wurde unt
 Home Assistant 2026.10.4 mit Retail-Charakteren der Region EU, seit 0.11.2 auch
 mit einem Classic-Era-Charakter (siehe [WoW Classic](#wow-classic)).
 
-- **0.16.x:** 182 automatische Tests. 0.16.0: keine neuen Tests, geändert
+- **0.16.x:** 185 automatische Tests. 0.16.1: 4 Tests für das Apex-Talent
+  (alle Stufen: Rang 4/4, Stufen in Spielreihenfolge mit Name, Beschreibung und
+  Symbol; ohne und mit nur der ersten Stufe: 0/4 und 1/4; mehrere Knoten in der
+  untersten Zeile: kein Apex), der alte Test zum mehrfach genannten Knoten
+  entfällt. Gegenprobe: sechs Fehler einzeln eingebaut (Apex ohne
+  Einzelknoten-Prüfung, höchster Rang statt Summe, Höchstzahl aus dem Baum,
+  Reihenfolge des Profils, Symbole der Stufen nicht geladen, Talent der ersten
+  Stufe fehlt), jedes Mal schlug mindestens ein Test fehl. Karte in Chromium mit
+  erfundenen Daten: „4/4“ mit goldenem Rahmen, Details mit drei Stufen, ohne
+  Fehler in der Konsole. **Nicht live geprüft:** 0.16.1 in Home Assistant; wie
+  ein teilweise gelernter Apex im Profil aussieht (nur eine echte Probe mit allen
+  Stufen). 0.16.0: keine neuen Tests, geändert
   ist nur die Karte „WoW Arsenal“ (JavaScript): Zusatzplätze außerhalb von
   Retail in der Waffenreihe. In Chromium mit erfundenen Daten gezeichnet:
   Retail 200 und 380 Pixel breit pixelgleich mit 0.15.2; Classic Era mit

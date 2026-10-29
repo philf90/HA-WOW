@@ -16,6 +16,7 @@ from pytest_homeassistant_custom_component.test_util.aiohttp import (
     AiohttpClientMockResponse,
 )
 
+from custom_components.wow_character import parsers as p
 from custom_components.wow_character.api import BattleNetClient, BattleNetRateLimited
 
 from .conftest import (
@@ -89,13 +90,30 @@ TREE = {
     ],
 }
 SPELLS = (11000, 11010, 11011, 11020, 12000, 12100, 19000)
+# Weitere Stufen des Apex-Knotens: nur im Profil, nicht im Baum
+STAGE_SPELLS = (12101, 12102)
 
 
-def _taken(node_id, talent_id, rank=1):
-    return {"id": node_id, "rank": rank, "tooltip": {"talent": {"id": talent_id}}}
+def _taken(node_id, talent_id, rank=1, spell=None):
+    tooltip = {"talent": {"id": talent_id}}
+    if spell:
+        tooltip["spell_tooltip"] = {
+            "spell": {"id": spell[0], "name": spell[1]},
+            "description": f"{spell[1]}: Stufe.",
+        }
+    return {"id": node_id, "rank": rank, "tooltip": tooltip}
 
 
-def _specs() -> dict:
+# Apex wie Knoten 110422 der echten Antwort: dreimal, Abschluss, Mitte (Rang 2),
+# erste Stufe
+APEX_TAKEN = [
+    _taken(210, 2102, 1, (12102, "Spitze Abschluss")),
+    _taken(210, 2101, 2, (12101, "Spitze Mitte")),
+    _taken(210, 2100, 1, (12100, "Spitze")),
+]
+
+
+def _specs(apex=APEX_TAKEN) -> dict:
     specs = {
         **SPECIALIZATIONS,
         "specializations": list(SPECIALIZATIONS["specializations"]),
@@ -116,13 +134,7 @@ def _specs() -> dict:
             _taken(101, 1011),
             _taken(102, 1020, 2),
         ],
-        # Spitze: wie Knoten 110422 der echten Antwort dreimal, Rang 1, 2, 1
-        "selected_spec_talents": [
-            _taken(200, 2000),
-            _taken(210, 2100),
-            _taken(210, 2101, 2),
-            _taken(210, 2102),
-        ],
+        "selected_spec_talents": [_taken(200, 2000), *apex],
         "selected_hero_talents": [_taken(900, 9000)],
     }
     specs["specializations"][1] = {**frost, "loadouts": [frost["loadouts"][0], active]}
@@ -135,14 +147,14 @@ def _media(spell_id: int) -> dict:
     }
 
 
-def _mock(aioclient_mock, **extra) -> None:
+def _mock(aioclient_mock, apex=APEX_TAKEN, **extra) -> None:
     mock_token(aioclient_mock)
     mock_api(
         aioclient_mock,
         {
-            f"{API}/specializations": _specs(),
+            f"{API}/specializations": _specs(apex),
             f"{GAME}/{TREE_PATH}": TREE,
-            **{f"{GAME}/media/spell/{i}": _media(i) for i in SPELLS},
+            **{f"{GAME}/media/spell/{i}": _media(i) for i in (*SPELLS, *STAGE_SPELLS)},
             **extra,
         },
     )
@@ -195,29 +207,108 @@ async def test_talent_tree(hass: HomeAssistant, aioclient_mock) -> None:
     ]
 
 
-async def test_node_listed_several_times(hass: HomeAssistant, aioclient_mock) -> None:
-    """Hoechster Rang zaehlt; welches Talent gilt, ist nicht belegt."""
+def _apex(hass):
+    spec_nodes = _state(hass, "sensor", "talent_tree").attributes["spec_nodes"]
+    return next(n for n in spec_nodes if n["id"] == 210)
+
+
+async def test_apex_stages(hass: HomeAssistant, aioclient_mock) -> None:
+    """Apex: Raenge aller Stufen zusammen, hoechstens 4; erste Stufe zuerst."""
     _mock(aioclient_mock)
     await _setup(hass, character_subentry())
 
+    apex = _apex(hass)
+    assert (apex["rank"], apex["max_rank"], apex["talent"]) == (4, 4, 2100)
+    assert apex["stages"] == [
+        {
+            "id": 2100,
+            "name": "Spitze",
+            "spell_id": 12100,
+            "description": "Spitze: Beschreibung.",
+            "icon": "https://render.example/12100.jpg",
+            "rank": 1,
+        },
+        {
+            "id": 2101,
+            "name": "Spitze Mitte",
+            "spell_id": 12101,
+            "description": "Spitze Mitte: Stufe.",
+            "icon": "https://render.example/12101.jpg",
+            "rank": 2,
+        },
+        {
+            "id": 2102,
+            "name": "Spitze Abschluss",
+            "spell_id": 12102,
+            "description": "Spitze Abschluss: Stufe.",
+            "icon": "https://render.example/12102.jpg",
+            "rank": 1,
+        },
+    ]
+    # Andere Knoten unveraendert, ohne Stufen
     spec_nodes = _state(hass, "sensor", "talent_tree").attributes["spec_nodes"]
-    apex = next(n for n in spec_nodes if n["id"] == 210)
-    assert (apex["rank"], apex["talent"]) == (2, None)
+    assert "stages" not in spec_nodes[0]
+    assert (spec_nodes[0]["rank"], spec_nodes[0]["max_rank"]) == (1, 1)
+
+
+@pytest.mark.parametrize(
+    ("taken", "rank", "talent", "stage_ranks"),
+    [
+        ([], 0, None, [0]),
+        ([_taken(210, 2100, 1, (12100, "Spitze"))], 1, 2100, [1]),
+    ],
+)
+async def test_apex_partly_or_not_taken(
+    hass: HomeAssistant, aioclient_mock, taken, rank, talent, stage_ranks
+) -> None:
+    """Ohne oder mit nur der ersten Stufe: Hoechstzahl bleibt 4."""
+    _mock(aioclient_mock, apex=taken)
+    await _setup(hass, character_subentry())
+
+    apex = _apex(hass)
+    assert (apex["rank"], apex["max_rank"], apex["talent"]) == (rank, 4, talent)
+    assert [s["rank"] for s in apex["stages"]] == stage_ranks
+
+
+def test_apex_only_single_node_in_last_row() -> None:
+    """Stehen mehrere Knoten in der untersten Zeile, gibt es keinen Apex."""
+    tree = {
+        **TREE,
+        "spec_talent_nodes": [
+            *TREE["spec_talent_nodes"],
+            _node(211, 11, 20, [(2110, 12110, "Nachbar")]),
+        ],
+    }
+    built = p.talent_tree(tree, {}, 40, {})
+    assert all("stages" not in n for n in built["spec_nodes"])
+    assert next(n for n in built["spec_nodes"] if n["id"] == 210)["max_rank"] == 1
+    assert p.tree_spell_ids(tree, 40) == [
+        11000,
+        11010,
+        11011,
+        11020,
+        12000,
+        12100,
+        12110,
+        19000,
+    ]
 
 
 async def test_tree_once_icons_after_start(hass: HomeAssistant, aioclient_mock) -> None:
     """Baum einmal je Start; Symbole einmal je Talent, erst nach dem Anlegen."""
     _mock(aioclient_mock)
     entry = await _setup(hass, character_subentry())
+    # Symbole auch fuer die Apex-Stufen aus dem Profil
+    spells = len(SPELLS) + len(STAGE_SPELLS)
     assert _calls(aioclient_mock, "/talent-tree/") == 1
-    assert _calls(aioclient_mock, "/media/spell/") == len(SPELLS)
+    assert _calls(aioclient_mock, "/media/spell/") == spells
 
     detail = entry.runtime_data.details[next(iter(entry.subentries))]
     detail._fetched.clear()
     await detail.async_refresh()
     await hass.async_block_till_done()
     assert _calls(aioclient_mock, "/talent-tree/") == 1
-    assert _calls(aioclient_mock, "/media/spell/") == len(SPELLS)
+    assert _calls(aioclient_mock, "/media/spell/") == spells
 
 
 async def test_tree_without_icons_before_entities(

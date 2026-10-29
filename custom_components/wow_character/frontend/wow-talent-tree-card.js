@@ -25,6 +25,8 @@ const TEXT = {
     points: "Punkte",
     choice: "Wahl",
     rank: "Rang",
+    stage: "Stufe",
+    apex: "Apex",
     notTaken: "nicht vergeben",
     noData: "Keine Talentdaten",
     missing: "Entität nicht gefunden",
@@ -37,6 +39,8 @@ const TEXT = {
     points: "points",
     choice: "Choice",
     rank: "Rank",
+    stage: "Stage",
+    apex: "Apex",
     notTaken: "not taken",
     noData: "No talent data",
     missing: "Entity not found",
@@ -325,7 +329,18 @@ class WowTalentTreeCard extends HTMLElement {
       node.rank > 0
         ? `${this._t("rank")} ${node.rank}/${node.max_rank}`
         : this._t("notTaken");
-    const talents = (node.talents || [])
+    // Apex: Stufen mit Rang statt der Talente des Baums (dort nur die erste)
+    const stages = (node.stages || [])
+      .map((t, i) => {
+        const stand = t.rank > 0 ? `${this._t("rank")} ${t.rank}` : this._t("notTaken");
+        return `<div class="talent">
+          <div class="talent-name">${escape(t.name || "")}</div>
+          <div class="details-status">${escape(`${this._t("stage")} ${i + 1} · ${stand}`)}</div>
+          <div class="talent-desc">${escape(t.description || "")}</div>
+        </div>`;
+      })
+      .join("");
+    const talents = stages || (node.talents || [])
       .map((t) => {
         const chosen = node.talents.length > 1 && t.id === node.talent ? " ✓" : "";
         return `<div class="talent">
@@ -334,7 +349,11 @@ class WowTalentTreeCard extends HTMLElement {
         </div>`;
       })
       .join("");
-    const kind = node.talents && node.talents.length > 1 ? ` · ${this._t("choice")}` : "";
+    const kind = node.stages
+      ? ` · ${this._t("apex")}`
+      : node.talents && node.talents.length > 1
+        ? ` · ${this._t("choice")}`
+        : "";
     return `<div class="details">
       <div class="details-status">${escape(status + kind)}</div>
       ${talents}
