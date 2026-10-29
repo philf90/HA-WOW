@@ -899,7 +899,19 @@ mit einem Classic-Era-Charakter (siehe [WoW Classic](#wow-classic)).
   acht Teile einzeln ausgebaut (Sperre beim Token, Prüfung auf `access_token`,
   ValueError beim Token, bei Abfragen und beim Code-Tausch, nur JSON-Objekte,
   Berufsnamen mit abgelehnten Zugangsdaten und Abbruch bei 429), jedes Mal
-  schlug ein Test fehl. **Nicht live geprüft.** 0.19.0: 29 Tests für die Sprache der
+  schlug ein Test fehl. **Nicht live geprüft.** Dazu zwei Texte aus dem
+  Live-Test (kürzere Auswahl „Sprache der Region (wie bisher)“, „Gefundene
+  Charaktere …: 1“ statt „1 Charaktere gefunden“). **Live geprüft mit 0.19.0**
+  (29.10.2026, Home Assistant 2026.10.4, acht Charaktere in EU Retail und
+  Classic Era): Optionsdialog mit Vorgabe und elf Einträgen; Umstellen auf
+  English lädt neu, alle Abfragen mit `en_GB`, Klasse, Volk, Titel,
+  Heldentalente, Beruf, Ausrüstung und Bevölkerung auf Englisch, Entitäts-IDs
+  unverändert, Verlauf erhalten (geprüft an einem Berufssensor), kein Fehler
+  im Log; Karten „WoW Arsenal“ und „WoW
+  Talentbaum“ mit englischen Texten; Charaktersuche über die Anmeldung mit
+  englischer Klasse; zurück auf „Sprache der Region“ mit allen Werten wie
+  vorher. Das Anlegen neuer Entitäten ohne Neuladen (0.18.0) lief beim
+  Schreiben noch. 0.19.0: 29 Tests für die Sprache der
   API-Texte (Locale je Region und Sprache mit Rückfall auf die Region, 16
   Fälle; Auswahl „Sprache von Home Assistant“, 6 Fälle; ohne Option wie bisher;
   gewählte Sprache in allen Abfragen und in der Diagnose; Sprache von Home
