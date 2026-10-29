@@ -11,7 +11,7 @@
       },
       "method": {
         "title": "Add characters",
-        "description": "Sign in with Battle.net to find all characters of your account and pick them from a list. Blizzard needs the redirect URL shown in the next step in your API client at develop.battle.net (usually https://my.home-assistant.io/redirect/oauth). Without signing in, add characters by hand on this entry later.",
+        "description": "Sign in with Battle.net to find all characters of your account and pick them from a list. Blizzard accepts the sign-in only if this redirect URL is entered in your API client at develop.battle.net: {redirect_uri}. Without signing in, add characters by hand on this entry later.",
         "menu_options": {
           "login": "Sign in with Battle.net and pick characters",
           "without_login": "Continue without signing in"

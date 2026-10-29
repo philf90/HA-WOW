@@ -141,6 +141,8 @@ async def _start_login(hass: HomeAssistant) -> dict:
         result["flow_id"], CREDENTIALS
     )
     assert result["type"] is FlowResultType.MENU
+    # Die Redirect-URL steht als Platzhalter im Text (hassfest verbietet URLs).
+    assert result["description_placeholders"] == {"redirect_uri": MY_AUTH_CALLBACK_PATH}
     return await hass.config_entries.flow.async_configure(
         result["flow_id"], {"next_step_id": "login"}
     )

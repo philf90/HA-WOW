@@ -11,7 +11,7 @@
       },
       "method": {
         "title": "Charaktere hinzufügen",
-        "description": "Melde dich mit Battle.net an, um alle Charaktere deines Kontos zu finden und aus einer Liste zu wählen. Dafür muss im API-Client auf develop.battle.net die Redirect-URL aus dem nächsten Schritt eingetragen sein (meist https://my.home-assistant.io/redirect/oauth). Ohne Anmeldung fügst du Charaktere später von Hand an diesem Eintrag hinzu.",
+        "description": "Melde dich mit Battle.net an, um alle Charaktere deines Kontos zu finden und aus einer Liste zu wählen. Blizzard nimmt die Anmeldung nur an, wenn diese Redirect-URL im API-Client auf develop.battle.net eingetragen ist: {redirect_uri}. Ohne Anmeldung fügst du Charaktere später von Hand an diesem Eintrag hinzu.",
         "menu_options": {
           "login": "Mit Battle.net anmelden und Charaktere wählen",
           "without_login": "Ohne Anmeldung fortfahren"

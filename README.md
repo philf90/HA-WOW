@@ -804,7 +804,8 @@ Automatische Tests laufen gegen Home Assistant 2026.2.3; live geprüft wurde unt
 Home Assistant 2026.10.4 mit Retail-Charakteren der Region EU, seit 0.11.2 auch
 mit einem Classic-Era-Charakter (siehe [WoW Classic](#wow-classic)).
 
-- **0.17.x:** 199 automatische Tests, davon 14 neu für die
+- **0.17.x:** 202 automatische Tests, davon 17 neu. 3 prüfen, dass die
+  Übersetzungen keine URLs enthalten (Regel von hassfest). 14 gelten der
   Battle.net-Anmeldung: Login-Adresse mit Scope und Redirect-URL, Code-Tausch
   mit derselben Redirect-URL, Charaktersuche nur mit dem Login-Token (24
   Abfragen), Auswahl nach Level, Untereinträge mit denselben Daten und

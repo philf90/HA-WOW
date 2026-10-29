@@ -32,7 +32,11 @@ from homeassistant.config_entries import (
 )
 from homeassistant.core import callback
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
-from homeassistant.helpers.config_entry_oauth2_flow import LocalOAuth2Implementation
+from homeassistant.helpers.config_entry_oauth2_flow import (
+    MY_AUTH_CALLBACK_PATH,
+    LocalOAuth2Implementation,
+    async_get_redirect_uri,
+)
 from homeassistant.helpers.selector import (
     SelectOptionDict,
     SelectSelector,
@@ -162,8 +166,16 @@ class WowCharacterConfigFlow(ConfigFlow, domain=DOMAIN):
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
         """Charaktere per Battle.net-Login suchen oder spaeter von Hand anlegen."""
+        try:
+            redirect_uri = async_get_redirect_uri(self.hass)
+        except RuntimeError:
+            # Ohne My Home Assistant und ohne Anfrage der Oberflaeche; der
+            # Anmeldeschritt bricht dann mit "redirect_unknown" ab.
+            redirect_uri = MY_AUTH_CALLBACK_PATH
         return self.async_show_menu(
-            step_id="method", menu_options=["login", "without_login"]
+            step_id="method",
+            menu_options=["login", "without_login"],
+            description_placeholders={"redirect_uri": redirect_uri},
         )
 
     async def async_step_without_login(
