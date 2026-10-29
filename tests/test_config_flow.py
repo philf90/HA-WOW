@@ -64,8 +64,14 @@ async def _start_character(hass: HomeAssistant, entry, data: dict):
         (entry.entry_id, "character"),
         context={"source": config_entries.SOURCE_USER},
     )
-    if result["type"] is not FlowResultType.FORM:
+    if result["type"] is not FlowResultType.MENU:
         return result
+    assert result["menu_options"] == ["login", "manual"]
+    # Menue "Charaktere hinzufuegen": von Hand eingeben.
+    result = await hass.config_entries.subentries.async_configure(
+        result["flow_id"], {"next_step_id": "manual"}
+    )
+
     return await hass.config_entries.subentries.async_configure(result["flow_id"], data)
 
 

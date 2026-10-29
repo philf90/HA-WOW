@@ -97,6 +97,10 @@ async def test_add_classic_character_uses_documented_namespace(
         (entry.entry_id, "character"),
         context={"source": config_entries.SOURCE_USER},
     )
+    # Menue "Charaktere hinzufuegen": von Hand eingeben.
+    result = await hass.config_entries.subentries.async_configure(
+        result["flow_id"], {"next_step_id": "manual"}
+    )
     result = await hass.config_entries.subentries.async_configure(
         result["flow_id"], {**BASE_INPUT, "game_version": version}
     )

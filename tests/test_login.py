@@ -1,5 +1,6 @@
 """Tests fuer den Battle.net-Login: Charaktere des Kontos finden und anlegen."""
 
+import asyncio
 from urllib.parse import parse_qs, urlparse
 
 import pytest
@@ -299,6 +300,23 @@ async def test_login_counts_failed_queries(
     assert result["description_placeholders"] == {"count": "1", "failed": "1"}
 
 
+async def test_login_unknown_namespace_is_no_failure(
+    hass: HomeAssistant, aioclient_mock, hass_client_no_auth, callback_view
+) -> None:
+    """Live-Test 29.10.2026: Fuer die Forever-Kandidaten, die Blizzard noch
+    nicht kennt, antwortet /profile/user/wow mit 403. Das ist kein Aussetzer."""
+    forever = {
+        (region, suffix): 403
+        for region in REGIONS
+        for suffix in GAME_VERSIONS["forever"]["namespaces"]
+    }
+    mock_login(aioclient_mock, {**forever, ("eu", ""): _account(TESTCHAR)})
+    result = await _start_login(hass)
+    result = await _return(hass, hass_client_no_auth, result, "code=abcd")
+    assert result["step_id"] == "select"
+    assert result["description_placeholders"] == {"count": "1", "failed": "0"}
+
+
 @pytest.mark.parametrize(
     ("query", "kwargs", "accounts", "reason"),
     [
@@ -442,3 +460,243 @@ async def test_sync_same_name_new_character_gets_own_unique_id(
     assert result["reason"] == "characters_added"
     new = next(s for s in entry.subentries.values() if s.data["character_id"] == 12)
     assert new.unique_id == "eu-profile-eu-aegwynn-zweitchar-12"
+
+
+async def test_sync_reloads_once_for_several_characters(
+    hass: HomeAssistant, aioclient_mock, hass_client_no_auth, callback_view
+) -> None:
+    """Jeder neue Untereintrag loest den Update-Listener aus; geladen wird
+    trotzdem nur einmal (Live-Test 29.10.2026: vier Charaktere, vier
+    vollstaendige Neustarts des Eintrags)."""
+    mock_login(
+        aioclient_mock,
+        {
+            ("eu", ""): _account(TESTCHAR, ZWEITCHAR),
+            ("eu", "-classic1x"): _account(ERACHAR),
+        },
+    )
+
+    async def slow_profile(method, url, data):
+        # Wie echte Netzwerkzeit: Das Laden gibt die Kontrolle ab, waehrend
+        # die uebrigen Listener pruefen, ob sie neu laden muessen.
+        await asyncio.sleep(0.01)
+        return AiohttpClientMockResponse(method, url, 200, json=PROFILE)
+
+    aioclient_mock.get(API, side_effect=slow_profile)
+    mock_characters(aioclient_mock)
+    entry, result = await _start_sync(hass)
+    result = await _return(hass, hass_client_no_auth, result, "code=abcd")
+    keys = [o["value"] for o in _options(result)]
+    calls = len(aioclient_mock.mock_calls)
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"], {"characters": keys}
+    )
+    await hass.async_block_till_done()
+    assert result["reason"] == "characters_added"
+    assert len(entry.subentries) == 3
+    # Jeder neue Charakter ist eingerichtet (Live-Test 29.10.2026: nur der
+    # erste bekam Geraet und Entitaeten).
+    assert set(entry.runtime_data.coordinators) == set(entry.subentries)
+    assert hass.states.get("sensor.zweitchar_aegwynn_level").state == "80"
+    # Das Profil eines Charakters wird je Laden einmal abgefragt.
+    profile_calls = [
+        c for c in aioclient_mock.mock_calls[calls:] if str(c[1]).split("?")[0] == API
+    ]
+    assert len(profile_calls) == 1
+    assert hass.states.get("sensor.testchar_die_aldor_level").state == "90"
+
+
+async def test_reload_for_each_distinct_change(
+    hass: HomeAssistant, aioclient_mock, hass_client_no_auth, callback_view
+) -> None:
+    """Der Merker fuer ein laufendes Neuladen wird danach geloescht: Kehrt der
+    Eintrag spaeter zu einem frueheren Stand zurueck, laedt er wieder neu."""
+    mock_login(aioclient_mock, {})
+    mock_characters(aioclient_mock)
+    entry, _result = await _start_sync(hass, character_subentry())
+    (subentry,) = entry.subentries.values()
+
+    def profile_calls() -> int:
+        return sum(
+            1 for c in aioclient_mock.mock_calls if str(c[1]).split("?")[0] == API
+        )
+
+    for title in ("Neu", "Testchar – Die Aldor", "Neu"):
+        before = profile_calls()
+        hass.config_entries.async_update_subentry(entry, subentry, title=title)
+        await hass.async_block_till_done()
+        assert profile_calls() == before + 1, title
+
+
+async def test_subentry_added_during_reload_gets_set_up(
+    hass: HomeAssistant, aioclient_mock, hass_client_no_auth, callback_view
+) -> None:
+    """Waehrend eines Neustarts fehlt der Update-Listener. Was in dieser Zeit
+    dazukommt, laedt der Eintrag am Ende seines Starts nach."""
+
+    async def slow_profile(method, url, data):
+        await asyncio.sleep(0.01)
+        return AiohttpClientMockResponse(method, url, 200, json=PROFILE)
+
+    mock_login(aioclient_mock, {})
+    aioclient_mock.get(API, side_effect=slow_profile)
+    mock_characters(aioclient_mock)
+    entry, _result = await _start_sync(hass, character_subentry())
+    (subentry,) = entry.subentries.values()
+
+    hass.config_entries.async_update_subentry(entry, subentry, title="Neu")
+    await asyncio.sleep(0.005)  # der Neustart wartet auf das Profil
+    assert entry.state is config_entries.ConfigEntryState.SETUP_IN_PROGRESS
+    hass.config_entries.async_add_subentry(
+        entry,
+        config_entries.ConfigSubentry(
+            **character_subentry(
+                uid="eu-profile-eu-aegwynn-zweitchar",
+                title="Zweitchar – Aegwynn",
+                realm="aegwynn",
+                character="Zweitchar",
+            )
+        ),
+    )
+    await hass.async_block_till_done()
+    assert set(entry.runtime_data.coordinators) == set(entry.subentries)
+    assert hass.states.get("sensor.zweitchar_aegwynn_level").state == "80"
+
+
+# Anmeldung aus "Charakter hinzufuegen"
+
+
+async def _start_add(hass: HomeAssistant, *subentries) -> tuple:
+    entry = main_entry(*subentries)
+    entry.add_to_hass(hass)
+    assert await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+    result = await hass.config_entries.subentries.async_init(
+        (entry.entry_id, "character"),
+        context={"source": config_entries.SOURCE_USER},
+    )
+    assert result["type"] is FlowResultType.MENU
+    assert result["menu_options"] == ["login", "manual"]
+    result = await hass.config_entries.subentries.async_configure(
+        result["flow_id"], {"next_step_id": "login"}
+    )
+    return entry, result
+
+
+def _relay_flows(hass: HomeAssistant) -> list:
+    return [
+        flow
+        for flow in hass.config_entries.flow.async_progress()
+        if flow["handler"] == DOMAIN
+    ]
+
+
+async def test_add_character_with_login(
+    hass: HomeAssistant, aioclient_mock, hass_client_no_auth, callback_view
+) -> None:
+    """Der Ruecksprung erreicht nur Dialoge des Haupteintrags; ein Hilfsdialog
+    dort gibt ihn an "Charakter hinzufuegen" weiter."""
+    mock_login(
+        aioclient_mock,
+        {
+            ("eu", ""): _account(TESTCHAR, ZWEITCHAR),
+            ("eu", "-classic1x"): _account(ERACHAR),
+        },
+    )
+    mock_characters(aioclient_mock)
+    entry, result = await _start_add(hass, character_subentry())
+    assert result["type"] is FlowResultType.EXTERNAL_STEP
+    assert result["description_placeholders"] == {"redirect_uri": MY_AUTH_CALLBACK_PATH}
+
+    # Der state verweist auf den Hilfsdialog. Quelle "user": Home Assistant
+    # zeigt ihn nicht unter "Entdeckt".
+    (relay,) = _relay_flows(hass)
+    assert relay["context"]["source"] == config_entries.SOURCE_USER
+    assert relay["step_id"] == "relay"
+
+    state = parse_qs(urlparse(result["url"]).query)["state"][0]
+    client = await hass_client_no_auth()
+    resp = await client.get(f"/auth/external/callback?code=abcd&state={state}")
+    assert resp.status == 200
+    assert not _relay_flows(hass)
+
+    result = await hass.config_entries.subentries.async_configure(result["flow_id"])
+    assert result["step_id"] == "select"
+    keys = [o["value"] for o in _options(result)]
+    assert len(keys) == 2  # Testchar ist eingerichtet
+    result = await hass.config_entries.subentries.async_configure(
+        result["flow_id"], {"characters": keys}
+    )
+    assert result["type"] is FlowResultType.ABORT
+    assert result["reason"] == "characters_added"
+    assert result["description_placeholders"] == {"count": "2"}
+    await hass.async_block_till_done()
+    assert sorted(s.title for s in entry.subentries.values()) == [
+        "Erachar – Everlook",
+        "Testchar – Die Aldor",
+        "Zweitchar – Aegwynn",
+    ]
+    assert set(entry.runtime_data.coordinators) == set(entry.subentries)
+
+
+async def test_add_character_login_rejected(
+    hass: HomeAssistant, aioclient_mock, hass_client_no_auth, callback_view
+) -> None:
+    mock_login(aioclient_mock, {})
+    mock_characters(aioclient_mock)
+    _entry, result = await _start_add(hass, character_subentry())
+    state = parse_qs(urlparse(result["url"]).query)["state"][0]
+    client = await hass_client_no_auth()
+    await client.get(f"/auth/external/callback?error=access_denied&state={state}")
+    result = await hass.config_entries.subentries.async_configure(result["flow_id"])
+    assert result["type"] is FlowResultType.ABORT
+    assert result["reason"] == "login_rejected"
+
+
+async def test_closing_add_character_ends_relay(
+    hass: HomeAssistant, aioclient_mock, callback_view
+) -> None:
+    """Schliesst der Nutzer den Dialog vor der Anmeldung, endet auch der
+    Hilfsdialog; es bleibt kein Dialog im Hintergrund liegen."""
+    mock_login(aioclient_mock, {})
+    mock_characters(aioclient_mock)
+    _entry, result = await _start_add(hass, character_subentry())
+    assert len(_relay_flows(hass)) == 1
+    hass.config_entries.subentries.async_abort(result["flow_id"])
+    assert not _relay_flows(hass)
+
+
+async def test_setup_skips_character_deleted_meanwhile(
+    hass: HomeAssistant,
+    aioclient_mock,
+    hass_client_no_auth,
+    callback_view,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Live-Test 29.10.2026: Ein waehrend des Starts geloeschter Charakter
+    fuehrte zu "Can't add entities to unknown subentry"."""
+
+    async def slow_profile(method, url, data):
+        await asyncio.sleep(0.01)
+        return AiohttpClientMockResponse(method, url, 200, json=PROFILE)
+
+    mock_login(aioclient_mock, {})
+    aioclient_mock.get(API, side_effect=slow_profile)
+    mock_characters(aioclient_mock)
+    second = character_subentry(
+        uid="eu-profile-eu-aegwynn-zweitchar",
+        title="Zweitchar – Aegwynn",
+        realm="aegwynn",
+        character="Zweitchar",
+    )
+    entry, _result = await _start_sync(hass, character_subentry(), second)
+    first = next(s for s in entry.subentries.values() if s.unique_id == UID1)
+    other = next(s for s in entry.subentries.values() if s.unique_id != UID1)
+
+    hass.config_entries.async_update_subentry(entry, first, title="Neu")
+    await asyncio.sleep(0.005)  # der Neustart wartet auf das Profil
+    assert entry.state is config_entries.ConfigEntryState.SETUP_IN_PROGRESS
+    hass.config_entries.async_remove_subentry(entry, other.subentry_id)
+    await hass.async_block_till_done()
+    assert "unknown subentry" not in caplog.text
+    assert set(entry.runtime_data.coordinators) == {first.subentry_id}

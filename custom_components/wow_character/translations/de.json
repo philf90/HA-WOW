@@ -51,6 +51,10 @@
           "client_id": "Client-ID",
           "client_secret": "Client-Secret"
         }
+      },
+      "relay": {
+        "title": "Battle.net-Anmeldung",
+        "description": "Hilfsschritt, der die Anmeldung an „Charakter hinzufügen“ weitergibt."
       }
     },
     "error": {
@@ -68,7 +72,8 @@
       "scope_missing": "Der Zugriff auf deine World-of-Warcraft-Charaktere wurde nicht erlaubt. Erneut anmelden und diese Freigabe erteilen.",
       "no_characters": "Auf diesem Battle.net-Konto wurden in EU, US, KR und TW keine Charaktere gefunden.",
       "nothing_new": "Alle Charaktere dieses Kontos sind bereits eingerichtet.",
-      "characters_added": "Charaktere hinzugefügt: {count}."
+      "characters_added": "Charaktere hinzugefügt: {count}.",
+      "relay_done": "Anmeldung weitergegeben."
     }
   },
   "config_subentries": {
@@ -79,11 +84,30 @@
       "entry_type": "Charakter",
       "step": {
         "user": {
+          "title": "Charaktere hinzufügen",
+          "description": "Melde dich mit Battle.net an, um die Charaktere deines Kontos zu finden und aus einer Liste zu wählen, oder gib einen Charakter von Hand ein, etwa den eines anderen Kontos.",
+          "menu_options": {
+            "login": "Mit Battle.net anmelden und Charaktere wählen",
+            "manual": "Von Hand eingeben"
+          }
+        },
+        "manual": {
           "title": "Region und Spielversion",
-          "description": "Danach wird die Realm-Liste dieser Region und Spielversion geladen. Alle Charaktere deines Kontos auf einmal: am Eintrag „Battle.net API“ ⋮ → Neu konfigurieren → Charaktere abgleichen.",
+          "description": "Danach wird die Realm-Liste dieser Region und Spielversion geladen.",
           "data": {
             "region": "Region",
             "game_version": "Spielversion"
+          }
+        },
+        "login": {
+          "title": "Mit Battle.net anmelden",
+          "description": "Melde dich im geöffneten Fenster mit Battle.net an und erlaube den Zugriff auf deine World-of-Warcraft-Charaktere. Blizzard nimmt die Anmeldung nur an, wenn diese Redirect-URL im API-Client auf develop.battle.net eingetragen ist: {redirect_uri}"
+        },
+        "select": {
+          "title": "Charaktere wählen",
+          "description": "{count} Charaktere gefunden, die noch nicht eingerichtet sind. Jeder gewählte Charakter wird ein eigenes Gerät. Fehlgeschlagene Abfragen (dort fehlen eventuell Charaktere): {failed}.",
+          "data": {
+            "characters": "Charaktere"
           }
         },
         "character": {
@@ -112,7 +136,14 @@
         "already_configured": "Dieser Charakter ist bereits eingerichtet.",
         "entry_not_loaded": "Der Eintrag des API-Clients ist nicht geladen. Prüfe ihn, bevor du Charaktere hinzufügst.",
         "reconfigure_successful": "Charakter geändert.",
-        "cannot_connect": "Battle.net API nicht erreichbar."
+        "cannot_connect": "Battle.net API nicht erreichbar.",
+        "redirect_unknown": "Home Assistant konnte seine eigene Adresse für die Anmeldung nicht ermitteln. My Home Assistant aktivieren (Teil von default_config) oder Home Assistant über seine URL öffnen.",
+        "login_rejected": "Die Anmeldung wurde bei Battle.net abgebrochen oder abgelehnt.",
+        "login_failed": "Battle.net hat die Anmeldung abgelehnt. Erneut versuchen; klappt es weiter nicht, Client-ID, Secret und Redirect-URL prüfen.",
+        "scope_missing": "Der Zugriff auf deine World-of-Warcraft-Charaktere wurde nicht erlaubt. Erneut anmelden und diese Freigabe erteilen.",
+        "no_characters": "Auf diesem Battle.net-Konto wurden in EU, US, KR und TW keine Charaktere gefunden.",
+        "nothing_new": "Alle Charaktere dieses Kontos sind bereits eingerichtet.",
+        "characters_added": "Charaktere hinzugefügt: {count}."
       }
     }
   },

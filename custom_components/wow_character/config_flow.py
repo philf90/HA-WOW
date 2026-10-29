@@ -21,6 +21,7 @@ from typing import Any
 import voluptuous as vol
 from homeassistant.config_entries import (
     SOURCE_RECONFIGURE,
+    SOURCE_USER,
     ConfigEntry,
     ConfigEntryState,
     ConfigFlow,
@@ -31,6 +32,7 @@ from homeassistant.config_entries import (
     SubentryFlowResult,
 )
 from homeassistant.core import callback
+from homeassistant.data_entry_flow import UnknownFlow
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.config_entry_oauth2_flow import (
     MY_AUTH_CALLBACK_PATH,
@@ -51,6 +53,7 @@ from .api import (
     BattleNetAuthError,
     BattleNetClient,
     BattleNetError,
+    BattleNetForbidden,
     BattleNetLoginError,
     BattleNetNotFound,
 )
@@ -115,11 +118,23 @@ async def _validate_credentials(hass, client_id: str, client_secret: str) -> str
     return None
 
 
-class WowCharacterConfigFlow(ConfigFlow, domain=DOMAIN):
-    # Version 2: Haupteintrag mit Untereintraegen je Charakter.
-    VERSION = 2
+# Kennzeichen eines Hilfsdialogs, der fuer "Charakter hinzufuegen" den
+# Ruecksprung nach dem Login annimmt (siehe CharacterSubentryFlow).
+_RELAY = "relay_for"
 
-    def __init__(self) -> None:
+
+class _LoginSteps:
+    """Battle.net-Login, Charaktersuche und Auswahl.
+
+    Gemeinsam fuer den Haupteintrag (Einrichten, "Charaktere abgleichen") und
+    "Charakter hinzufuegen". Die Klassen liefern Zugangsdaten, die
+    eingerichteten Charaktere und was mit der Auswahl geschieht.
+    """
+
+    hass: Any
+    flow_id: str
+
+    def _init_login(self) -> None:
         self._credentials: dict[str, str] = {}
         # Rueckgabe des Logins ueber /auth/external/callback: code oder error,
         # dazu state mit der benutzten redirect_uri.
@@ -127,6 +142,133 @@ class WowCharacterConfigFlow(ConfigFlow, domain=DOMAIN):
         # Auswahl-Schluessel -> gefundener Charakter, siehe _found_character.
         self._found: dict[str, dict[str, Any]] = {}
         self._failed = 0
+
+    async def _login_flow_id(self) -> str:
+        """Dialog, den Home Assistant nach dem Login fortsetzt."""
+        return self.flow_id
+
+    def _existing_characters(self) -> list[ConfigSubentry]:
+        return []
+
+    def _finish(self, picked: list[dict[str, Any]]) -> Any:
+        raise NotImplementedError
+
+    def _add_characters(self, entry: ConfigEntry, picked: list[dict[str, Any]]) -> None:
+        taken = {sub.unique_id for sub in entry.subentries.values()}
+        for item in picked:
+            self.hass.config_entries.async_add_subentry(
+                entry, ConfigSubentry(**_subentry(item, taken))
+            )
+
+    async def async_step_login(self, user_input: dict[str, Any] | None = None) -> Any:
+        """Battle.net-Login in einem eigenen Fenster."""
+        if user_input is not None:
+            self._login = user_input
+            return self.async_external_step_done(next_step_id="discover")
+        login = _LoginUrl(
+            self.hass,
+            DOMAIN,
+            self._credentials[CONF_CLIENT_ID],
+            self._credentials[CONF_CLIENT_SECRET],
+            AUTHORIZE_URL,
+            TOKEN_URL,
+        )
+        try:
+            redirect_uri = login.redirect_uri
+            url = await login.async_generate_authorize_url(await self._login_flow_id())
+        except RuntimeError:
+            # Ohne "My Home Assistant" braucht Home Assistant die Adresse aus der
+            # laufenden Anfrage der Oberflaeche.
+            return self.async_abort(reason="redirect_unknown")
+        return self.async_external_step(
+            step_id="login",
+            url=url,
+            description_placeholders={"redirect_uri": redirect_uri},
+        )
+
+    async def async_step_discover(
+        self, user_input: dict[str, Any] | None = None
+    ) -> Any:
+        """Login-Code tauschen und die Charaktere aller Regionen suchen."""
+        if "code" not in self._login:
+            return self.async_abort(reason="login_rejected")
+        client = BattleNetClient(
+            async_get_clientsession(self.hass),
+            self._credentials[CONF_CLIENT_ID],
+            self._credentials[CONF_CLIENT_SECRET],
+        )
+        state = self._login.get("state") or {}
+        try:
+            token = await client.exchange_code(
+                self._login["code"], state.get("redirect_uri", "")
+            )
+            # Nutzer koennen einzelne Scopes abwaehlen (Blizzard-Doku).
+            if LOGIN_SCOPE not in str(token.get("scope", "")).split():
+                return self.async_abort(reason="scope_missing")
+            found, self._failed = await _discover(client, token["access_token"])
+        except BattleNetLoginError:
+            return self.async_abort(reason="login_failed")
+        except BattleNetError:
+            return self.async_abort(reason="cannot_connect")
+        if not found:
+            return self.async_abort(reason="no_characters")
+
+        existing = self._existing_characters()
+        self._found = {
+            _found_key(item): item
+            for item in found
+            if not any(_same_character(sub.data, item["data"]) for sub in existing)
+        }
+        if not self._found:
+            return self.async_abort(reason="nothing_new")
+        return await self.async_step_select()
+
+    async def async_step_select(self, user_input: dict[str, Any] | None = None) -> Any:
+        if user_input is not None:
+            return self._finish(
+                [
+                    self._found[key]
+                    for key in user_input.get(CONF_CHARACTERS, [])
+                    if key in self._found
+                ]
+            )
+
+        options = [
+            SelectOptionDict(value=key, label=item["label"])
+            for key, item in sorted(
+                self._found.items(),
+                key=lambda kv: (-kv[1]["level"], kv[1]["label"].casefold()),
+            )
+        ]
+        return self.async_show_form(
+            step_id="select",
+            data_schema=vol.Schema(
+                {
+                    vol.Optional(CONF_CHARACTERS, default=[]): SelectSelector(
+                        SelectSelectorConfig(
+                            options=options,
+                            multiple=True,
+                            mode=SelectSelectorMode.LIST,
+                        )
+                    )
+                }
+            ),
+            description_placeholders={
+                "count": str(len(options)),
+                "failed": str(self._failed),
+            },
+        )
+
+
+class WowCharacterConfigFlow(_LoginSteps, ConfigFlow, domain=DOMAIN):
+    # Version 2: Haupteintrag mit Untereintraegen je Charakter.
+    VERSION = 2
+
+    def __init__(self) -> None:
+        self._init_login()
+        # Nur im Hilfsdialog: der Dialog "Charakter hinzufuegen", an den der
+        # Ruecksprung weitergeht.
+        self._relay_for: str | None = None
 
     @classmethod
     @callback
@@ -138,6 +280,12 @@ class WowCharacterConfigFlow(ConfigFlow, domain=DOMAIN):
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
+        if user_input is not None and _RELAY in user_input:
+            # Hilfsdialog fuer "Charakter hinzufuegen": Home Assistant setzt
+            # nach dem Login nur Dialoge des Haupteintrags fort. Quelle "user",
+            # damit er nicht unter "Entdeckt" erscheint.
+            self._relay_for = user_input[_RELAY]
+            return self.async_show_form(step_id="relay")
         errors: dict[str, str] = {}
         if user_input is not None:
             client_id = user_input[CONF_CLIENT_ID].strip()
@@ -221,133 +369,40 @@ class WowCharacterConfigFlow(ConfigFlow, domain=DOMAIN):
         }
         return await self.async_step_login()
 
-    async def async_step_login(
+    async def async_step_relay(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
-        """Battle.net-Login in einem eigenen Fenster.
-
-        Home Assistant setzt nach dem Login ueber /auth/external/callback genau
-        diesen Dialog fort; Untereintrags-Dialoge kann der Ruecksprung nicht
-        erreichen, deshalb steckt der Login im Haupteintrag.
-        """
-        if user_input is not None:
-            self._login = user_input
-            return self.async_external_step_done(next_step_id="discover")
-        login = _LoginUrl(
-            self.hass,
-            DOMAIN,
-            self._credentials[CONF_CLIENT_ID],
-            self._credentials[CONF_CLIENT_SECRET],
-            AUTHORIZE_URL,
-            TOKEN_URL,
-        )
-        try:
-            redirect_uri = login.redirect_uri
-            url = await login.async_generate_authorize_url(self.flow_id)
-        except RuntimeError:
-            # Ohne "My Home Assistant" braucht Home Assistant die Adresse aus der
-            # laufenden Anfrage der Oberflaeche.
-            return self.async_abort(reason="redirect_unknown")
-        return self.async_external_step(
-            step_id="login",
-            url=url,
-            description_placeholders={"redirect_uri": redirect_uri},
-        )
-
-    async def async_step_discover(
-        self, user_input: dict[str, Any] | None = None
-    ) -> ConfigFlowResult:
-        """Login-Code tauschen und die Charaktere aller Regionen suchen."""
-        if "code" not in self._login:
-            return self.async_abort(reason="login_rejected")
-        client = BattleNetClient(
-            async_get_clientsession(self.hass),
-            self._credentials[CONF_CLIENT_ID],
-            self._credentials[CONF_CLIENT_SECRET],
-        )
-        state = self._login.get("state") or {}
-        try:
-            token = await client.exchange_code(
-                self._login["code"], state.get("redirect_uri", "")
-            )
-            # Nutzer koennen einzelne Scopes abwaehlen (Blizzard-Doku).
-            if LOGIN_SCOPE not in str(token.get("scope", "")).split():
-                return self.async_abort(reason="scope_missing")
-            found, self._failed = await _discover(client, token["access_token"])
-        except BattleNetLoginError:
-            return self.async_abort(reason="login_failed")
-        except BattleNetError:
-            return self.async_abort(reason="cannot_connect")
-        if not found:
-            return self.async_abort(reason="no_characters")
-
-        existing: list[ConfigSubentry] = []
-        if self.source == SOURCE_RECONFIGURE:
-            existing = [
-                sub
-                for sub in self._get_reconfigure_entry().subentries.values()
-                if sub.subentry_type == SUBENTRY_CHARACTER
-            ]
-        self._found = {
-            _found_key(item): item
-            for item in found
-            if not any(_same_character(sub.data, item["data"]) for sub in existing)
-        }
-        if not self._found:
-            return self.async_abort(reason="nothing_new")
-        return await self.async_step_select()
-
-    async def async_step_select(
-        self, user_input: dict[str, Any] | None = None
-    ) -> ConfigFlowResult:
-        if user_input is not None:
-            picked = [
-                self._found[key]
-                for key in user_input.get(CONF_CHARACTERS, [])
-                if key in self._found
-            ]
-            if self.source == SOURCE_RECONFIGURE:
-                entry = self._get_reconfigure_entry()
-                taken = {sub.unique_id for sub in entry.subentries.values()}
-                for item in picked:
-                    self.hass.config_entries.async_add_subentry(
-                        entry, ConfigSubentry(**_subentry(item, taken))
-                    )
-                return self.async_abort(
-                    reason="characters_added",
-                    description_placeholders={"count": str(len(picked))},
+        """Ruecksprung des Logins an "Charakter hinzufuegen" weitergeben."""
+        if user_input is not None and self._relay_for:
+            try:
+                await self.hass.config_entries.subentries.async_configure(
+                    self._relay_for, user_input
                 )
-            taken: set[str | None] = set()
-            return self.async_create_entry(
-                title=MAIN_TITLE,
-                data=self._credentials,
-                subentries=[_subentry(item, taken) for item in picked],
-            )
+            except UnknownFlow:
+                _LOGGER.debug("Dialog %s ist schon geschlossen", self._relay_for)
+        return self.async_abort(reason="relay_done")
 
-        options = [
-            SelectOptionDict(value=key, label=item["label"])
-            for key, item in sorted(
-                self._found.items(),
-                key=lambda kv: (-kv[1]["level"], kv[1]["label"].casefold()),
-            )
+    def _existing_characters(self) -> list[ConfigSubentry]:
+        if self.source != SOURCE_RECONFIGURE:
+            return []
+        return [
+            sub
+            for sub in self._get_reconfigure_entry().subentries.values()
+            if sub.subentry_type == SUBENTRY_CHARACTER
         ]
-        return self.async_show_form(
-            step_id="select",
-            data_schema=vol.Schema(
-                {
-                    vol.Optional(CONF_CHARACTERS, default=[]): SelectSelector(
-                        SelectSelectorConfig(
-                            options=options,
-                            multiple=True,
-                            mode=SelectSelectorMode.LIST,
-                        )
-                    )
-                }
-            ),
-            description_placeholders={
-                "count": str(len(options)),
-                "failed": str(self._failed),
-            },
+
+    def _finish(self, picked: list[dict[str, Any]]) -> ConfigFlowResult:
+        if self.source == SOURCE_RECONFIGURE:
+            self._add_characters(self._get_reconfigure_entry(), picked)
+            return self.async_abort(
+                reason="characters_added",
+                description_placeholders={"count": str(len(picked))},
+            )
+        taken: set[str | None] = set()
+        return self.async_create_entry(
+            title=MAIN_TITLE,
+            data=self._credentials,
+            subentries=[_subentry(item, taken) for item in picked],
         )
 
     async def _async_credentials_step(
@@ -404,8 +459,9 @@ async def _discover(
 
     Je Region und Spielversion eine Abfrage, bei mehreren Namespace-Kandidaten
     (Forever) der erste mit Konto. Gibt die Funde und die Zahl der
-    fehlgeschlagenen Abfragen zurueck; HTTP 404 heisst "kein Konto" und zaehlt
-    nicht als Fehler.
+    fehlgeschlagenen Abfragen zurueck. HTTP 404 heisst "kein Konto", HTTP 403
+    "Namespace unbekannt" (Forever-Kandidaten, Live-Test 29.10.2026); beides
+    zaehlt nicht als Fehler.
     """
 
     async def one(region: str, version: str) -> tuple[list[dict[str, Any]], int]:
@@ -416,6 +472,9 @@ async def _discover(
                     region, suffix, login_token
                 )
             except BattleNetNotFound:
+                continue
+            except BattleNetForbidden:
+                _LOGGER.debug("Charaktersuche %s%s: HTTP 403", region, suffix)
                 continue
             except BattleNetLoginError:
                 raise
@@ -560,14 +619,18 @@ def _subentry(item: dict[str, Any], taken: set[str | None]) -> ConfigSubentryDat
     )
 
 
-class CharacterSubentryFlow(ConfigSubentryFlow):
-    """Charakter zu einem Haupteintrag hinzufuegen."""
+class CharacterSubentryFlow(_LoginSteps, ConfigSubentryFlow):
+    """Charaktere zu einem Haupteintrag hinzufuegen: per Battle.net-Login oder
+    von Hand mit Region, Spielversion, Realm und Name."""
 
     def __init__(self) -> None:
+        self._init_login()
         self._base: dict[str, Any] = {}
         self._suffix = ""
         # Slug -> angezeigter Name, z. B. "die-aldor" -> "Die Aldor".
         self._realms: dict[str, str] = {}
+        # Hilfsdialog im Haupteintrag, der den Ruecksprung des Logins annimmt.
+        self._relay: str | None = None
 
     @property
     def _client(self) -> BattleNetClient:
@@ -578,6 +641,61 @@ class CharacterSubentryFlow(ConfigSubentryFlow):
     ) -> SubentryFlowResult:
         if self._get_entry().state is not ConfigEntryState.LOADED:
             return self.async_abort(reason="entry_not_loaded")
+        return self.async_show_menu(step_id="user", menu_options=["login", "manual"])
+
+    async def async_step_login(
+        self, user_input: dict[str, Any] | None = None
+    ) -> SubentryFlowResult:
+        if user_input is None:
+            entry = self._get_entry()
+            self._credentials = {
+                CONF_CLIENT_ID: entry.data[CONF_CLIENT_ID],
+                CONF_CLIENT_SECRET: entry.data[CONF_CLIENT_SECRET],
+            }
+        return await super().async_step_login(user_input)
+
+    async def _login_flow_id(self) -> str:
+        """Home Assistant setzt nach dem Login ueber /auth/external/callback
+        nur Dialoge des Haupteintrags fort. Ein Hilfsdialog dort nimmt den
+        Ruecksprung an und gibt ihn an diesen Dialog weiter."""
+        self._abort_relay()
+        result = await self.hass.config_entries.flow.async_init(
+            DOMAIN, context={"source": SOURCE_USER}, data={_RELAY: self.flow_id}
+        )
+        self._relay = result["flow_id"]
+        return self._relay
+
+    def _abort_relay(self) -> None:
+        if self._relay is None:
+            return
+        try:
+            self.hass.config_entries.flow.async_abort(self._relay)
+        except UnknownFlow:
+            pass
+        self._relay = None
+
+    @callback
+    def async_remove(self) -> None:
+        """Dialog geschlossen oder fertig: Hilfsdialog mit beenden."""
+        self._abort_relay()
+
+    def _existing_characters(self) -> list[ConfigSubentry]:
+        return [
+            sub
+            for sub in self._get_entry().subentries.values()
+            if sub.subentry_type == SUBENTRY_CHARACTER
+        ]
+
+    def _finish(self, picked: list[dict[str, Any]]) -> SubentryFlowResult:
+        self._add_characters(self._get_entry(), picked)
+        return self.async_abort(
+            reason="characters_added",
+            description_placeholders={"count": str(len(picked))},
+        )
+
+    async def async_step_manual(
+        self, user_input: dict[str, Any] | None = None
+    ) -> SubentryFlowResult:
         errors: dict[str, str] = {}
         if user_input is not None:
             try:
@@ -594,7 +712,7 @@ class CharacterSubentryFlow(ConfigSubentryFlow):
                 self._realms = {r["slug"]: r["name"] for r in realms}
                 return await self.async_step_character()
         return self.async_show_form(
-            step_id="user",
+            step_id="manual",
             data_schema=self.add_suggested_values_to_schema(
                 CHARACTER_BASE_SCHEMA, user_input
             ),

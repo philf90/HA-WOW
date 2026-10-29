@@ -6,11 +6,13 @@ Untereintrag mit eigenem Geraet und eigenen Sensoren.
 
 from __future__ import annotations
 
+import asyncio
 import inspect
 import logging
 import re
 from pathlib import Path
 from types import MappingProxyType
+from typing import Any
 
 from homeassistant.components.http import StaticPathConfig
 from homeassistant.config_entries import ConfigEntry, ConfigSubentry
@@ -66,6 +68,8 @@ CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
 CARD_PATH = f"/{DOMAIN}"
 CARD_DIR = Path(__file__).parent / "frontend"
 CARDS = ("wow-talent-tree-card.js", "wow-arsenal-card.js")
+# Eintrag -> Stand, fuer den gerade neu geladen wird (siehe _async_reload).
+_RELOADING = f"{DOMAIN}_reloading"
 
 
 async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
@@ -98,6 +102,10 @@ async def _async_register_card(hass: HomeAssistant) -> None:
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: WowConfigEntry) -> bool:
+    # Der Stand, mit dem dieser Start arbeitet. Erst am Ende genommen, enthielte
+    # er auch Untereintraege, die waehrend des Starts dazukamen, ohne dass sie
+    # eingerichtet sind (der Update-Listener fehlt waehrend des Neuladens).
+    snapshot = config_snapshot(entry)
     client = BattleNetClient(
         async_get_clientsession(hass),
         entry.data[CONF_CLIENT_ID],
@@ -137,6 +145,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: WowConfigEntry) -> bool:
         detail = WowDetailCoordinator(hass, entry, client, subentry, coordinator, world)
         await detail.async_refresh()
         runtime.details[subentry_id] = detail
+    # Waehrend der Abfragen geloeschte Charaktere nicht mehr einrichten; Home
+    # Assistant lehnt Entitaeten fuer unbekannte Untereintraege ab (Live-Test
+    # 29.10.2026: "Can't add entities to unknown subentry").
+    for subentry_id in runtime.coordinators.keys() - entry.subentries.keys():
+        del runtime.coordinators[subentry_id]
+        del runtime.details[subentry_id]
     entry.runtime_data = runtime
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
@@ -150,17 +164,34 @@ async def async_setup_entry(hass: HomeAssistant, entry: WowConfigEntry) -> bool:
                 hass, detail.async_request_refresh(), f"{detail.name} Symbole"
             )
     _remove_stale(hass, entry)
-    runtime.config_snapshot = config_snapshot(entry)
+    runtime.config_snapshot = snapshot
     # Charakter hinzugefuegt oder entfernt, Zugangsdaten geaendert: neu laden.
     entry.async_on_unload(entry.add_update_listener(_async_reload))
+    if config_snapshot(entry) != snapshot:
+        # Waehrend des Starts geaendert, z. B. weitere Charaktere vom Abgleich.
+        hass.config_entries.async_schedule_reload(entry.entry_id)
     return True
 
 
 async def _async_reload(hass: HomeAssistant, entry: WowConfigEntry) -> None:
+    # Der Abgleich legt mehrere Untereintraege auf einmal an, jeder loest
+    # diesen Listener sofort aus. Erst abgeben, damit alle angelegt sind, und
+    # nur einmal je Stand neu laden. Den Stand, fuer den schon neu geladen
+    # wird, merkt sich hass.data, weil runtime_data beim Entladen verschwindet.
+    await asyncio.sleep(0)
+    snapshot = config_snapshot(entry)
     runtime = getattr(entry, "runtime_data", None)
-    if runtime is not None and runtime.config_snapshot == config_snapshot(entry):
+    reloading: dict[str, Any] = hass.data.setdefault(_RELOADING, {})
+    if reloading.get(entry.entry_id) == snapshot or (
+        runtime is not None and runtime.config_snapshot == snapshot
+    ):
         return
-    await hass.config_entries.async_reload(entry.entry_id)
+    reloading[entry.entry_id] = snapshot
+    try:
+        await hass.config_entries.async_reload(entry.entry_id)
+    finally:
+        if reloading.get(entry.entry_id) == snapshot:
+            del reloading[entry.entry_id]
 
 
 # Spielwelt-Entitaeten: "<unique_id des Eintrags>-world-<region><suffix>-<key>",
