@@ -1,0 +1,46 @@
+refresh:
+  fields:
+    device_id:
+      selector:
+        device:
+          integration: wow_character
+          multiple: true
+
+get_character:
+  fields:
+    config_entry_id:
+      selector:
+        config_entry:
+          integration: wow_character
+    region:
+      required: true
+      example: eu
+      selector:
+        select:
+          translation_key: region
+          options:
+            - eu
+            - us
+            - kr
+            - tw
+    game_version:
+      default: retail
+      selector:
+        select:
+          translation_key: game_version
+          options:
+            - retail
+            - forever
+            - classic_era
+            - classic_progression
+            - classic_anniversary
+    realm:
+      required: true
+      example: Die Aldor
+      selector:
+        text:
+    character:
+      required: true
+      example: Testchar
+      selector:
+        text:

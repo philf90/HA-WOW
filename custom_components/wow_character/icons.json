@@ -208,5 +208,13 @@
         "default": "mdi:sword-cross"
       }
     }
+  },
+  "services": {
+    "refresh": {
+      "service": "mdi:refresh"
+    },
+    "get_character": {
+      "service": "mdi:account-search"
+    }
   }
 }

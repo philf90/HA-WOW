@@ -196,6 +196,10 @@ class WowRuntimeData:
     # Stand von Eintrag und Untereintraegen beim Start; der Update-Listener
     # laedt nur neu, wenn er sich davon unterscheidet.
     config_snapshot: Any = None
+    # Realm-Listen fuer die Aktion get_character, je (Region, Suffix).
+    realm_lists: dict[tuple[str, str], list[dict[str, Any]]] = field(
+        default_factory=dict
+    )
 
 
 type WowConfigEntry = ConfigEntry[WowRuntimeData]
@@ -477,6 +481,12 @@ class WowDetailCoordinator(_CharacterMixin, DataUpdateCoordinator[dict[str, Any]
         )
         entry = ent_reg.async_get(entity_id) if entity_id else None
         return entry is not None and entry.disabled_by is None
+
+    async def async_refresh_now(self) -> None:
+        """Alle Endpunkte sofort abfragen, ohne die Abstaende (Aktion refresh)."""
+        self._fetched.clear()
+        self._bracket_checked.clear()
+        await self.async_refresh()
 
     def key_allowed(self, key: str) -> bool:
         """Entitaet anlegen? Nicht, wenn ihr Endpunkt in einer ausgeschalteten Gruppe ist."""
@@ -953,6 +963,14 @@ class WowWorldCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self.token_sensor: bool | None = None
         # Realm-Slug -> (Anzeigename, ID des verbundenen Realms)
         self._realm_info: dict[str, tuple[str, int]] = {}
+
+    async def async_refresh_now(self) -> None:
+        """WoW-Marke, Reset und Season sofort abfragen (Aktion refresh).
+
+        Realms fragt jeder Lauf ohnehin ab.
+        """
+        self._fetched.clear()
+        await self.async_refresh()
 
     def _due(self, key: str, minutes: int, now: float) -> bool:
         last = self._fetched.get(key)
