@@ -617,7 +617,7 @@ class WowDetailCoordinator(_CharacterMixin, DataUpdateCoordinator[dict[str, Any]
         hero_id = p.hero_tree_id(specs, loadout)
         if self.entities_ready:
             await self._media.lookup(
-                [("spell", i) for i in p.tree_spell_ids(tree, hero_id)]
+                [("spell", i) for i in p.tree_spell_ids(tree, hero_id, loadout)]
             )
         return p.talent_tree(tree, loadout, hero_id, self._media.urls())
 

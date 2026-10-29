@@ -634,6 +634,13 @@ def talents(data: dict[str, Any] | None) -> dict[str, Any] | None:
 # ".../data/wow/talent-tree/658/playable-specialization/64?namespace=...".
 _SPEC_TREE_HREF = re.compile(r"/data/wow/(talent-tree/\d+/playable-specialization/\d+)")
 
+# Apex-Talent (Retail ab Midnight): laut Blizzard "a total of four
+# specialization talent points" in drei Stufen (1, 2 und 1 Punkt), ab Stufe 81.
+# Quelle: https://worldofwarcraft.blizzard.com/news/24244472/ ; die API nennt
+# die Hoechstzahl nicht (der Baum gibt dem Knoten einen Rang und nur die erste
+# Stufe).
+APEX_POINTS = 4
+
 
 def active_loadout(specs: dict[str, Any] | None) -> dict[str, Any] | None:
     """Aktives Loadout der aktiven Spezialisierung (Retail)."""
@@ -680,15 +687,48 @@ def _tree_talents(node: dict[str, Any]) -> list[dict[str, Any]]:
     return list(talents.values())
 
 
+def _apex_stages(
+    talents: list[dict[str, Any]],
+    entries: list[dict[str, Any]],
+    icons: dict[str, str],
+) -> list[dict[str, Any]]:
+    """Stufen eines Apex-Knotens mit Rang, die erste Stufe zuerst.
+
+    Der Baum nennt nur die erste Stufe; die weiteren stehen nur im Profil, je
+    Stufe ein Eintrag mit derselben Knoten-ID. Echte Antwort (Frost, Knoten
+    110422): Abschluss, Mitte (Rang 2), erste Stufe; deshalb nach der ersten
+    Stufe in umgekehrter Reihenfolge des Profils.
+    """
+    first = talents[0] if talents else {}
+    taken = {e["talent"]: e for e in entries}
+    stages = [{**first, "rank": taken.get(first.get("id"), {}).get("rank", 0)}]
+    for entry in reversed(entries):
+        if entry["talent"] == first.get("id"):
+            continue
+        stages.append(
+            {
+                "id": entry["talent"],
+                "name": entry["name"],
+                "spell_id": entry["spell_id"],
+                "description": entry["description"],
+                "icon": icons.get(f"spell/{entry['spell_id']}"),
+                "rank": entry["rank"],
+            }
+        )
+    return stages
+
+
 def _tree_nodes(
     nodes: Any,
-    selected: dict[int, dict[str, Any]],
+    selected: dict[int, list[dict[str, Any]]],
     icons: dict[str, str],
     skip: set[int] | frozenset[int] = frozenset(),
+    apex: int | None = None,
 ) -> list[dict[str, Any]]:
     """Knoten fuer die Karte: Lage, Raenge, Wahl und Verbindungen.
 
     Knoten ohne Talent (z. B. die Wahl des Heldenbaums in Zeile 1) fallen weg.
+    Beim Apex-Knoten zaehlen die Raenge aller Stufen, Hoechstzahl APEX_POINTS.
     """
     result = []
     for node in nodes if isinstance(nodes, list) else []:
@@ -699,57 +739,97 @@ def _tree_nodes(
             continue
         for talent in talents:
             talent["icon"] = icons.get(f"spell/{talent['spell_id']}")
-        taken = selected.get(node.get("id")) or {}
-        result.append(
+        entries = selected.get(node.get("id")) or []
+        max_rank = len([r for r in node.get("ranks") or [] if isinstance(r, dict)])
+        item = {
+            "id": node.get("id"),
+            "row": node.get("display_row"),
+            "col": node.get("display_col"),
+            "type": (node.get("node_type") or {}).get("type"),
+            "max_rank": max_rank,
+            "rank": max((e["rank"] for e in entries), default=0),
+            "talent": entries[0]["talent"] if entries else None,
+            "talents": talents,
+            "unlocks": [i for i in node.get("unlocks") or [] if isinstance(i, int)],
+        }
+        if node.get("id") == apex or len({e["talent"] for e in entries}) > 1:
+            rank = sum(e["rank"] for e in entries)
+            first = talents[0]["id"]
+            item.update(
+                {
+                    "max_rank": max(APEX_POINTS if node.get("id") == apex else 0, rank),
+                    "rank": rank,
+                    "talent": first
+                    if any(e["talent"] == first for e in entries)
+                    else None,
+                    "stages": _apex_stages(talents, entries, icons),
+                }
+            )
+        result.append(item)
+    return result
+
+
+def _selected_nodes(
+    loadout: dict[str, Any], key: str
+) -> dict[int, list[dict[str, Any]]]:
+    """Knoten-ID -> vergebene Eintraege (Rang, Talent, Zauber) des Profils.
+
+    Ein Knoten steht mehrfach in der Liste, wenn er Stufen hat (echte Antwort:
+    Apex-Knoten 110422 dreimal mit verschiedenen Talenten, Rang 1, 2, 1).
+    """
+    result: dict[int, list[dict[str, Any]]] = {}
+    for entry in loadout.get(key) or []:
+        if not isinstance(entry, dict) or not isinstance(entry.get("id"), int):
+            continue
+        tooltip = entry.get("tooltip") or {}
+        spell_tooltip = tooltip.get("spell_tooltip") or {}
+        spell = spell_tooltip.get("spell") or {}
+        result.setdefault(entry["id"], []).append(
             {
-                "id": node.get("id"),
-                "row": node.get("display_row"),
-                "col": node.get("display_col"),
-                "type": (node.get("node_type") or {}).get("type"),
-                "max_rank": len(
-                    [r for r in node.get("ranks") or [] if isinstance(r, dict)]
-                ),
-                "rank": taken.get("rank", 0),
-                "talent": taken.get("talent"),
-                "talents": talents,
-                "unlocks": [i for i in node.get("unlocks") or [] if isinstance(i, int)],
+                "rank": entry.get("rank") if isinstance(entry.get("rank"), int) else 0,
+                "talent": (tooltip.get("talent") or {}).get("id"),
+                "spell_id": spell.get("id")
+                if isinstance(spell.get("id"), int)
+                else None,
+                "name": spell.get("name") or name_of(tooltip.get("talent")),
+                "description": clean_text(spell_tooltip.get("description")),
             }
         )
     return result
 
 
-def _selected_nodes(loadout: dict[str, Any], key: str) -> dict[int, dict[str, Any]]:
-    """Knoten-ID -> vergebener Rang und gewaehltes Talent.
-
-    Steht ein Knoten mehrfach in der Liste (echte Antwort: Knoten 110422 dreimal
-    mit verschiedenen Talenten), zaehlt der hoechste Rang; welches Talent dann
-    gilt, ist nicht belegt, deshalb keines.
-    """
-    result: dict[int, dict[str, Any]] = {}
-    for entry in loadout.get(key) or []:
-        if not isinstance(entry, dict) or not isinstance(entry.get("id"), int):
-            continue
-        rank = entry.get("rank") if isinstance(entry.get("rank"), int) else 0
-        talent = ((entry.get("tooltip") or {}).get("talent") or {}).get("id")
-        if (known := result.get(entry["id"])) is not None:
-            known["rank"] = max(known["rank"], rank)
-            if known["talent"] != talent:
-                known["talent"] = None
-            continue
-        result[entry["id"]] = {"rank": rank, "talent": talent}
-    return result
+def _apex_node(nodes: Any, skip: set[int]) -> int | None:
+    """Apex-Knoten: der einzige Knoten in der untersten Zeile des Baums der
+    Spezialisierung (Blizzard: "beneath the (currently) final section")."""
+    rows: dict[Any, list[int]] = {}
+    for node in nodes if isinstance(nodes, list) else []:
+        if (
+            isinstance(node, dict)
+            and node.get("id") not in skip
+            and _tree_talents(node)
+        ):
+            rows.setdefault(node.get("display_row"), []).append(node.get("id"))
+    numeric = [r for r in rows if isinstance(r, (int, float))]
+    if not numeric:
+        return None
+    last = rows[max(numeric)]
+    return last[0] if len(last) == 1 else None
 
 
-def tree_spell_ids(tree: dict[str, Any] | None, hero_id: int | None) -> list[int]:
-    """Spell-IDs aller Talente, die die Karte zeigt, fuer die Symbole."""
-    built = talent_tree(tree, {}, hero_id, {})
+def tree_spell_ids(
+    tree: dict[str, Any] | None,
+    hero_id: int | None,
+    loadout: dict[str, Any] | None = None,
+) -> list[int]:
+    """Spell-IDs aller Talente und Apex-Stufen, die die Karte zeigt, fuer die Symbole."""
+    built = talent_tree(tree, loadout or {}, hero_id, {})
     if built is None:
         return []
     return [
         talent["spell_id"]
         for part in ("class_nodes", "spec_nodes", "hero_nodes")
         for node in built[part]
-        for talent in node["talents"]
+        for talent in [*node["talents"], *node.get("stages", [])]
         if isinstance(talent["spell_id"], int)
     ]
 
@@ -801,6 +881,7 @@ def talent_tree(
             _selected_nodes(loadout, "selected_spec_talents"),
             icons,
             hero_node_ids,
+            _apex_node(tree.get("spec_talent_nodes"), hero_node_ids),
         ),
         "hero_nodes": _tree_nodes(
             (hero or {}).get("hero_talent_nodes"),
