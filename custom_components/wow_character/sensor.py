@@ -315,9 +315,8 @@ DETAIL_SENSORS: tuple[WowSensorDescription, ...] = (
         state_class=SensorStateClass.MEASUREMENT,
         value_fn=lambda d: p.collection_count(d.get("toys"), "toys"),
     ),
-    # Erbstuecke und Transmog-Vorlagen meist fuers ganze Konto gleich, aber nicht
-    # immer (live ein Charakter mit weniger Transmogs); wie die Reittiere je
-    # Charakter.
+    # Erbstuecke und Transmog-Vorlagen gelten fuers ganze Konto (live bei allen
+    # Charakteren gleich); wie die Reittiere je Charakter.
     WowSensorDescription(
         key="heirlooms",
         translation_key="heirlooms",
