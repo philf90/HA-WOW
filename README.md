@@ -149,7 +149,7 @@ z. B. die Einträge im Menü „Charakter hinzufügen“. Was sich je Version ä
 [Release-Notes](https://github.com/philf90/HA-WOW/releases).
 
 **Update auf 0.24.0:** keine Migration. Reparaturhinweise zu einem Charakter
-haben jetzt **Beheben** mit einem Dialog (siehe [Ändern, Hinweise und
+öffnen beim Anklicken einen Dialog zum Beheben (siehe [Ändern, Hinweise und
 Diagnose](#ändern-hinweise-und-diagnose)). Ein Hinweis aus einer älteren
 Version bekommt den Dialog, sobald die Integration ihn das nächste Mal meldet.
 
@@ -902,7 +902,8 @@ trees: [class, spec, hero]
   - Blizzard das Profil als ungültig meldet.
 
   In den letzten beiden Fällen zeigen die Entitäten keine Werte, bis du
-  bestätigst. Seit 0.24.0 geht das direkt am Hinweis über **Beheben**:
+  bestätigst. Seit 0.24.0 geht das direkt am Hinweis: Ein Klick
+  darauf öffnet einen Dialog mit zwei Wegen:
   - **Neuen Realm oder Namen eintragen:** wie „Neu konfigurieren“; Realm aus
     der Liste, Name, vorausgefüllt mit dem bisherigen. Derselbe Name übernimmt
     den aktuellen Charakter (neue ID). Gerät, Entitäts-IDs und Verlauf bleiben,

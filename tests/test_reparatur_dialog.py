@@ -222,6 +222,8 @@ def test_fix_flow_translated(path: str) -> None:
     steps = set(re.findall(r"async def async_step_(\w+)", source))
     issues = json.loads((BASE / path).read_text(encoding="utf-8"))["issues"]
     for key in ("character_not_found", "character_changed", "character_invalid"):
+        # hassfest: description und fix_flow schliessen sich aus.
+        assert "description" not in issues[key], key
         fix = issues[key]["fix_flow"]
         assert set(fix["step"]) == steps, key
         assert errors <= set(fix["error"]), key

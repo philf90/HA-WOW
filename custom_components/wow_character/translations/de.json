@@ -482,12 +482,11 @@
   "issues": {
     "character_not_found": {
       "title": "Charakter {character} nicht gefunden",
-      "description": "Die Battle.net API findet {character} nicht mehr. Mögliche Gründe: Der Charakter wurde umbenannt, auf einen anderen Realm verschoben oder gelöscht, oder er war lange nicht eingeloggt.\n\nWähle **Beheben**, um den neuen Realm oder Namen einzutragen oder den Charakter zu entfernen. Der Hinweis verschwindet auch, sobald der Charakter wieder gefunden wird.",
       "fix_flow": {
         "step": {
           "init": {
             "title": "{character} reparieren",
-            "description": "Was ist mit {character} passiert?",
+            "description": "Die Battle.net API findet {character} nicht mehr. Mögliche Gründe: Der Charakter wurde umbenannt, auf einen anderen Realm verschoben oder gelöscht, oder er war lange nicht eingeloggt. Der Hinweis verschwindet auch, sobald der Charakter wieder gefunden wird.\n\nWas möchtest du tun?",
             "menu_options": {
               "character": "Neuen Realm oder Namen eintragen (umbenannt oder verschoben)",
               "remove": "Charakter entfernen (gelöscht oder nicht mehr gewünscht)"
@@ -520,12 +519,11 @@
     },
     "character_changed": {
       "title": "{character} ist jetzt ein anderer Charakter",
-      "description": "Den Namen {character} trägt jetzt ein anderer Charakter als der eingerichtete (die Charakter-ID bei Battle.net hat sich geändert). Das passiert meist nach einer Umbenennung, einem Realm-Transfer oder wenn ein Charakter gelöscht und neu erstellt wurde. Bis du das bestätigst, zeigt die Integration für ihn keine Daten.\n\nWähle **Beheben**: Derselbe Name übernimmt den aktuellen Charakter; wurde deiner umbenannt, trag den neuen Namen ein. Dort kannst du den Charakter auch entfernen.",
       "fix_flow": {
         "step": {
           "init": {
             "title": "{character} reparieren",
-            "description": "Was ist mit {character} passiert?",
+            "description": "Den Namen {character} trägt jetzt ein anderer Charakter als der eingerichtete (die Charakter-ID bei Battle.net hat sich geändert). Das passiert meist nach einer Umbenennung, einem Realm-Transfer oder wenn ein Charakter gelöscht und neu erstellt wurde. Bis du das bestätigst, zeigt die Integration für ihn keine Daten.\n\nDerselbe Name übernimmt den aktuellen Charakter; wurde deiner umbenannt, trag den neuen Namen ein.",
             "menu_options": {
               "character": "Neuen Realm oder Namen eintragen (umbenannt oder verschoben)",
               "remove": "Charakter entfernen (gelöscht oder nicht mehr gewünscht)"
@@ -558,12 +556,11 @@
     },
     "character_invalid": {
       "title": "{character} ist nicht mehr gültig",
-      "description": "Blizzard meldet das Profil von {character} als nicht mehr gültig. Blizzard bittet, solche Daten nicht mehr anzuzeigen, deshalb zeigt die Integration für diesen Charakter nichts an.\n\nWähle **Beheben**, um nach einer Umbenennung oder einem Transfer den neuen Realm oder Namen einzutragen oder den Charakter zu entfernen.",
       "fix_flow": {
         "step": {
           "init": {
             "title": "{character} reparieren",
-            "description": "Was ist mit {character} passiert?",
+            "description": "Blizzard meldet das Profil von {character} als nicht mehr gültig. Blizzard bittet, solche Daten nicht mehr anzuzeigen, deshalb zeigt die Integration für diesen Charakter nichts an.\n\nWurde er umbenannt oder verschoben, trag den neuen Realm oder Namen ein; sonst kannst du den Charakter entfernen.",
             "menu_options": {
               "character": "Neuen Realm oder Namen eintragen (umbenannt oder verschoben)",
               "remove": "Charakter entfernen (gelöscht oder nicht mehr gewünscht)"

@@ -482,12 +482,11 @@
   "issues": {
     "character_not_found": {
       "title": "Character {character} not found",
-      "description": "The Battle.net API no longer finds {character}. Possible reasons: the character was renamed, moved to another realm or deleted, or has not logged in for a long time.\n\nChoose **Fix** to enter the new realm or name, or to remove the character. This notice also disappears once the character is found again.",
       "fix_flow": {
         "step": {
           "init": {
             "title": "Fix {character}",
-            "description": "What happened to {character}?",
+            "description": "The Battle.net API no longer finds {character}. Possible reasons: the character was renamed, moved to another realm or deleted, or has not logged in for a long time. This notice also disappears once the character is found again.\n\nWhat do you want to do?",
             "menu_options": {
               "character": "Enter a new realm or name (renamed or moved)",
               "remove": "Remove the character (deleted or no longer wanted)"
@@ -520,12 +519,11 @@
     },
     "character_changed": {
       "title": "{character} is a different character now",
-      "description": "The name {character} now belongs to a different character than the one set up (the character ID at Battle.net changed). This usually happens after a rename, a realm transfer, or when a character was deleted and created again. Until you confirm, the integration shows no data for it.\n\nChoose **Fix**: keeping the name accepts the current character; if yours was renamed, enter the new name. You can also remove the character there.",
       "fix_flow": {
         "step": {
           "init": {
             "title": "Fix {character}",
-            "description": "What happened to {character}?",
+            "description": "The name {character} now belongs to a different character than the one set up (the character ID at Battle.net changed). This usually happens after a rename, a realm transfer, or when a character was deleted and created again. Until you confirm, the integration shows no data for it.\n\nKeeping the name accepts the current character; if yours was renamed, enter the new name.",
             "menu_options": {
               "character": "Enter a new realm or name (renamed or moved)",
               "remove": "Remove the character (deleted or no longer wanted)"
@@ -558,12 +556,11 @@
     },
     "character_invalid": {
       "title": "{character} is no longer valid",
-      "description": "Blizzard reports the profile of {character} as no longer valid. Blizzard asks not to display such data, so the integration shows nothing for this character.\n\nChoose **Fix** to enter the new realm or name if you renamed or moved it, or to remove the character.",
       "fix_flow": {
         "step": {
           "init": {
             "title": "Fix {character}",
-            "description": "What happened to {character}?",
+            "description": "Blizzard reports the profile of {character} as no longer valid. Blizzard asks not to display such data, so the integration shows nothing for this character.\n\nIf you renamed or moved it, enter the new realm or name; otherwise you can remove the character.",
             "menu_options": {
               "character": "Enter a new realm or name (renamed or moved)",
               "remove": "Remove the character (deleted or no longer wanted)"
