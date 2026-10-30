@@ -511,6 +511,14 @@ def mock_api(
         "/mythic-keystone/period/index": {"current_period": {"id": 1001}},
         "/mythic-keystone/period/1001": {"end_timestamp": 1761634799000},
         "/mythic-keystone/season/index": {"current_season": {"id": 14}},
+        # Aufbau laut @blizzard-api/wow 4.1.4 (MythicKeystoneSeasonResponse);
+        # end_timestamp ist dort optional und fehlt hier. Werte erfunden.
+        "/mythic-keystone/season/14": {
+            "id": 14,
+            "start_timestamp": 1760425200000,
+            "season_name": None,
+            "periods": [{"id": 1000}, {"id": 1001}],
+        },
         "/realm/die-aldor": {
             "name": "Die Aldor",
             "connected_realm": {

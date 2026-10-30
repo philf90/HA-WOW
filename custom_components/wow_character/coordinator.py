@@ -978,7 +978,8 @@ class WowWorldCoordinator(DataUpdateCoordinator[dict[str, Any]]):
     """Spielwelt einer Region: WoW-Marke, Reset, M+-Season und Serverstatus.
 
     data: {"token": Gold oder None, "reset": datetime oder None,
-           "season_id": int oder None, "realms": {slug: {...}},
+           "season_id": int oder None, "season_info": {...} oder None
+           (siehe _season_info), "realms": {slug: {...}},
            "raid_journal": {"id", "name", "raids": [{"id", "name", "bosses",
            "category", "modes"}], "dungeons": [{"id", "name"}]} oder None
            (nur Retail, siehe _raid_journal)}
@@ -1059,12 +1060,19 @@ class WowWorldCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             parts.append(("period", self._weekly_reset))
         if self.mythic_plus and self._due("season", 360, now):
             parts.append(("season", self._season))
+            # Nach "season": liest die gerade geholte Season-ID aus data.
+            parts.append(("season_info", lambda: self._season_info(data)))
         if self.raid_journal and self._due("raid_journal", rare, now):
             parts.append(("raid_journal", self._raid_journal))
         realms = sorted(self.realms)
 
         errors: list[BattleNetError] = []
+        attempted = len(parts)
         for key, fetch in parts:
+            if key == "season_info" and data.get("season_id") is None:
+                # Ohne Season-ID nichts abzufragen; zaehlt nicht als Teil.
+                attempted -= 1
+                continue
             try:
                 value = await fetch()
             except BattleNetAuthError as err:
@@ -1083,7 +1091,7 @@ class WowWorldCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             except BattleNetError as err:
                 errors.append(err)
                 _LOGGER.debug("%s: Realm %s fehlgeschlagen: %s", self.name, slug, err)
-        if errors and len(errors) == len(parts) + len(realms):
+        if errors and len(errors) == attempted + len(realms):
             raise _update_failed(errors[0])
         return data
 
@@ -1171,6 +1179,30 @@ class WowWorldCoordinator(DataUpdateCoordinator[dict[str, Any]]):
     async def _season(self) -> int | None:
         index = await self._get("mythic-keystone/season/index")
         return ((index or {}).get("current_season") or {}).get("id")
+
+    async def _season_info(self, data: dict[str, Any]) -> dict[str, Any] | None:
+        """Laufende M+-Season: Beginn, Ende, Name (seit 0.29.1 nur Diagnose).
+
+        Vorbereitung des Kalenders (E8): Laut @blizzard-api/wow 4.1.4
+        (MythicKeystoneSeasonResponse) hat die Antwort start_timestamp,
+        end_timestamp (optional), season_name und periods; ob die laufende
+        Season ein Ende nennt, soll die Diagnose an echten Antworten zeigen.
+        "keys" nennt alle Schluessel der Antwort, "periods" nur deren Anzahl.
+        """
+        season = await self._get(f"mythic-keystone/season/{data['season_id']}")
+        if season is None:
+            return None
+        periods = [p for p in season.get("periods") or [] if isinstance(p, dict)]
+        return {
+            "keys": sorted(season),
+            "id": season.get("id"),
+            "season_name": season.get("season_name"),
+            "start_timestamp": season.get("start_timestamp"),
+            "end_timestamp": season.get("end_timestamp"),
+            "periods": len(periods),
+            "first_period": periods[0].get("id") if periods else None,
+            "last_period": periods[-1].get("id") if periods else None,
+        }
 
     async def _weekly_reset(self) -> datetime | None:
         index = await self._get("mythic-keystone/period/index")
