@@ -340,6 +340,47 @@ async def test_tree_error_is_retried(hass: HomeAssistant, aioclient_mock) -> Non
     assert _state(hass, "sensor", "talent_tree").state == "Frost"
 
 
+async def test_tree_error_logged_once(
+    hass: HomeAssistant, aioclient_mock, caplog: pytest.LogCaptureFixture
+) -> None:
+    """Fehlt der Baum, steht das einmal als Warnung im Log, die Erholung als Info."""
+    _mock(aioclient_mock, **{f"{GAME}/{TREE_PATH}": 500})
+    entry = await _setup(hass, character_subentry())
+    detail = entry.runtime_data.details[next(iter(entry.subentries))]
+    warnings = [
+        r
+        for r in caplog.records
+        if r.levelname == "WARNING" and "Talentbaum" in r.getMessage()
+    ]
+    assert len(warnings) == 1
+    assert "Testchar – Die Aldor" in warnings[0].getMessage()
+    assert TREE_PATH in warnings[0].getMessage()
+
+    # Scheitert er erneut: keine zweite Warnung
+    caplog.clear()
+    detail._fetched.clear()
+    await detail.async_refresh()
+    await hass.async_block_till_done()
+    assert not [r for r in caplog.records if r.levelname == "WARNING"]
+
+    # Kommt er wieder: eine Info, danach nichts mehr
+    aioclient_mock.clear_requests()
+    _mock(aioclient_mock)
+    caplog.clear()
+    detail._fetched.clear()
+    await detail.async_refresh()
+    await hass.async_block_till_done()
+    infos = [
+        r.getMessage()
+        for r in caplog.records
+        if r.levelname == "INFO" and "Talentbaum" in r.getMessage()
+    ]
+    assert infos == [
+        f"Talentbaum von Testchar – Die Aldor wieder geladen ({TREE_PATH})"
+    ]
+    assert _state(hass, "sensor", "talent_tree").state == "Frost"
+
+
 async def test_disabled_sensor_skips_tree(hass: HomeAssistant, aioclient_mock) -> None:
     _mock(aioclient_mock)
     entry = await _setup(hass, character_subentry())
