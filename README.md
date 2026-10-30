@@ -153,7 +153,8 @@ z. B. die Einträge im Menü „Charakter hinzufügen“. Was sich je Version ä
 **Update auf 0.32.0:** keine Migration. Neue mitgelieferte Karte „WoW
 Charaktere“ (`custom:wow-characters-card`, siehe [Karte „WoW
 Charaktere“](#karte-wow-charaktere-seit-0320)); nach dem Update einmal die Seite
-im Browser neu laden. Sensoren und Abfragen bleiben gleich.
+im Browser neu laden. Die Arsenal-Karte zeigt wieder die Spielversion in der
+Kopfzeile (fehlte seit 0.22.0). Sensoren und Abfragen bleiben gleich.
 
 **Update auf 0.31.0:** keine Migration. Zwei neue Sensoren je
 Retail-Charakter in der Gruppe Sammlungen: „Erbstücke“ und „Transmog-Vorlagen“
@@ -986,9 +987,10 @@ type: custom:wow-arsenal-card
 entity: sensor.mein_charakter_level   # eine beliebige Entität des Charakters
 ```
 
-- Kopf mit Avatar, Symbol der Spezialisierung, Name, Titel, Spielversion,
-  Stufe, Volk, Spezialisierung und Klasse; Pillen für Itemlevel, Mythic+-Wertung
-  (sonst `api_rating`), Fraktion, Realm und Gilde.
+- Kopf mit Avatar, Symbol der Spezialisierung, Name, Titel, Spielversion
+  (von 0.22.0 bis 0.31.x fehlte sie, seit 0.32.0 wieder da), Stufe, Volk,
+  Spezialisierung und Klasse; Pillen für Itemlevel, Mythic+-Wertung (sonst
+  `api_rating`), Fraktion, Realm und Gilde.
 - Ganzkörperbild mit den 18 Plätzen in der Reihenfolge des Arsenals: Symbol mit
   Rand in der Qualitätsfarbe, Itemlevel daneben (ohne Itemlevel leer), ein
   Amber-Punkt bei leerem Sockel, leere Plätze gestrichelt.
@@ -1303,7 +1305,10 @@ mit einem Classic-Era-Charakter (siehe [WoW Classic](#wow-classic)).
   mit erfundenen Daten in 344 und 386 Pixel Breite gezeichnet worden (Retail,
   Classic Era, Classic Progression, ohne Gerät; Deutsch und Englisch; Auswahl
   über `entities` mit nicht vorhandener Entität), ohne Fehler und ohne
-  waagrechten Überlauf. **Nicht live geprüft.**
+  waagrechten Überlauf. Arsenal-Karte: Kopfzeile in Chromium für alle
+  Formen des Gerätemodells geprüft (neue und alte Form, ohne Modell, fremdes
+  Modell); vor der Korrektur fehlte die Spielversion bei allen neuen Formen.
+  **Nicht live geprüft.**
 - **0.31.x:** 376 automatische Tests. 0.31.0: 8 Tests für die Sensoren
   „Erbstücke“ und „Transmog-Vorlagen“ (Anzahl, aufgewertete und Stufen;
   verschiedene Vorlagen, Sets, Plätze; gespeichert nur IDs; seltener Takt und

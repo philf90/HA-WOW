@@ -256,8 +256,10 @@ class WowArsenalCard extends HTMLElement {
     if (titel && name && titel.includes(name)) {
       titel = titel.replace(name, "").replace(/^[\s,]+|[\s,]+$/g, "");
     }
-    const m = /^World of Warcraft \((.+)\)$/.exec(geraet?.model || "");
-    const spiel = m ? VERSIONEN[m[1]] || m[1] : null;
+    // Modell "World of Warcraft" + Name (seit 0.22.0, ohne Zusatz Retail),
+    // vorher "World of Warcraft (<schluessel>)"
+    const m = /^World of Warcraft(?: \((.+)\)| (.+))?$/.exec(geraet?.model || "");
+    const spiel = m ? (m[1] ? VERSIONEN[m[1]] || m[1] : m[2] || VERSIONEN.retail) : null;
     const zeile = [
       spiel,
       leer(lvl) ? null : `${this._t("level")} ${lvl.state}`,
