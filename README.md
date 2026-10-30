@@ -11,7 +11,7 @@ Home-Assistant-Integration für World-of-Warcraft-Charaktere: Level, Itemlevel,
 Ausrüstung, Raid- und Mythic+-Fortschritt, Berufe, Ruf, Erfolge und mehr als
 Sensoren, dazu WoW-Marke, wöchentlicher Reset und Serverstatus. Die Daten kommen
 aus der offiziellen Battle.net API. Unterstützt Retail, WoW Classic (Era,
-Progression, Anniversary) und ist für WoW Forever vorbereitet. Version 0.29.0.
+Progression, Anniversary) und ist für WoW Forever vorbereitet. Version 0.29.1.
 
 Zwei Dashboard-Karten liefert die Integration selbst mit: „WoW Arsenal“
 (`custom:wow-arsenal-card`) und „WoW Talentbaum“ (`custom:wow-talent-tree-card`,
@@ -147,6 +147,10 @@ neu starten. Wer von Hand aktualisiert, ersetzt den ganzen Ordner
 `custom_components/wow_character` samt `translations/`; sonst fehlen neue Texte,
 z. B. die Einträge im Menü „Charakter hinzufügen“. Was sich je Version ändert, steht in den
 [Release-Notes](https://github.com/philf90/HA-WOW/releases).
+
+**Update auf 0.29.1:** keine Migration. Die Spielwelt fragt zusätzlich die
+laufende Mythic+-Season mit Beginn und Ende ab, vorerst nur für die Diagnose
+(Vorbereitung eines Kalenders); neue Entitäten gibt es nicht.
 
 **Update auf 0.29.0:** keine Migration. Neuer Sensor „Dungeons (aktuelle
 Erweiterung)“ je Charakter (siehe [Dungeons](#dungeons)) und eine neue Gruppe
@@ -1046,6 +1050,12 @@ trees: [class, spec, hero]
   Seit 0.28.0 steht dort auch der Dungeon-Fortschritt (`encounters/dungeons`,
   unter `details` → `dungeons`, nur Retail und Forever); 0.28.0 fragte ihn nur
   dafür ab, seit 0.29.0 gibt es den Sensor [Dungeons](#dungeons).
+  Seit 0.29.1 steht unter `worlds` → `season_info` die laufende Mythic+-Season
+  (`mythic-keystone/season/{id}`, nur Retail): Beginn und Ende als
+  Zeitstempel, Name, Zahl der Perioden und die Schlüssel der Antwort. Abgefragt
+  alle 6 Stunden zusammen mit der Season-ID, bisher ohne Entität: Laut
+  Typdefinition ist das Ende optional; ob die laufende Season eins nennt, soll
+  die echte Antwort zeigen, bevor daraus ein Kalender wird.
   Damit lassen sich Feldnamen prüfen, wenn ein Wert fehlt. Vergebene Talente
   stehen dort mit IDs und Rang, ohne Tooltip-Texte. Beim Herunterladen lädt die
   Diagnose einmal den Talentbaum des aktiven Loadouts (Retail, seit 0.12.1) und
@@ -1178,7 +1188,12 @@ Automatische Tests laufen gegen Home Assistant 2026.2.3; live geprüft wurde unt
 Home Assistant 2026.10.4 mit Retail-Charakteren der Region EU, seit 0.11.2 auch
 mit einem Classic-Era-Charakter (siehe [WoW Classic](#wow-classic)).
 
-- **0.29.x:** 361 automatische Tests. 0.29.0: 7 Tests für den Sensor „Dungeons“
+- **0.29.x:** 365 automatische Tests. 0.29.1: 4 Tests für die Season in der
+  Diagnose (Felder und Schlüssel der Antwort, mit Ende und Name, Fehler lässt
+  die anderen Teile laufen, ohne Season-ID keine Abfrage); „alle Teile
+  gescheitert“ zählt den Season-Teil nur, wenn er abgefragt wurde. Gegenprobe:
+  fünf Teile einzeln ausgebaut, jedes Mal schlug ein Test fehl. **Nicht live
+  geprüft.** 0.29.0: 7 Tests für den Sensor „Dungeons“
   (höchste Schwierigkeit je Dungeon mit Namen und Zahl aus dem Journal, leere
   Schwierigkeit zählt nicht; nie abgeschlossen ergibt 0; ohne Antwort
   unbekannt; ohne Journal die neueste Erweiterung; stündlicher Takt und
