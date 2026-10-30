@@ -36,6 +36,9 @@
       "achievements": {
         "default": "mdi:trophy-variant"
       },
+      "dungeons": {
+        "default": "mdi:castle"
+      },
       "empty_sockets": {
         "default": "mdi:diamond-outline"
       },

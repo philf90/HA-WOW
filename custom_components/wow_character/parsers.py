@@ -11,6 +11,8 @@ import re
 from datetime import UTC, datetime
 from typing import Any
 
+from .const import JOURNAL_CURRENT_SEASON
+
 RAID_DIFFICULTIES = {
     "raid_lfr": "LFR",
     "raid_normal": "NORMAL",
@@ -1032,6 +1034,83 @@ def raid_instances(
         if isinstance(info.get("id"), int) and (name := name_of(info)):
             result[name] = info["id"]
     return result
+
+
+# Dungeon-Schwierigkeiten laut @blizzard-api/wow 4.1.4 (DungeonDifficulties),
+# aufsteigend. Live (EU, 30.10.2026) kamen NORMAL, HEROIC, MYTHIC und Eintraege
+# mit leerer Schwierigkeit {} vor; diese zaehlen nicht.
+DUNGEON_DIFFICULTIES = ("NORMAL", "HEROIC", "MYTHIC", "MYTHIC_KEYSTONE")
+
+
+def _best_dungeon_mode(instance: dict[str, Any] | None) -> str | None:
+    """Name der hoechsten abgeschlossenen Schwierigkeit, z. B. "Mythisch"."""
+    best: tuple[int, str] | None = None
+    for mode in (instance or {}).get("modes") or []:
+        if not isinstance(mode, dict):
+            continue
+        difficulty = mode.get("difficulty") or {}
+        kind = difficulty.get("type")
+        if kind not in DUNGEON_DIFFICULTIES:
+            continue
+        if (mode.get("status") or {}).get("type") != "COMPLETE":
+            continue
+        rank = DUNGEON_DIFFICULTIES.index(kind)
+        if best is None or rank > best[0]:
+            best = (rank, difficulty.get("name") or kind)
+    return best[1] if best else None
+
+
+def dungeon_progress(
+    dungeons: dict[str, Any] | None, journal: dict[str, Any] | None = None
+) -> tuple[int | None, dict[str, Any]]:
+    """Abgeschlossene Dungeons der neuesten Erweiterung (E9, seit 0.29.0).
+
+    Die API meldet je Dungeon und Schwierigkeit nur "abgeschlossen" (live
+    30.10.2026 immer COMPLETE mit 1/1), keinen Zwischenstand. Zustand: Zahl der
+    Dungeons, die in mindestens einer Schwierigkeit abgeschlossen sind.
+    Mit Journal alle Dungeons der Erweiterung (Namen und Zahl aus dem Journal),
+    der Eintrag des Charakters ueber die Instanz-ID aus allen Erweiterungen der
+    Antwort. Ohne Journal die neueste Erweiterung der Antwort ohne "Current
+    Season"; die Gesamtzahl ist dann unbekannt.
+    """
+    if dungeons is None:
+        return None, {}
+    expansions = [e for e in dungeons.get("expansions") or [] if isinstance(e, dict)]
+    rows: list[tuple[str, str | None]] = []
+    if journal and journal.get("dungeons"):
+        by_id: dict[int, dict[str, Any]] = {}
+        for expansion in expansions:
+            for instance in expansion.get("instances") or []:
+                info = (instance or {}).get("instance") or {}
+                if isinstance(info.get("id"), int):
+                    by_id.setdefault(info["id"], instance)
+        for dungeon in journal["dungeons"]:
+            instance = by_id.get(dungeon["id"])
+            name = (
+                dungeon.get("name") or name_of((instance or {}).get("instance")) or "?"
+            )
+            rows.append((name, _best_dungeon_mode(instance)))
+        expansion_name = journal.get("name")
+        total: int | None = len(rows)
+    else:
+        own = [
+            e
+            for e in expansions
+            if (e.get("expansion") or {}).get("id") != JOURNAL_CURRENT_SEASON
+        ]
+        if not own:
+            return None, {}
+        newest = max(own, key=lambda e: (e.get("expansion") or {}).get("id", 0))
+        for instance in newest.get("instances") or []:
+            name = name_of((instance or {}).get("instance")) or "?"
+            rows.append((name, _best_dungeon_mode(instance)))
+        expansion_name = name_of(newest.get("expansion"))
+        total = None
+    return sum(1 for _name, best in rows if best), {
+        "expansion": expansion_name,
+        "total_dungeons": total,
+        "dungeons": dict(rows),
+    }
 
 
 # Sammlungen: Endpunkt -> (Liste in der Antwort, Feld mit Name und ID).

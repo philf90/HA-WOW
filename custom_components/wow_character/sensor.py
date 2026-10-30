@@ -251,6 +251,17 @@ def _titles_attrs(d: dict[str, Any]) -> dict[str, Any]:
 DETAIL_SENSORS: tuple[WowSensorDescription, ...] = (
     *(_raid_sensor(k) for k in p.RAID_DIFFICULTIES),
     WowSensorDescription(
+        key="dungeons",
+        translation_key="dungeons",
+        state_class=SensorStateClass.MEASUREMENT,
+        value_fn=lambda d: p.dungeon_progress(d.get("dungeons"), d.get("raid_journal"))[
+            0
+        ],
+        attrs_fn=lambda d: p.dungeon_progress(d.get("dungeons"), d.get("raid_journal"))[
+            1
+        ],
+    ),
+    WowSensorDescription(
         key="mythic_best_key",
         translation_key="mythic_best_key",
         state_class=SensorStateClass.MEASUREMENT,

@@ -233,6 +233,10 @@ async def test_boss_counts_looked_up_once(hass: HomeAssistant, aioclient_mock) -
                 "modes": ["NORMAL"],
             },
         ],
+        "dungeons": [
+            {"id": 9301, "name": "Erster Dungeon (Journal)"},
+            {"id": 9302, "name": "Zweiter Dungeon"},
+        ],
     }
 
 

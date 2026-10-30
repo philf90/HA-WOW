@@ -215,6 +215,7 @@
         "reputations": "Reputation",
         "professions": "Professions",
         "raids": "Raids (event Boss killed)",
+        "dungeons": "Dungeons",
         "pvp": "PvP (honor, brackets)"
       }
     }
@@ -253,6 +254,9 @@
       },
       "raid_mythic": {
         "name": "Raid progress mythic"
+      },
+      "dungeons": {
+        "name": "Dungeons (current expansion)"
       },
       "mythic_best_key": {
         "name": "Highest Mythic+ key"

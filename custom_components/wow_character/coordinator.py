@@ -62,6 +62,7 @@ DETAIL_KEYS: dict[str, str] = {
     "raid_heroic": "raids",
     "raid_mythic": "raids",
     "boss_killed": "raids",
+    "dungeons": "dungeons",
     "mythic_best_key": "mythic_season",
     "mythic_runs_timed": "mythic_season",
     "honor_level": "pvp",
@@ -979,7 +980,8 @@ class WowWorldCoordinator(DataUpdateCoordinator[dict[str, Any]]):
     data: {"token": Gold oder None, "reset": datetime oder None,
            "season_id": int oder None, "realms": {slug: {...}},
            "raid_journal": {"id", "name", "raids": [{"id", "name", "bosses",
-           "category", "modes"}]} oder None (nur Retail, siehe _raid_journal)}
+           "category", "modes"}], "dungeons": [{"id", "name"}]} oder None
+           (nur Retail, siehe _raid_journal)}
     """
 
     config_entry: WowConfigEntry
@@ -1096,8 +1098,10 @@ class WowWorldCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         parsers.raid_progress ueber category und modes (seit 0.25.1). "Current
         Season" (505) enthielt dieselben 8 Eintraege und trennt Seasons damit
         nicht; die Integration fragt ihn deshalb nicht ab.
+        Dazu die Dungeons derselben Erweiterung (seit 0.29.0) aus derselben
+        Antwort, ohne weitere Abfrage.
         Felder laut @blizzard-api/wow 4.1.4 (journal):
-        journal-expansion/index -> tiers, journal-expansion/{id} -> raids,
+        journal-expansion/index -> tiers, journal-expansion/{id} -> raids, dungeons,
         journal-instance/{id} -> encounters, category.type, modes[].mode.type.
         """
         index = await self._get_static("journal-expansion/index")
@@ -1140,7 +1144,17 @@ class WowWorldCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                     **self._raid_info[raid["id"]],
                 }
             )
-        return {"id": tier["id"], "name": tier.get("name"), "raids": raids}
+        dungeons = [
+            {"id": d["id"], "name": d.get("name")}
+            for d in (expansion or {}).get("dungeons") or []
+            if isinstance(d, dict) and isinstance(d.get("id"), int)
+        ]
+        return {
+            "id": tier["id"],
+            "name": tier.get("name"),
+            "raids": raids,
+            "dungeons": dungeons,
+        }
 
     async def _get_static(self, path: str) -> dict[str, Any] | None:
         try:
