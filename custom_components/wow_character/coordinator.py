@@ -462,6 +462,9 @@ class WowDetailCoordinator(_CharacterMixin, DataUpdateCoordinator[dict[str, Any]
         self.entities_ready = False
         # Talentbaeume der Spezialisierung je Pfad; statisch bis zum Neuladen.
         self._talent_trees: dict[str, dict[str, Any]] = {}
+        # Pfade, deren Baum zuletzt nicht kam: einmal als Warnung gemeldet,
+        # bis er wieder kommt (seit 0.23.1; vorher nur im Debug-Log).
+        self._tree_failed: set[str] = set()
         # Item-ID -> Name fuer den Transmog (Sprache der Region).
         self._transmog_names: dict[int, str] = {}
         # Klassen-ID -> Name fuer die Gildenmitglieder (Sprache der Region).
@@ -694,8 +697,23 @@ class WowDetailCoordinator(_CharacterMixin, DataUpdateCoordinator[dict[str, Any]
             except BattleNetAuthError as err:
                 raise _auth_failed(err) from err
             except BattleNetError as err:
-                _LOGGER.debug("Talentbaum %s fehlt: %s", path, err)
+                if path in self._tree_failed:
+                    _LOGGER.debug("Talentbaum %s fehlt weiter: %s", path, err)
+                else:
+                    self._tree_failed.add(path)
+                    _LOGGER.warning(
+                        "Talentbaum von %s nicht geladen (%s): %s; neuer Versuch "
+                        "bei der naechsten Detail-Abfrage",
+                        self.subentry.title,
+                        path,
+                        err,
+                    )
                 return None
+            if path in self._tree_failed:
+                self._tree_failed.discard(path)
+                _LOGGER.info(
+                    "Talentbaum von %s wieder geladen (%s)", self.subentry.title, path
+                )
         tree = self._talent_trees[path]
         hero_id = p.hero_tree_id(specs, loadout)
         if self.entities_ready:

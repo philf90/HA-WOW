@@ -11,7 +11,7 @@ Home-Assistant-Integration für World-of-Warcraft-Charaktere: Level, Itemlevel,
 Ausrüstung, Raid- und Mythic+-Fortschritt, Berufe, Ruf, Erfolge und mehr als
 Sensoren, dazu WoW-Marke, wöchentlicher Reset und Serverstatus. Die Daten kommen
 aus der offiziellen Battle.net API. Unterstützt Retail, WoW Classic (Era,
-Progression, Anniversary) und ist für WoW Forever vorbereitet. Version 0.23.0.
+Progression, Anniversary) und ist für WoW Forever vorbereitet. Version 0.23.1.
 
 Zwei Dashboard-Karten liefert die Integration selbst mit: „WoW Arsenal“
 (`custom:wow-arsenal-card`) und „WoW Talentbaum“ (`custom:wow-talent-tree-card`,
@@ -147,6 +147,9 @@ neu starten. Wer von Hand aktualisiert, ersetzt den ganzen Ordner
 `custom_components/wow_character` samt `translations/`; sonst fehlen neue Texte,
 z. B. die Einträge im Menü „Charakter hinzufügen“. Was sich je Version ändert, steht in den
 [Release-Notes](https://github.com/philf90/HA-WOW/releases).
+
+**Update auf 0.23.1:** keine Migration. Kommt der Talentbaum nicht, steht das
+jetzt einmal als Warnung im Log (siehe [Allgemein](#allgemein)).
 
 **Update auf 0.23.0:** keine Migration. Ereignisse merken sich ihren Stand
 über Neustart und Neuladen (siehe [Ereignisse](#ereignisse)). Beim ersten
@@ -677,7 +680,14 @@ Speichern lädt die Integration einmal neu.
 - Talentbaum (seit 0.13.0): Den Baum der Spezialisierung lädt die Integration
   einmal je Start und Spezialisierung, die Symbole einmal je Talent, erst nach
   dem Anlegen der Entitäten (bei einer Klasse rund 100 Abfragen, einmalig). Ist
-  der Sensor „Talentbaum“ deaktiviert, entfällt beides.
+  der Sensor „Talentbaum“ deaktiviert, entfällt beides. Scheitert die Abfrage
+  des Baums (z. B. Zeitüberschreitung beim Start), zeigt der Sensor
+  „unbekannt“ und die Karte „Keine Talentdaten“; die nächste Detail-Abfrage
+  (oder `wow_character.refresh`) versucht es erneut. Seit 0.23.1 steht das
+  einmal als Warnung im Log („Talentbaum von … nicht geladen“), die Erholung
+  als Info; vorher nur im Debug-Log. Live so aufgetreten am 30.10.2026 nach
+  einem Neustart bei einem von sieben Retail-Charakteren; ein `refresh` lud
+  den Baum.
 - Berufs-Sensoren entstehen aus den Antworten; ein neu gelernter Beruf
   erscheint spätestens nach 6 Stunden, ohne Neuladen (seit 0.18.0).
 - Das Token holt die Integration über den globalen Endpunkt
@@ -1042,15 +1052,21 @@ Automatische Tests laufen gegen Home Assistant 2026.2.3; live geprüft wurde unt
 Home Assistant 2026.10.4 mit Retail-Charakteren der Region EU, seit 0.11.2 auch
 mit einem Classic-Era-Charakter (siehe [WoW Classic](#wow-classic)).
 
-- **0.23.x:** 319 automatische Tests. 0.23.0: 12 Tests für Ereignisse über
+- **0.23.x:** 320 automatische Tests. 0.23.1: 1 Test für die Meldungen zum
+  Talentbaum (Warnung einmal mit Charakter und Pfad, keine zweite bei erneutem
+  Fehlschlag, Info bei Erholung); Gegenprobe: drei Teile einzeln ausgebaut,
+  jedes Mal schlug ein Test fehl. **Nicht live geprüft.** 0.23.0: 12 Tests für Ereignisse über
   Neustart und Neuladen (Bosskill während des Neustarts löst aus, älter als
   24 Stunden nicht, auch nicht bei der nächsten Abfrage; gespeicherter Stand
   älter als 24 Stunden wird verworfen; unbrauchbarer Stand in vier Formen ohne
   Fehler; Neuladen behält den Stand; gespeichert werden der Stand von Home
   Assistant und der eigene; vor dem Start löst nichts aus, danach Bosskill und
   Level; neues Reittier und neues Level nach dem Neustart). Gegenprobe: zehn
-  Teile einzeln ausgebaut, jedes Mal schlug ein Test fehl. **Nicht live
-  geprüft.**
+  Teile einzeln ausgebaut, jedes Mal schlug ein Test fehl. **Live geprüft
+  mit 0.23.0** (30.10.2026, Home Assistant 2026.10.4): geladen, kein Eintrag
+  im Log, Ereignisse „Neu gesammelt“ behalten nach dem Neustart ihr letztes
+  Ereignis; das Nachholen selbst war nicht zu beobachten, weil während der
+  Neustarts nichts Neues passierte.
 - **0.22.x:** 307 automatische Tests. 0.22.0: 9 Tests für die Diagnose ohne
   andere Spieler (Mythic+-Läufe der Season und der Woche, Gildenmitglieder
   und -aktivitäten, Hilfsfunktion; der eigene Name bleibt), `best_runs` ohne
