@@ -1019,7 +1019,7 @@ mit einem Classic-Era-Charakter (siehe [WoW Classic](#wow-classic)).
   Entitäts-ID; Profiltakt 5 Minuten im Debug-Log nachgewiesen (Abfragen um
   08:46:56 und 08:51:56, Details und Spielwelt unverändert); refresh für einen
   Charakter, alle acht (8,2 s, kein HTTP 429) und die Spielwelt EU, jeweils
-  nur die gewählten Abfragen; get_character für Clambo (alle 19 Felder wie die
+  nur die gewählten Abfragen; get_character für einen Retail-Charakter (alle 19 Felder wie die
   Sensoren, Realm als Slug und in Großbuchstaben) und für einen
   Classic-Era-Charakter (ohne Mythic+, Avatar aus `classic1x-eu`); beide
   Fehlermeldungen wörtlich. Dabei fiel die Warnung zu `config_entries` auf
