@@ -1135,7 +1135,10 @@ trees: [class, spec, hero]
   englisch „Reset frontend cache“), im Browser die Seite ohne Cache neu laden
   (Strg+Umschalt+R). Live so aufgetreten nach dem Update auf 0.15.2 in der
   iOS-App; die Datei der Karte war unverändert, nach dem Zurücksetzen des
-  Caches erschien die Karte wieder.
+  Caches erschien die Karte wieder. Gleiche Ursache, wenn eine neue Karte nach
+  dem Update in der Kartenauswahl fehlt: nach dem Update auf 0.32.0 fehlte
+  „WoW Charaktere“ dort, obwohl Home Assistant neu gestartet war; nach dem
+  Zurücksetzen des Frontend-Caches stand sie in der Auswahl.
 - **Diagnose:** Einstellungen → Geräte & Dienste → WoW Charakter → ⋮ →
   **Diagnose herunterladen** liefert die API-Antworten ohne Client-ID und Secret.
   Seit 0.22.0 fehlen darin auch Name, ID und Verweis anderer Spieler (unter
@@ -1310,7 +1313,15 @@ mit einem Classic-Era-Charakter (siehe [WoW Classic](#wow-classic)).
   mit erfundenen Daten in 344 und 386 Pixel Breite gezeichnet worden (Retail,
   Classic Era, Classic Progression, ohne Gerät; Deutsch und Englisch; Auswahl
   über `entities` mit nicht vorhandener Entität), ohne Fehler und ohne
-  waagrechten Überlauf. **Nicht live geprüft.**
+  waagrechten Überlauf. **Live geprüft** (30.10.2026, Home Assistant
+  2026.10.4, 8 Charaktere in EU: 7 Retail, 1 Classic Era): Gruppen, Sortierung
+  nach Stufe und Itemlevel, Stufe, Itemlevel, Spezialisierung, Klasse, Realm,
+  Mythic+ (`api_rating`, ohne Wertung „–“, bei Classic Era keine Angabe) und
+  letzter Login stimmen mit den Sensoren überein. Erst nach Zurücksetzen des
+  Frontend-Caches stand die Karte in der Kartenauswahl (siehe [Ändern,
+  Hinweise und Diagnose](#ändern-hinweise-und-diagnose)). Nicht geprüft: die
+  Zeile „Level … erreicht“ (kein Aufstieg in den letzten 7 Tagen), der helle
+  Modus und die Auswahl über `entities`.
 - **0.31.x:** 381 automatische Tests. 0.31.1: 5 Tests für die Spielversion in
   der Kopfzeile der Arsenal-Karte (je Spielversion: Gerätemodell seit 0.22.0
   und bis 0.21.x erkannt, Anzeige wie in der Karte hinterlegt). Gegenprobe:
@@ -1631,9 +1642,9 @@ mit einem Classic-Era-Charakter (siehe [WoW Classic](#wow-classic)).
   Symbole der Talente und der Items brechen nach erneutem 429 bis zum
   nächsten Takt ab). Gegenprobe: vier Fehler einzeln eingebaut, jedes Mal
   schlug mindestens ein Test fehl. Anlass: Nach jedem Neustart fehlten
-  andere Talent-Symbole (Clambo 7, dann 9), also kein dauerhaftes Fehlen bei
-  Blizzard; dass es 429 war, ist nicht belegt, weil gescheiterte Symbole nur
-  im Debug-Log stehen. 0.14.0: 3 Tests für die Karte
+  andere Talent-Symbole (bei einem Charakter 7, dann 9), also kein dauerhaftes
+  Fehlen bei Blizzard; dass es 429 war, ist nicht belegt, weil gescheiterte
+  Symbole nur im Debug-Log stehen. 0.14.0: 3 Tests für die Karte
   „WoW Talentbaum“ (Datei wird ausgeliefert; mit Frontend als Modul geladen,
   Version im Pfad; ohne Frontend nicht). Gegenprobe: drei Fehler einzeln
   eingebaut, jedes Mal schlug mindestens ein Test fehl. Die Karte selbst
