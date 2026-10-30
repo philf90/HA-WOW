@@ -64,7 +64,8 @@ class WowCharacterEntity(CoordinatorEntity[DataUpdateCoordinator[dict[str, Any]]
             identifiers={(DOMAIN, subentry.unique_id)},
             name=subentry.title,
             manufacturer="Blizzard Entertainment",
-            model=f"World of Warcraft ({coordinator.game_version})",
+            # z. B. "World of Warcraft" (Retail), "World of Warcraft Classic Era"
+            model=f"World of Warcraft{GAME_VERSIONS[coordinator.game_version]['label']}",
             entry_type=DeviceEntryType.SERVICE,
         )
 

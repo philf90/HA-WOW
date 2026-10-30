@@ -11,7 +11,7 @@ Home-Assistant-Integration für World-of-Warcraft-Charaktere: Level, Itemlevel,
 Ausrüstung, Raid- und Mythic+-Fortschritt, Berufe, Ruf, Erfolge und mehr als
 Sensoren, dazu WoW-Marke, wöchentlicher Reset und Serverstatus. Die Daten kommen
 aus der offiziellen Battle.net API. Unterstützt Retail, WoW Classic (Era,
-Progression, Anniversary) und ist für WoW Forever vorbereitet. Version 0.21.1.
+Progression, Anniversary) und ist für WoW Forever vorbereitet. Version 0.22.0.
 
 Zwei Dashboard-Karten liefert die Integration selbst mit: „WoW Arsenal“
 (`custom:wow-arsenal-card`) und „WoW Talentbaum“ (`custom:wow-talent-tree-card`,
@@ -147,6 +147,16 @@ neu starten. Wer von Hand aktualisiert, ersetzt den ganzen Ordner
 `custom_components/wow_character` samt `translations/`; sonst fehlen neue Texte,
 z. B. die Einträge im Menü „Charakter hinzufügen“. Was sich je Version ändert, steht in den
 [Release-Notes](https://github.com/philf90/HA-WOW/releases).
+
+**Update auf 0.22.0:** keine Migration, Entitäts-IDs bleiben. Geändert:
+Der Sensor „Bevölkerung“ hat jetzt feste Zustände (`full`, `high`, `medium`,
+`low`, `recommended`), die Home Assistant in der eigenen Sprache anzeigt;
+vorher stand dort der Text der API (z. B. „Voll“). Automationen, die auf den
+alten Text prüfen, brauchen den neuen Zustand; ältere Werte im Verlauf bleiben
+als Text stehen. Das Attribut `best_runs` zeigt nur noch die Stufe („+12“), ob
+in Zeit, steht in `runs` (`timed`). Das Gerätemodell heißt „World of Warcraft“
+bzw. „World of Warcraft Classic Era“ statt „World of Warcraft (retail)“. Die
+Diagnose enthält keine Namen anderer Spieler mehr.
 
 **Update auf 0.21.1:** keine Migration, nur eine Korrektur für die Aktion
 `wow_character.refresh` mit Gerät: Sie nutzte eine Angabe am Gerät, die Home
@@ -368,7 +378,7 @@ Je Region ein Gerät „WoW-Spielwelt EU“ (bzw. US, KR, TW):
 | Wöchentlicher Reset | Zeitstempel | 1 h | `mythic-keystone/period/{aktuell}`, `end_timestamp` + 1 s |
 | Server je Realm | Ein/Aus | 15 min | `connected-realm/{id}`, `status.type` |
 | Warteschlange je Realm | Ein/Aus | 15 min | `connected-realm/{id}`, `has_queue` |
-| Bevölkerung je Realm | Sensor | 15 min | `connected-realm/{id}`, `population.name` |
+| Bevölkerung je Realm | Sensor | 15 min | `connected-realm/{id}`, `population.type` (seit 0.22.0; vorher `population.name`) |
 
 ## Attribute im Detail
 
@@ -542,7 +552,8 @@ Aus den statischen Spieldaten, je Objekt einmal nachgeschlagen:
   (currently) final section of the specialization tree“. Die Symbole der
   weiteren Stufen kosten zwei Abfragen mehr, einmalig.
 - **Mythic+-Läufe:** Der Sensor „Höchster Mythic+-Schlüssel“ hat `best_runs`
-  (Kurzform je Dungeon) und `runs`: je Lauf `dungeon`, `dungeon_id`, `level`,
+  (Kurzform je Dungeon, z. B. „+12“; bis 0.21.x mit „in Zeit“ auf Deutsch) und
+  `runs`: je Lauf `dungeon`, `dungeon_id`, `level`,
   `timed`, `duration` (Sekunden), `completed`, `rating`, `color`, `affixes` und
   `members` (Name, Realm, Spezialisierung, Itemlevel). Die Einheit von `duration`
   in der API ist nicht belegt; die Integration erkennt Sekunden und Millisekunden
@@ -876,6 +887,11 @@ trees: [class, spec, hero]
   Caches erschien die Karte wieder.
 - **Diagnose:** Einstellungen → Geräte & Dienste → WoW Charakter → ⋮ →
   **Diagnose herunterladen** liefert die API-Antworten ohne Client-ID und Secret.
+  Seit 0.22.0 fehlen darin auch Name, ID und Verweis anderer Spieler (unter
+  jedem Schlüssel `character`, z. B. Gruppen der Mythic+-Läufe,
+  Gildenmitglieder und -aktivitäten); Realm, Stufe, Klasse und
+  Spezialisierung bleiben zum Prüfen der Feldnamen stehen. Der eigene
+  Charakter steht weiter mit Namen im Profil.
   Damit lassen sich Feldnamen prüfen, wenn ein Wert fehlt. Vergebene Talente
   stehen dort mit IDs und Rang, ohne Tooltip-Texte. Beim Herunterladen lädt die
   Diagnose einmal den Talentbaum des aktiven Loadouts (Retail, seit 0.12.1) und
@@ -1008,6 +1024,14 @@ Automatische Tests laufen gegen Home Assistant 2026.2.3; live geprüft wurde unt
 Home Assistant 2026.10.4 mit Retail-Charakteren der Region EU, seit 0.11.2 auch
 mit einem Classic-Era-Charakter (siehe [WoW Classic](#wow-classic)).
 
+- **0.22.x:** 307 automatische Tests. 0.22.0: 9 Tests für die Diagnose ohne
+  andere Spieler (Mythic+-Läufe der Season und der Woche, Gildenmitglieder
+  und -aktivitäten, Hilfsfunktion; der eigene Name bleibt), `best_runs` ohne
+  festen Text, Bevölkerung als Zustand (bekannte Werte, unbekannter Wert und
+  fehlender Typ ergeben „unbekannt“ statt eines Fehlers) und das Gerätemodell
+  für Retail und Classic Era; ein Test angepasst (Bevölkerung `high` statt
+  „Hoch“). Gegenprobe: neun Teile einzeln ausgebaut, jedes Mal schlug ein
+  Test fehl. **Nicht live geprüft.**
 - **0.21.x:** 298 automatische Tests. 0.21.1: 2 Tests für Geräte ohne das
   veraltete `config_entries` (Funktion und ganzer Aufruf von `refresh` mit
   Gerät); Gegenprobe: mit dem alten Zugriff schlagen beide fehl. **Live geprüft

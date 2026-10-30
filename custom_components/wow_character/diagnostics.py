@@ -13,6 +13,11 @@ from .const import CONF_CLIENT_ID, CONF_CLIENT_SECRET
 from .coordinator import WowConfigEntry, WowDetailCoordinator
 
 TO_REDACT = {CONF_CLIENT_ID, CONF_CLIENT_SECRET}
+# Was einen Spieler erkennbar macht, unter jedem Schluessel "character": Name,
+# ID und Verweis (key.href enthaelt Realm und Name). Betrifft vor allem andere
+# Spieler: Gruppen der Mythic+-Laeufe, Gildenmitglieder und -aktivitaeten.
+# Diagnosen landen oft oeffentlich in Issues.
+_PLAYER_KEYS = ("name", "id", "key")
 
 # Verweise des aktiven Loadouts auf seinen Talentbaum (Retail). Echte Antwort
 # vom 28.10.2026: selected_spec_talent_tree zeigt auf
@@ -141,6 +146,22 @@ async def _talent_tree(detail: WowDetailCoordinator) -> dict[str, Any] | None:
     }
 
 
+def _without_players(data: Any) -> Any:
+    """Kopie ohne Name, ID und Verweis unter jedem Schluessel "character"."""
+    if isinstance(data, list):
+        return [_without_players(item) for item in data]
+    if not isinstance(data, dict):
+        return data
+    return {
+        key: (
+            {k: _without_players(v) for k, v in value.items() if k not in _PLAYER_KEYS}
+            if key == "character" and isinstance(value, dict)
+            else _without_players(value)
+        )
+        for key, value in data.items()
+    }
+
+
 def _shrink(endpoint: str, data: Any) -> Any:
     """Grosse Listen kuerzen; fuer die Pruefung reichen Aufbau und Anzahl."""
     if not isinstance(data, dict):
@@ -257,9 +278,9 @@ async def async_get_config_entry_diagnostics(
         detail = runtime.details[subentry_id]
         characters[coordinator.subentry.title] = {
             "game_version": coordinator.game_version,
-            "profile": coordinator.data,
+            "profile": _without_players(coordinator.data),
             "details": {
-                endpoint: _shrink(endpoint, value)
+                endpoint: _without_players(_shrink(endpoint, value))
                 for endpoint, value in (detail.data or {}).items()
             },
             "needed_endpoints": sorted(detail.needed_endpoints()),

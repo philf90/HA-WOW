@@ -154,6 +154,13 @@ EQUIPMENT_SLOTS = (
 )
 REQUEST_TIMEOUT = 15
 
+# Werte von population.type eines verbundenen Realms, klein geschrieben als
+# Zustaende des Sensors "Bevoelkerung" (uebersetzt in strings.json). Quelle:
+# RealmPopulationCapitalized in @blizzard-api/wow 4.1.4 (geprueft 30.10.2026);
+# FULL, MEDIUM und LOW auch in echten Antworten (EU, 30.10.2026). Einen Wert,
+# den die Liste nicht kennt, zeigt der Sensor als unbekannt.
+REALM_POPULATIONS = ("full", "high", "medium", "low", "recommended")
+
 # Sprache der Texte aus der API (Option am Haupteintrag). "region": je Region
 # die Sprache aus REGIONS wie vor 0.19.0; "home_assistant": die Sprache von
 # Home Assistant; sonst eine Sprache aus LANGUAGES.

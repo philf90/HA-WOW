@@ -133,11 +133,9 @@ def mythic_season(season: dict[str, Any] | None) -> dict[str, Any]:
         "runs_timed": sum(1 for r in runs if r.get("is_completed_within_time"))
         if season
         else None,
+        # Kurzform je Dungeon, ohne Text: ob in Zeit, steht in runs (timed).
         "best_runs": {
-            name_of(r.get("dungeon")) or "?": (
-                f"+{r.get('keystone_level')}"
-                + (" in Zeit" if r.get("is_completed_within_time") else "")
-            )
+            name_of(r.get("dungeon")) or "?": f"+{r.get('keystone_level')}"
             for r in runs
         },
         "runs": [_mythic_run(r) for r in runs],

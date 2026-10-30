@@ -303,7 +303,14 @@
         "name": "Weekly reset"
       },
       "realm_population": {
-        "name": "Population {realm}"
+        "name": "Population {realm}",
+        "state": {
+          "full": "Full",
+          "high": "High",
+          "medium": "Medium",
+          "low": "Low",
+          "recommended": "Recommended"
+        }
       },
       "equipment_head": {
         "name": "Equipment head"
