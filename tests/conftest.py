@@ -503,7 +503,8 @@ def mock_api(
             "assets": [{"key": "icon", "value": "https://render.example/schmied.jpg"}]
         },
         # Dungeonkompendium: neueste Erweiterung mit zwei Raids, einer davon
-        # ohne Kill des Charakters ("Current Season" zaehlt nicht mit).
+        # ohne Kill des Charakters und ohne LFR, dazu Weltbosse (zaehlen nicht).
+        # "Current Season" (505) gilt nicht als Erweiterung.
         "/journal-expansion/index": {
             "tiers": [
                 {"id": 503, "name": "Alte Erweiterung"},
@@ -516,14 +517,38 @@ def mock_api(
             "raids": [
                 {"id": 9201, "name": "Neuer Raid (Journal)"},
                 {"id": 9202, "name": "Zweiter Raid"},
+                {"id": 9203, "name": "Weltbosse"},
             ],
         },
-        "/journal-instance/9201": {"id": 9201, "encounters": [{}] * 8},
-        "/journal-instance/9202": {"id": 9202, "encounters": [{}] * 4},
+        "/journal-expansion/505": {
+            "id": 505,
+            "raids": [{"id": 9202, "name": "Zweiter Raid"}],
+        },
+        "/journal-instance/9201": {
+            "id": 9201,
+            "encounters": [{}] * 8,
+            "category": {"type": "RAID"},
+            "modes": [
+                {"mode": {"type": t}} for t in ("LFR", "NORMAL", "HEROIC", "MYTHIC")
+            ],
+        },
+        "/journal-instance/9202": {
+            "id": 9202,
+            "encounters": [{}] * 4,
+            "category": {"type": "RAID"},
+            "modes": [{"mode": {"type": t}} for t in ("NORMAL", "HEROIC", "MYTHIC")],
+        },
+        "/journal-instance/9203": {
+            "id": 9203,
+            "encounters": [{}] * 4,
+            "category": {"type": "WORLD_BOSS"},
+            "modes": [{"mode": {"type": "NORMAL"}}],
+        },
         "/media/journal-instance/9201": {
             "assets": [{"key": "tile", "value": "https://render.example/neu.jpg"}]
         },
         "/media/journal-instance/9202": 404,
+        "/media/journal-instance/9203": 404,
         "/connected-realm/1234": {
             "status": {"type": "UP"},
             "population": {"name": "Hoch", "type": "HIGH"},

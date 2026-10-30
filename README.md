@@ -11,7 +11,7 @@ Home-Assistant-Integration für World-of-Warcraft-Charaktere: Level, Itemlevel,
 Ausrüstung, Raid- und Mythic+-Fortschritt, Berufe, Ruf, Erfolge und mehr als
 Sensoren, dazu WoW-Marke, wöchentlicher Reset und Serverstatus. Die Daten kommen
 aus der offiziellen Battle.net API. Unterstützt Retail, WoW Classic (Era,
-Progression, Anniversary) und ist für WoW Forever vorbereitet. Version 0.25.0.
+Progression, Anniversary) und ist für WoW Forever vorbereitet. Version 0.25.1.
 
 Zwei Dashboard-Karten liefert die Integration selbst mit: „WoW Arsenal“
 (`custom:wow-arsenal-card`) und „WoW Talentbaum“ (`custom:wow-talent-tree-card`,
@@ -147,6 +147,11 @@ neu starten. Wer von Hand aktualisiert, ersetzt den ganzen Ordner
 `custom_components/wow_character` samt `translations/`; sonst fehlen neue Texte,
 z. B. die Einträge im Menü „Charakter hinzufügen“. Was sich je Version ändert, steht in den
 [Release-Notes](https://github.com/philf90/HA-WOW/releases).
+
+**Update auf 0.25.1:** keine Migration. Der Raid-Fortschritt zählt nur noch
+echte Raids in der Schwierigkeit des Sensors, ohne Weltbosse; Raidnamen kommen
+einheitlich aus dem Journal (z. B. „Die Leerenspitze“ statt „The Voidspire“).
+Die Schlüssel in `raids` und `images` ändern sich deshalb.
 
 **Update auf 0.25.0:** keine Migration. Der Raid-Fortschritt zählt jetzt für
 alle Charaktere dieselbe, aktuelle Erweiterung und alle ihre Raids (siehe
@@ -459,10 +464,18 @@ z. B. Manaforge Omega aus The War Within neben den Midnight-Raids. Vorher galt j
 Charakter die neueste Erweiterung in seiner eigenen Antwort; wer dort nicht
 geraidet hatte, sah eine ältere Erweiterung.
 
+Das Journal führt unter den Raids einer Erweiterung auch Weltbosse und
+Instanzen mit einem Boss: Für Midnight waren es am 30.10.2026 acht Einträge mit
+zusammen 24 Bossen, darunter „Midnight“ mit 4 Bossen. Seit 0.25.1 zählt nur, was
+das Journal (`journal-instance/{id}`) als Kategorie `RAID` führt und in der
+Schwierigkeit des Sensors anbietet (`modes`); fehlt eine der Angaben, zählt der
+Eintrag mit.
+
 - `raids`: jeder Raid der Erweiterung in der Reihenfolge des Journals, z. B.
-  `{"The Voidspire": "5/6", "The Dreamrift": "1/1"}`; ohne Kill `0/…`. Namen wie
-  in der Antwort des Charakters (Englisch), für Raids ohne Eintrag aus dem Journal.
-- `total_bosses`: Bosse aller Raids laut Journal (`encounters`); ohne Bossliste
+  `{"Die Leerenspitze": "5/6", "Der Traumriss": "1/1"}`; ohne Kill `0/…`. Namen
+  aus dem Journal in der Sprache der Region (seit 0.25.1; vorher Englisch aus der
+  Antwort des Charakters).
+- `total_bosses`: Bosse dieser Raids laut Journal (`encounters`); ohne Bossliste
   im Journal zählt die Angabe der Antwort.
 - `latest_raid`: der Raid mit dem jüngsten Kill in dieser Schwierigkeit, sonst
   leer.
@@ -470,6 +483,9 @@ geraidet hatte, sah eine ältere Erweiterung.
 
 Charaktere ohne Kills in der Erweiterung zeigen 0; fehlt die Antwort ganz, bleibt
 der Wert unbekannt. Kommt das Journal nicht, rechnet der Sensor wie vor 0.25.0.
+Die Diagnose zeigt unter `worlds` das Journal mit Kategorie und Schwierigkeiten je
+Eintrag sowie unter `current_season` die Raids von „Current Season“; die Sensoren
+nutzen diese Liste nicht.
 Nur Retail; Classic fragt den Endpunkt nicht ab. Grenze: Die API ordnet einen
 Raid keiner Season zu. Kommt in einer Erweiterung ein Raid dazu, zählt der Zustand
 alte und neue Raids zusammen; die Einzelwerte stehen in `raids`. Felder des
@@ -648,7 +664,9 @@ und die genutzte Sprache je Region (`options`, `locales`).
 Ausnahmen: Die Berufe-Seite und die Erfolge-Seite eines Charakters liefern Namen
 auf Englisch, auch mit deutscher Spracheinstellung. Die Integration schlägt Berufe, Berufsstufen und
 Erfolgskategorien deshalb einmalig in den statischen Spieldaten nach; klappt das
-nicht, bleibt der englische Name. Raidnamen kommen weiterhin auf Englisch.
+nicht, bleibt der englische Name. Raidnamen kommen in den Raid-Sensoren seit
+0.25.1 aus dem Journal in der Sprache der Region, im Ereignis „Boss besiegt“
+weiterhin auf Englisch.
 
 ### Nicht in der Datenbank
 
@@ -1098,7 +1116,11 @@ Automatische Tests laufen gegen Home Assistant 2026.2.3; live geprüft wurde unt
 Home Assistant 2026.10.4 mit Retail-Charakteren der Region EU, seit 0.11.2 auch
 mit einem Classic-Era-Charakter (siehe [WoW Classic](#wow-classic)).
 
-- **0.25.x:** 341 automatische Tests. 0.25.0: 10 Tests für den Raid-Fortschritt
+- **0.25.x:** 342 automatische Tests. 0.25.1: 1 Test neu (Weltbosse und Raids
+  ohne die Schwierigkeit zählen nicht), 7 angepasst (Namen aus dem Journal, LFR
+  ohne Raid ohne LFR, Kategorie, Schwierigkeiten und „Current Season“ im
+  Journal der Spielwelt). Gegenprobe: acht Teile einzeln ausgebaut, jedes Mal
+  schlug ein Test fehl. **Nicht live geprüft.** 0.25.0: 10 Tests für den Raid-Fortschritt
   (nur alte Erweiterung ergibt 0 mit allen Raids des Journals, Antwort ohne
   Raids ergibt 0, Raid unter „Current Season“ und Erweiterung zählt einmal
   mit `latest_raid`, „Current Season“ nie neueste Erweiterung, ohne Journal wie

@@ -959,7 +959,8 @@ class WowWorldCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
     data: {"token": Gold oder None, "reset": datetime oder None,
            "season_id": int oder None, "realms": {slug: {...}},
-           "raid_journal": {"id", "name", "raids": [{"id", "name", "bosses"}]}
+           "raid_journal": {"id", "name", "raids": [{"id", "name", "bosses",
+           "category", "modes"}], "current_season": [{"id", "name"}]}
            oder None (nur Retail, siehe _raid_journal)}
     """
 
@@ -999,9 +1000,9 @@ class WowWorldCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         # Die Classic-Doku nennt encounters/raids nicht, Forever hat noch
         # keinen bestaetigten Namespace.
         self.raid_journal = game_version == "retail"
-        # Journal-Instanz -> Zahl der Bosse; statische Daten, je Lauf der
-        # Integration einmal nachgeschlagen.
-        self._raid_bosses: dict[int, int] = {}
+        # Journal-Instanz -> Bosse, Kategorie und Schwierigkeiten; statische
+        # Daten, je Lauf der Integration einmal nachgeschlagen.
+        self._raid_info: dict[int, dict[str, Any]] = {}
 
     async def async_refresh_now(self) -> None:
         """WoW-Marke, Reset und Season sofort abfragen (Aktion refresh).
@@ -1067,13 +1068,17 @@ class WowWorldCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         return data
 
     async def _raid_journal(self) -> dict[str, Any] | None:
-        """Raids der neuesten Erweiterung mit ihrer Bosszahl (W3, seit 0.25.0).
+        """Raids der neuesten Erweiterung mit Bosszahl, Kategorie, Schwierigkeiten.
 
         Neueste Erweiterung ist die mit der hoechsten ID ohne "Current Season"
-        (JOURNAL_CURRENT_SEASON), fuer alle Charaktere gleich; vorher galt die
-        hoechste in der Antwort des jeweiligen Charakters. Felder laut
-        @blizzard-api/wow 4.1.4 (journal): journal-expansion/index -> tiers,
-        journal-expansion/{id} -> raids, journal-instance/{id} -> encounters.
+        (JOURNAL_CURRENT_SEASON), fuer alle Charaktere gleich (seit 0.25.0).
+        Unter "raids" fuehrt das Journal auch Weltbosse und Instanzen mit einem
+        Boss (Midnight, 30.10.2026: 8 Eintraege); was zaehlt, entscheidet
+        parsers.raid_progress ueber category und modes (seit 0.25.1).
+        "current_season" nennt die Raids von "Current Season", bisher nur fuer
+        die Diagnose. Felder laut @blizzard-api/wow 4.1.4 (journal):
+        journal-expansion/index -> tiers, journal-expansion/{id} -> raids,
+        journal-instance/{id} -> encounters, category.type, modes[].mode.type.
         """
         index = await self._get_static("journal-expansion/index")
         tiers = [
@@ -1091,22 +1096,41 @@ class WowWorldCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         for raid in (expansion or {}).get("raids") or []:
             if not isinstance(raid, dict) or not isinstance(raid.get("id"), int):
                 continue
-            if raid["id"] not in self._raid_bosses:
+            if raid["id"] not in self._raid_info:
                 instance = await self._get_static(f"journal-instance/{raid['id']}")
                 encounters = (instance or {}).get("encounters")
                 if not isinstance(encounters, list):
                     # Ohne Bossliste zaehlt total_count aus der Antwort.
                     raids.append({"id": raid["id"], "name": raid.get("name")})
                     continue
-                self._raid_bosses[raid["id"]] = len(encounters)
+                modes = [
+                    (m.get("mode") or {}).get("type")
+                    for m in (instance or {}).get("modes") or []
+                    if isinstance(m, dict)
+                ]
+                self._raid_info[raid["id"]] = {
+                    "bosses": len(encounters),
+                    "category": ((instance or {}).get("category") or {}).get("type"),
+                    "modes": [m for m in modes if isinstance(m, str)] or None,
+                }
             raids.append(
                 {
                     "id": raid["id"],
                     "name": raid.get("name"),
-                    "bosses": self._raid_bosses[raid["id"]],
+                    **self._raid_info[raid["id"]],
                 }
             )
-        return {"id": tier["id"], "name": tier.get("name"), "raids": raids}
+        season = await self._get_static(f"journal-expansion/{JOURNAL_CURRENT_SEASON}")
+        return {
+            "id": tier["id"],
+            "name": tier.get("name"),
+            "raids": raids,
+            "current_season": [
+                {"id": r.get("id"), "name": r.get("name")}
+                for r in (season or {}).get("raids") or []
+                if isinstance(r, dict)
+            ],
+        }
 
     async def _get_static(self, path: str) -> dict[str, Any] | None:
         try:

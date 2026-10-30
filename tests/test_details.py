@@ -52,14 +52,21 @@ async def test_retail_values(hass: HomeAssistant, aioclient_mock) -> None:
     assert _state(hass, "sensor", "mythic_rating").attributes["color"] == "#ff8000"
 
     # Raids: nur die neueste Erweiterung zaehlt, mit allen Raids des Journals
+    # (ohne Weltbosse), Namen aus dem Journal
     heroic = _state(hass, "sensor", "raid_heroic")
     assert heroic.state == "6"
-    assert heroic.attributes["expansion"] == "Neue Erweiterung"
+    assert heroic.attributes["expansion"] == "Neue Erweiterung (Journal)"
     assert heroic.attributes["total_bosses"] == 12
-    assert heroic.attributes["raids"] == {"Neuer Raid": "6/8", "Zweiter Raid": "0/4"}
-    assert heroic.attributes["latest_raid"] == "Neuer Raid"
+    assert heroic.attributes["raids"] == {
+        "Neuer Raid (Journal)": "6/8",
+        "Zweiter Raid": "0/4",
+    }
+    assert heroic.attributes["latest_raid"] == "Neuer Raid (Journal)"
     assert _state(hass, "sensor", "raid_mythic").state == "1"
-    assert _state(hass, "sensor", "raid_lfr").state == "0"
+    # LFR: nur Raids, die es in LFR gibt
+    lfr = _state(hass, "sensor", "raid_lfr")
+    assert lfr.state == "0"
+    assert lfr.attributes["raids"] == {"Neuer Raid (Journal)": "0/8"}
 
     # Mythic+-Season 14 aus der Spielwelt, nicht die hoechste des Charakters
     assert _state(hass, "sensor", "mythic_best_key").state == "12"

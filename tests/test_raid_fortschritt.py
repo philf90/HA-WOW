@@ -1,4 +1,4 @@
-"""Tests fuer 0.25.0: Raid-Fortschritt der aktuellen Erweiterung (W3)."""
+"""Tests fuer 0.25.0/0.25.1: Raid-Fortschritt der aktuellen Erweiterung (W3)."""
 
 import copy
 
@@ -59,7 +59,7 @@ async def test_old_expansion_counts_as_zero(
     await _setup(hass, aioclient_mock, {RAIDS_URL: old_only})
     state = _raid(hass)
     assert state.state == "0"
-    # Erweiterung und Raidnamen aus dem Journal; der Charakter kennt sie nicht.
+    # Erweiterung und Raidnamen aus dem Journal, ohne Weltbosse
     assert state.attributes["expansion"] == "Neue Erweiterung (Journal)"
     assert state.attributes["raids"] == {
         "Neuer Raid (Journal)": "0/8",
@@ -73,7 +73,9 @@ async def test_without_raid_history_zero(hass: HomeAssistant, aioclient_mock) ->
     """Antwort ohne expansions (nie geraidet): 0 statt unbekannt."""
     await _setup(hass, aioclient_mock, {RAIDS_URL: {"character": {}}})
     assert _raid(hass).state == "0"
-    assert _raid(hass, "raid_lfr").attributes["total_bosses"] == 12
+    assert _raid(hass).attributes["total_bosses"] == 12
+    # Der zweite Raid hat kein LFR.
+    assert _raid(hass, "raid_lfr").attributes["total_bosses"] == 8
 
 
 async def test_raid_in_two_tiers_counts_once(
@@ -85,28 +87,57 @@ async def test_raid_in_two_tiers_counts_once(
             {
                 "expansion": {"id": 505, "name": "Current Season"},
                 "instances": [
-                    _instance(9201, "Neuer Raid", _mode("LFR", 5, 8, 2000)),
-                    _instance(9202, "Zweiter Raid", _mode("LFR", 1, 4, 3000)),
+                    _instance(9201, "Neuer Raid", _mode("HEROIC", 5, 8, 2000)),
+                    _instance(9202, "Zweiter Raid", _mode("HEROIC", 1, 4, 3000)),
                     # Raid einer anderen Erweiterung in "Current Season"
-                    _instance(9101, "Alter Raid", _mode("LFR", 7, 9, 4000)),
+                    _instance(9101, "Alter Raid", _mode("HEROIC", 7, 9, 4000)),
                 ],
             },
             {
                 "expansion": {"id": 514, "name": "Neue Erweiterung"},
                 "instances": [
-                    _instance(9201, "Neuer Raid", _mode("LFR", 5, 8, 2000)),
-                    _instance(9202, "Zweiter Raid", _mode("LFR", 1, 4, 3000)),
+                    _instance(9201, "Neuer Raid", _mode("HEROIC", 5, 8, 2000)),
+                    _instance(9202, "Zweiter Raid", _mode("HEROIC", 1, 4, 3000)),
                 ],
             },
         ]
     }
     await _setup(hass, aioclient_mock, {RAIDS_URL: raids})
-    state = _raid(hass, "raid_lfr")
+    state = _raid(hass)
     assert state.state == "6"
-    assert state.attributes["raids"] == {"Neuer Raid": "5/8", "Zweiter Raid": "1/4"}
+    assert state.attributes["raids"] == {
+        "Neuer Raid (Journal)": "5/8",
+        "Zweiter Raid": "1/4",
+    }
     assert state.attributes["total_bosses"] == 12
     assert state.attributes["latest_raid"] == "Zweiter Raid"
-    assert state.attributes["expansion"] == "Neue Erweiterung"
+    assert state.attributes["expansion"] == "Neue Erweiterung (Journal)"
+
+
+async def test_world_bosses_and_missing_difficulty_not_counted(
+    hass: HomeAssistant, aioclient_mock
+) -> None:
+    """Kills bei Weltbossen und in Raids ohne LFR zaehlen nicht (seit 0.25.1)."""
+    raids = {
+        "expansions": [
+            {
+                "expansion": {"id": 514, "name": "Neue Erweiterung"},
+                "instances": [
+                    _instance(9201, "Neuer Raid", _mode("NORMAL", 2, 8, 1000)),
+                    _instance(9203, "Weltbosse", _mode("NORMAL", 3, 4, 5000)),
+                ],
+            }
+        ]
+    }
+    await _setup(hass, aioclient_mock, {RAIDS_URL: raids})
+    normal = _raid(hass, "raid_normal")
+    assert normal.state == "2"
+    assert normal.attributes["raids"] == {
+        "Neuer Raid (Journal)": "2/8",
+        "Zweiter Raid": "0/4",
+    }
+    assert normal.attributes["latest_raid"] == "Neuer Raid (Journal)"
+    assert "Weltbosse" not in normal.attributes["images"]
 
 
 async def test_current_season_tier_not_newest(
@@ -149,11 +180,17 @@ async def test_without_journal_as_before(hass: HomeAssistant, aioclient_mock) ->
 async def test_boss_count_from_answer_without_journal_instance(
     hass: HomeAssistant, aioclient_mock
 ) -> None:
-    """Ohne Bossliste im Journal zaehlt total_count aus der Antwort."""
+    """Ohne Instanz im Journal zaehlt total_count aus der Antwort.
+
+    Ohne Kategorie und Schwierigkeiten zaehlt der Raid in jeder Schwierigkeit.
+    """
     await _setup(hass, aioclient_mock, {f"{GAME}/journal-instance/9201": 404})
     assert _raid(hass).attributes["raids"] == {
-        "Neuer Raid": "6/8",
+        "Neuer Raid (Journal)": "6/8",
         "Zweiter Raid": "0/4",
+    }
+    assert _raid(hass, "raid_lfr").attributes["raids"] == {
+        "Neuer Raid (Journal)": "0/0"
     }
 
 
@@ -169,13 +206,34 @@ async def test_boss_counts_looked_up_once(hass: HomeAssistant, aioclient_mock) -
 
     assert calls("/journal-expansion/index") == 2
     assert calls("/data/wow/journal-instance/9201") == 1
+    # Kategorie, Schwierigkeiten und "Current Season" auch fuer die Diagnose
     assert world.data["raid_journal"] == {
         "id": 514,
         "name": "Neue Erweiterung (Journal)",
         "raids": [
-            {"id": 9201, "name": "Neuer Raid (Journal)", "bosses": 8},
-            {"id": 9202, "name": "Zweiter Raid", "bosses": 4},
+            {
+                "id": 9201,
+                "name": "Neuer Raid (Journal)",
+                "bosses": 8,
+                "category": "RAID",
+                "modes": ["LFR", "NORMAL", "HEROIC", "MYTHIC"],
+            },
+            {
+                "id": 9202,
+                "name": "Zweiter Raid",
+                "bosses": 4,
+                "category": "RAID",
+                "modes": ["NORMAL", "HEROIC", "MYTHIC"],
+            },
+            {
+                "id": 9203,
+                "name": "Weltbosse",
+                "bosses": 4,
+                "category": "WORLD_BOSS",
+                "modes": ["NORMAL"],
+            },
         ],
+        "current_season": [{"id": 9202, "name": "Zweiter Raid"}],
     }
 
 
@@ -187,16 +245,17 @@ def test_no_raid_answer_unknown(journal) -> None:
 
 
 def test_journal_raid_order_and_names() -> None:
-    """Reihenfolge des Journals; Namen aus der Antwort, sonst aus dem Journal."""
+    """Reihenfolge und Namen des Journals; ohne Kategorie zaehlt der Raid mit."""
     raids = copy.deepcopy(RAIDS)
     journal = {
         "id": 514,
         "name": "J",
         "raids": [
             {"id": 9202, "name": "Zweiter Raid", "bosses": 4},
-            {"id": 9201, "name": "Neuer Raid (Journal)", "bosses": 8},
+            {"id": 9201, "name": None, "bosses": 8},
         ],
     }
+    # Ohne Namen im Journal der Name aus der Antwort des Charakters
     assert list(p.raid_progress(raids, "HEROIC", journal)[1]["raids"]) == [
         "Zweiter Raid",
         "Neuer Raid",
