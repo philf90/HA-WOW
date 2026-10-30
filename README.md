@@ -479,13 +479,19 @@ Eintrag mit.
   im Journal zählt die Angabe der Antwort.
 - `latest_raid`: der Raid mit dem jüngsten Kill in dieser Schwierigkeit, sonst
   leer.
-- `expansion`, `images` wie bisher.
+- `expansion` wie bisher.
+- `images`: Bild je Raid aus `media/journal-instance/{id}`. Die Integration
+  prüft jede Adresse einmal je Start beim Bildserver; liefert er kein Bild, steht
+  dort `null`. Live am 30.10.2026 antwortete er für „Midnight“ und „Die
+  Gezeitengebundene Grotte“ mit HTTP 403.
 
 Charaktere ohne Kills in der Erweiterung zeigen 0; fehlt die Antwort ganz, bleibt
 der Wert unbekannt. Kommt das Journal nicht, rechnet der Sensor wie vor 0.25.0.
 Die Diagnose zeigt unter `worlds` das Journal mit Kategorie und Schwierigkeiten je
-Eintrag sowie unter `current_season` die Raids von „Current Season“; die Sensoren
-nutzen diese Liste nicht.
+Eintrag. Live am 30.10.2026 führte das Journal alle acht Midnight-Einträge als
+`RAID`; „Midnight“ (4 Bosse) bietet nur Normal an und zählt deshalb nur dort
+(Normal 24 Bosse, sonst 20). „Current Season“ enthielt dieselben acht Einträge
+und trennt Season 1 und 2 damit nicht; die Integration fragt ihn nicht mehr ab.
 Nur Retail; Classic fragt den Endpunkt nicht ab. Grenze: Die API ordnet einen
 Raid keiner Season zu. Kommt in einer Erweiterung ein Raid dazu, zählt der Zustand
 alte und neue Raids zusammen; die Einzelwerte stehen in `raids`. Felder des
@@ -1116,7 +1122,10 @@ Automatische Tests laufen gegen Home Assistant 2026.2.3; live geprüft wurde unt
 Home Assistant 2026.10.4 mit Retail-Charakteren der Region EU, seit 0.11.2 auch
 mit einem Classic-Era-Charakter (siehe [WoW Classic](#wow-classic)).
 
-- **0.25.x:** 342 automatische Tests. 0.25.1: 1 Test neu (Weltbosse und Raids
+- **0.25.x:** 346 automatische Tests. Nächste Version: 4 Tests für die Prüfung
+  der Raid-Bilder (Bildserver ohne Bild, 403 und 404, ergibt `null` und wird nur
+  einmal gefragt; Bildserver nicht erreichbar, nächster Takt prüft neu; andere
+  Symbole werden nicht geprüft); „Current Season“ nicht mehr abgefragt. 0.25.1: 1 Test neu (Weltbosse und Raids
   ohne die Schwierigkeit zählen nicht), 7 angepasst (Namen aus dem Journal, LFR
   ohne Raid ohne LFR, Kategorie, Schwierigkeiten und „Current Season“ im
   Journal der Spielwelt). Gegenprobe: acht Teile einzeln ausgebaut, jedes Mal

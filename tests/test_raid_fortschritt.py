@@ -206,7 +206,7 @@ async def test_boss_counts_looked_up_once(hass: HomeAssistant, aioclient_mock) -
 
     assert calls("/journal-expansion/index") == 2
     assert calls("/data/wow/journal-instance/9201") == 1
-    # Kategorie, Schwierigkeiten und "Current Season" auch fuer die Diagnose
+    # Kategorie und Schwierigkeiten auch fuer die Diagnose
     assert world.data["raid_journal"] == {
         "id": 514,
         "name": "Neue Erweiterung (Journal)",
@@ -233,7 +233,6 @@ async def test_boss_counts_looked_up_once(hass: HomeAssistant, aioclient_mock) -
                 "modes": ["NORMAL"],
             },
         ],
-        "current_season": [{"id": 9202, "name": "Zweiter Raid"}],
     }
 
 
@@ -264,3 +263,59 @@ def test_journal_raid_order_and_names() -> None:
         "Zweiter Raid": 9202,
         "Neuer Raid": 9201,
     }
+
+
+# Raid-Bilder beim Bildserver pruefen
+
+NEW_IMAGE = "https://render.example/neu.jpg"
+
+
+def _heads(aioclient_mock, url: str) -> int:
+    return sum(
+        1
+        for c in aioclient_mock.mock_calls
+        if c[0].upper() == "HEAD" and str(c[1]) == url
+    )
+
+
+async def _refresh_details(entry) -> None:
+    (detail,) = entry.runtime_data.details.values()
+    detail._fetched.clear()
+    await detail.async_refresh()
+
+
+@pytest.mark.parametrize("status", [403, 404])
+async def test_image_missing_on_server(
+    hass: HomeAssistant, aioclient_mock, status: int
+) -> None:
+    """Liefert der Bildserver nichts, fehlt das Bild; geprueft wird einmal."""
+    mock_token(aioclient_mock)
+    aioclient_mock.head(NEW_IMAGE, status=status)
+    entry = await _setup(hass, aioclient_mock)
+    assert _raid(hass).attributes["images"]["Neuer Raid (Journal)"] is None
+    await _refresh_details(entry)
+    await hass.async_block_till_done()
+    assert _heads(aioclient_mock, NEW_IMAGE) == 1
+    assert _raid(hass).attributes["images"]["Neuer Raid (Journal)"] is None
+
+
+async def test_image_check_failure_retried(hass: HomeAssistant, aioclient_mock) -> None:
+    """Bildserver nicht erreichbar: Bild fehlt vorerst, naechster Takt prueft neu."""
+    aioclient_mock.head(NEW_IMAGE, exc=TimeoutError())
+    entry = await _setup(hass, aioclient_mock)
+    assert _raid(hass).attributes["images"]["Neuer Raid (Journal)"] is None
+
+    aioclient_mock.clear_requests()
+    mock_token(aioclient_mock)
+    mock_api(aioclient_mock)
+    await _refresh_details(entry)
+    await hass.async_block_till_done()
+    assert _raid(hass).attributes["images"]["Neuer Raid (Journal)"] == NEW_IMAGE
+
+
+async def test_only_raid_images_checked(hass: HomeAssistant, aioclient_mock) -> None:
+    """Andere Symbole (z. B. Berufe) prueft die Integration nicht."""
+    await _setup(hass, aioclient_mock)
+    heads = [c for c in aioclient_mock.mock_calls if c[0].upper() == "HEAD"]
+    assert [str(c[1]) for c in heads] == [NEW_IMAGE]
+    assert _raid(hass).attributes["images"]["Neuer Raid (Journal)"] == NEW_IMAGE

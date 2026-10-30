@@ -916,12 +916,19 @@ class MediaCache:
     """Symbole aus den statischen Spieldaten, je Objekt nur einmal abgefragt.
 
     Schluessel wie der Pfad unter /data/wow/media, z. B. "playable-class/8".
-    Faellt eine Abfrage aus, fehlt das Symbol bis zum naechsten Takt.
+    Faellt eine Abfrage aus, fehlt das Symbol bis zum naechsten Takt. Raid-Bilder
+    prueft der Cache zusaetzlich beim Bildserver; liegt dort nichts, fehlt das
+    Bild (siehe BattleNetClient.image_available).
     """
+
+    # Arten mit Pruefung beim Bildserver; bisher nur bei Raids Adressen ohne Bild
+    CHECKED = ("journal-instance",)
 
     def __init__(self, coordinator: _CharacterMixin) -> None:
         self._coordinator = coordinator
         self._urls: dict[str, str] = {}
+        # Schluessel, deren Adresse beim Bildserver nichts liefert
+        self._missing: set[str] = set()
 
     async def lookup(self, items: list[tuple[str, Any]]) -> None:
         c = self._coordinator
@@ -930,6 +937,7 @@ class MediaCache:
             if (
                 not isinstance(obj_id, int)
                 or key in self._urls
+                or key in self._missing
                 or not c.supports_static(f"media/{key}")
             ):
                 continue
@@ -947,7 +955,18 @@ class MediaCache:
             except BattleNetError as err:
                 _LOGGER.debug("Symbol %s fehlt: %s", key, err)
                 continue
-            if url := p.icon_url(media):
+            url = p.icon_url(media)
+            if url and kind in self.CHECKED:
+                try:
+                    available = await c.client.image_available(url)
+                except BattleNetError as err:
+                    _LOGGER.debug("Bild %s nicht geprueft: %s", key, err)
+                    continue
+                if not available:
+                    _LOGGER.debug("Bild %s fehlt beim Bildserver: %s", key, url)
+                    self._missing.add(key)
+                    continue
+            if url:
                 self._urls[key] = url
 
     def urls(self) -> dict[str, str]:
@@ -960,8 +979,7 @@ class WowWorldCoordinator(DataUpdateCoordinator[dict[str, Any]]):
     data: {"token": Gold oder None, "reset": datetime oder None,
            "season_id": int oder None, "realms": {slug: {...}},
            "raid_journal": {"id", "name", "raids": [{"id", "name", "bosses",
-           "category", "modes"}], "current_season": [{"id", "name"}]}
-           oder None (nur Retail, siehe _raid_journal)}
+           "category", "modes"}]} oder None (nur Retail, siehe _raid_journal)}
     """
 
     config_entry: WowConfigEntry
@@ -1073,10 +1091,12 @@ class WowWorldCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         Neueste Erweiterung ist die mit der hoechsten ID ohne "Current Season"
         (JOURNAL_CURRENT_SEASON), fuer alle Charaktere gleich (seit 0.25.0).
         Unter "raids" fuehrt das Journal auch Weltbosse und Instanzen mit einem
-        Boss (Midnight, 30.10.2026: 8 Eintraege); was zaehlt, entscheidet
-        parsers.raid_progress ueber category und modes (seit 0.25.1).
-        "current_season" nennt die Raids von "Current Season", bisher nur fuer
-        die Diagnose. Felder laut @blizzard-api/wow 4.1.4 (journal):
+        Boss (Midnight, 30.10.2026: 8 Eintraege, alle Kategorie RAID, der
+        Eintrag "Midnight" mit 4 Bossen nur NORMAL); was zaehlt, entscheidet
+        parsers.raid_progress ueber category und modes (seit 0.25.1). "Current
+        Season" (505) enthielt dieselben 8 Eintraege und trennt Seasons damit
+        nicht; die Integration fragt ihn deshalb nicht ab.
+        Felder laut @blizzard-api/wow 4.1.4 (journal):
         journal-expansion/index -> tiers, journal-expansion/{id} -> raids,
         journal-instance/{id} -> encounters, category.type, modes[].mode.type.
         """
@@ -1120,17 +1140,7 @@ class WowWorldCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                     **self._raid_info[raid["id"]],
                 }
             )
-        season = await self._get_static(f"journal-expansion/{JOURNAL_CURRENT_SEASON}")
-        return {
-            "id": tier["id"],
-            "name": tier.get("name"),
-            "raids": raids,
-            "current_season": [
-                {"id": r.get("id"), "name": r.get("name")}
-                for r in (season or {}).get("raids") or []
-                if isinstance(r, dict)
-            ],
-        }
+        return {"id": tier["id"], "name": tier.get("name"), "raids": raids}
 
     async def _get_static(self, path: str) -> dict[str, Any] | None:
         try:

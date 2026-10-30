@@ -97,6 +97,7 @@ async def test_class_spec_and_raid_images(hass: HomeAssistant, aioclient_mock) -
             },
         },
     )
+    aioclient_mock.head("https://render.example/raid.jpg", status=200)
     await _setup(hass)
 
     level = hass.states.get("sensor.testchar_die_aldor_level").attributes
