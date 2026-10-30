@@ -11,11 +11,12 @@ Home-Assistant-Integration für World-of-Warcraft-Charaktere: Level, Itemlevel,
 Ausrüstung, Raid- und Mythic+-Fortschritt, Berufe, Ruf, Erfolge und mehr als
 Sensoren, dazu WoW-Marke, wöchentlicher Reset und Serverstatus. Die Daten kommen
 aus der offiziellen Battle.net API. Unterstützt Retail, WoW Classic (Era,
-Progression, Anniversary) und ist für WoW Forever vorbereitet. Version 0.31.1.
+Progression, Anniversary) und ist für WoW Forever vorbereitet. Version 0.32.0.
 
-Zwei Dashboard-Karten liefert die Integration selbst mit: „WoW Arsenal“
-(`custom:wow-arsenal-card`) und „WoW Talentbaum“ (`custom:wow-talent-tree-card`,
-Retail), ohne zusätzliche HACS-Karten oder Dashboard-Ressourcen.
+Drei Dashboard-Karten liefert die Integration selbst mit: „WoW Arsenal“
+(`custom:wow-arsenal-card`), „WoW Charaktere“ (`custom:wow-characters-card`) und
+„WoW Talentbaum“ (`custom:wow-talent-tree-card`, Retail), ohne zusätzliche
+HACS-Karten oder Dashboard-Ressourcen.
 
 <p align="center">
   <img src="https://raw.githubusercontent.com/philf90/HA-WOW/main/assets/vorschau-karten.png" alt="Arsenal-, Charaktere-, Berufe- und Raid-Karte im Nachtblau-Stil mit Beispieldaten" width="100%">
@@ -116,7 +117,8 @@ Client ohne Redirect-URL lässt sich unter **Manage Client** ergänzen.
   Einschalten unter Einstellungen → Geräte & Dienste → WoW Charakter → Charakter
   → Entitäten.
 - Dashboard-Karten: mitgeliefert sind
-  [„WoW Arsenal“](#karte-wow-arsenal-seit-0150) und
+  [„WoW Arsenal“](#karte-wow-arsenal-seit-0150),
+  [„WoW Charaktere“](#karte-wow-charaktere-seit-0320) und
   [„WoW Talentbaum“](#karte-wow-talentbaum-seit-0140); weitere Karten als YAML
   siehe [Dashboard-Karten](#dashboard-karten).
 
@@ -147,6 +149,11 @@ neu starten. Wer von Hand aktualisiert, ersetzt den ganzen Ordner
 `custom_components/wow_character` samt `translations/`; sonst fehlen neue Texte,
 z. B. die Einträge im Menü „Charakter hinzufügen“. Was sich je Version ändert, steht in den
 [Release-Notes](https://github.com/philf90/HA-WOW/releases).
+
+**Update auf 0.32.0:** keine Migration. Neue mitgelieferte Karte „WoW
+Charaktere“ (`custom:wow-characters-card`, siehe [Karte „WoW
+Charaktere“](#karte-wow-charaktere-seit-0320)); nach dem Update einmal die Seite
+im Browser neu laden. Sensoren und Abfragen bleiben gleich.
 
 **Update auf 0.31.1:** keine Migration. Die Arsenal-Karte zeigt die
 Spielversion in der Kopfzeile wieder (Retail, Classic Era usw.); seit 0.22.0
@@ -936,11 +943,14 @@ response_variable: charakter
 
 ## Dashboard-Karten
 
-Zwei Karten liefert die Integration selbst mit; Home Assistant lädt sie mit dem
+Drei Karten liefert die Integration selbst mit; Home Assistant lädt sie mit dem
 Frontend, ohne zusätzliche HACS-Karten oder Dashboard-Ressourcen:
 
 - [„WoW Arsenal“](#karte-wow-arsenal-seit-0150) (`custom:wow-arsenal-card`,
   seit 0.15.0): Charakterseite mit Ausrüstung und Kennzahlen.
+- [„WoW Charaktere“](#karte-wow-charaktere-seit-0320)
+  (`custom:wow-characters-card`, seit 0.32.0): alle Charaktere nach
+  Spielversion mit Stufe, Itemlevel, Mythic+ und letztem Login.
 - [„WoW Talentbaum“](#karte-wow-talentbaum-seit-0140)
   (`custom:wow-talent-tree-card`, seit 0.14.0): Talentbäume mit vergebenen
   Punkten (Retail).
@@ -955,8 +965,10 @@ liefert (bei Classic z. B. Raids, Mythic+ und Sammlungen), fällt weg oder wird
 als Hinweis genannt.
 Alle brauchen `custom:button-card`; weitere Voraussetzungen (z. B. browser_mod
 für das Arsenal-Popup) stehen im Kopf jeder Datei. Die Arsenal-Karte liefert
-die Integration seit 0.15.0 auch selbst mit, ohne diese Voraussetzungen (siehe
-[Karte „WoW Arsenal“](#karte-wow-arsenal-seit-0150)).
+die Integration seit 0.15.0 auch selbst mit, die Charaktere-Karte seit 0.32.0,
+beide ohne diese Voraussetzungen (siehe
+[Karte „WoW Arsenal“](#karte-wow-arsenal-seit-0150) und
+[Karte „WoW Charaktere“](#karte-wow-charaktere-seit-0320)).
 
 <p align="center">
   <img src="https://raw.githubusercontent.com/philf90/HA-WOW/main/assets/vorschau-galerie.png" alt="Mythic+-, Sammlungen-, Werte- und Ruhmstufen-Karte im Nachtblau-Stil mit Beispieldaten" width="100%">
@@ -980,9 +992,10 @@ type: custom:wow-arsenal-card
 entity: sensor.mein_charakter_level   # eine beliebige Entität des Charakters
 ```
 
-- Kopf mit Avatar, Symbol der Spezialisierung, Name, Titel, Spielversion,
-  Stufe, Volk, Spezialisierung und Klasse; Pillen für Itemlevel, Mythic+-Wertung
-  (sonst `api_rating`), Fraktion, Realm und Gilde.
+- Kopf mit Avatar, Symbol der Spezialisierung, Name, Titel, Spielversion
+  (von 0.22.0 bis 0.31.0 fehlte sie, seit 0.31.1 wieder da), Stufe, Volk,
+  Spezialisierung und Klasse; Pillen für Itemlevel, Mythic+-Wertung (sonst
+  `api_rating`), Fraktion, Realm und Gilde.
 - Ganzkörperbild mit den 18 Plätzen in der Reihenfolge des Arsenals: Symbol mit
   Rand in der Qualitätsfarbe, Itemlevel daneben (ohne Itemlevel leer), ein
   Amber-Punkt bei leerem Sockel, leere Plätze gestrichelt.
@@ -1005,6 +1018,41 @@ entity: sensor.mein_charakter_level   # eine beliebige Entität des Charakters
 - Breite: In der Abschnittsansicht nimmt die Karte die ganze Breite des
   Abschnitts ein (12 von 12 Spalten, seit 0.15.1; in 0.15.0 nur 6). Schmaler als
   300 Pixel stehen die Kennzahlen in zwei Spalten statt in einer Reihe.
+
+### Karte „WoW Charaktere“ (seit 0.32.0)
+
+Die Charaktere-Karte aus `wow-charaktere-karte.yaml` als eigene Karte der
+Integration, im selben Aufbau und Nachtblau-Stil, aber ohne `custom:button-card`.
+Wie die anderen mitgelieferten Karten lädt Home Assistant sie mit dem Frontend.
+
+```yaml
+type: custom:wow-characters-card
+# optional, sonst alle Charaktere; je Charakter eine beliebige Entität:
+entities:
+  - sensor.mein_charakter_level
+```
+
+- Kopf mit Symbol, Titel „Charaktere“ und Anzahl.
+- Je Spielversion eine Unterkachel mit Name und Anzahl, in dieser Reihenfolge:
+  Retail, Classic Era, Classic Progression, Classic Anniversary, Forever, dann
+  unbekannte Versionen, zuletzt „Spielversion unbekannt“. Innerhalb der
+  Gruppe sortiert nach Stufe, dann Itemlevel.
+- Je Charakter eine Zeile: Avatar mit Symbol der Spezialisierung, Name,
+  Itemlevel; Stufe, Spezialisierung, Klasse und Realm; Mythic+-Wertung der
+  aktuellen Season (sonst `api_rating`), nur für Retail und unbekannte
+  Versionen; letzter Login als „vor 3 Tagen“ und ein Level-Aufstieg der
+  letzten 7 Tage (Ereignis „Level gestiegen“). Die Zeitangaben zählen jede
+  Minute weiter, auch ohne Zustandsänderung.
+- Die Karte findet die Charaktere über die Level-Sensoren der Integration und
+  ihre Geräte, die Spielversion über das Gerätemodell. Anders als die YAML-Karte
+  braucht sie kein Präfix und funktioniert mit jeder Sprache der Oberfläche;
+  ihre eigenen Texte gibt es auf Deutsch und Englisch. Unter `entities`
+  genannte Entitäten, die zu keinem Charakter gehören, nennt sie unten als
+  „Nicht gefunden“.
+- Farben: Mit dem Nachtblau-Theme nutzt sie dessen Variablen (heller und
+  dunkler Modus), sonst ist sie in beiden Modi dunkel.
+- Breite: In der Abschnittsansicht nimmt die Karte die ganze Breite des
+  Abschnitts ein (12 von 12 Spalten, mindestens 6).
 
 ### Karte „WoW Talentbaum“ (seit 0.14.0)
 
@@ -1080,7 +1128,7 @@ trees: [class, spec, hero]
   Geräte lassen sich auf ihrer Geräteseite löschen.
 - **Karte fehlt nach einem Update:** Zeigt das Dashboard statt einer Karte
   „Custom element doesn't exist: wow-talent-tree-card“ (oder
-  `wow-arsenal-card`), hat die App oder der Browser die Datei der Karte nicht
+  `wow-arsenal-card`, `wow-characters-card`), hat die App oder der Browser die Datei der Karte nicht
   geladen. Ein Fehler beim Laden steht nur in der Konsole des Browsers („Failed
   to load extra module …“), nicht im Log von Home Assistant. Abhilfe: in der
   Companion App den Frontend-Cache zurücksetzen (Einstellungen der App,
@@ -1256,6 +1304,13 @@ Automatische Tests laufen gegen Home Assistant 2026.2.3; live geprüft wurde unt
 Home Assistant 2026.10.4 mit Retail-Charakteren der Region EU, seit 0.11.2 auch
 mit einem Classic-Era-Charakter (siehe [WoW Classic](#wow-classic)).
 
+- **0.32.x:** 382 automatische Tests. 0.32.0: 1 Test für die Auslieferung der
+  Karte „WoW Charaktere“; dass sie mit Version im Pfad im Frontend geladen
+  wird, prüft der bestehende Test für alle Karten. Die Karte ist in Chromium
+  mit erfundenen Daten in 344 und 386 Pixel Breite gezeichnet worden (Retail,
+  Classic Era, Classic Progression, ohne Gerät; Deutsch und Englisch; Auswahl
+  über `entities` mit nicht vorhandener Entität), ohne Fehler und ohne
+  waagrechten Überlauf. **Nicht live geprüft.**
 - **0.31.x:** 381 automatische Tests. 0.31.1: 5 Tests für die Spielversion in
   der Kopfzeile der Arsenal-Karte (je Spielversion: Gerätemodell seit 0.22.0
   und bis 0.21.x erkannt, Anzeige wie in der Karte hinterlegt). Gegenprobe:

@@ -1,4 +1,4 @@
-"""Tests fuer die Karte "WoW Talentbaum": Auslieferung und Laden im Frontend."""
+"""Tests fuer die mitgelieferten Karten: Auslieferung und Laden im Frontend."""
 
 import json
 import re
@@ -24,6 +24,7 @@ ARSENAL = (MANIFEST.parent / "frontend" / "wow-arsenal-card.js").read_text(
     [
         ("wow-talent-tree-card.js", "wow-talent-tree-card"),
         ("wow-arsenal-card.js", "wow-arsenal-card"),
+        ("wow-characters-card.js", "wow-characters-card"),
     ],
 )
 async def test_card_is_served(

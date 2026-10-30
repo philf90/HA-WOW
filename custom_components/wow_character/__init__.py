@@ -68,11 +68,12 @@ _LOGGER = logging.getLogger(__name__)
 
 PLATFORMS = [Platform.BINARY_SENSOR, Platform.EVENT, Platform.IMAGE, Platform.SENSOR]
 CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
-# Karten "WoW Talentbaum" und "WoW Arsenal", von der Integration selbst
-# ausgeliefert; alle Dateien unter frontend/ sind unter CARD_PATH erreichbar.
+# Karten "WoW Talentbaum", "WoW Arsenal" und "WoW Charaktere", von der
+# Integration selbst ausgeliefert; alle Dateien unter frontend/ sind unter
+# CARD_PATH erreichbar.
 CARD_PATH = f"/{DOMAIN}"
 CARD_DIR = Path(__file__).parent / "frontend"
-CARDS = ("wow-talent-tree-card.js", "wow-arsenal-card.js")
+CARDS = ("wow-talent-tree-card.js", "wow-arsenal-card.js", "wow-characters-card.js")
 # Eintrag -> Stand, fuer den gerade neu geladen wird (siehe _async_reload).
 _RELOADING = f"{DOMAIN}_reloading"
 
