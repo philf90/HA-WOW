@@ -115,6 +115,19 @@ function zahl(stateObj) {
   return Number.isNaN(n) ? null : n;
 }
 
+// Spielversion aus dem Geraetemodell: seit 0.22.0 "World of Warcraft" (Retail)
+// bzw. "World of Warcraft Classic Era", bis 0.21.x "World of Warcraft (retail)"
+function spielversion(model) {
+  const m = /^World of Warcraft(?: \((.+)\)| (.+))?$/.exec(model || "");
+  if (!m) {
+    return null;
+  }
+  if (m[1]) {
+    return VERSIONEN[m[1]] || m[1];
+  }
+  return m[2] || VERSIONEN.retail;
+}
+
 function leereSockel(sockets) {
   return (Array.isArray(sockets) ? sockets : []).filter((s) => !s?.gem).length;
 }
@@ -256,8 +269,7 @@ class WowArsenalCard extends HTMLElement {
     if (titel && name && titel.includes(name)) {
       titel = titel.replace(name, "").replace(/^[\s,]+|[\s,]+$/g, "");
     }
-    const m = /^World of Warcraft \((.+)\)$/.exec(geraet?.model || "");
-    const spiel = m ? VERSIONEN[m[1]] || m[1] : null;
+    const spiel = spielversion(geraet?.model);
     const zeile = [
       spiel,
       leer(lvl) ? null : `${this._t("level")} ${lvl.state}`,

@@ -11,7 +11,7 @@ Home-Assistant-Integration für World-of-Warcraft-Charaktere: Level, Itemlevel,
 Ausrüstung, Raid- und Mythic+-Fortschritt, Berufe, Ruf, Erfolge und mehr als
 Sensoren, dazu WoW-Marke, wöchentlicher Reset und Serverstatus. Die Daten kommen
 aus der offiziellen Battle.net API. Unterstützt Retail, WoW Classic (Era,
-Progression, Anniversary) und ist für WoW Forever vorbereitet. Version 0.31.0.
+Progression, Anniversary) und ist für WoW Forever vorbereitet. Version 0.31.1.
 
 Zwei Dashboard-Karten liefert die Integration selbst mit: „WoW Arsenal“
 (`custom:wow-arsenal-card`) und „WoW Talentbaum“ (`custom:wow-talent-tree-card`,
@@ -147,6 +147,12 @@ neu starten. Wer von Hand aktualisiert, ersetzt den ganzen Ordner
 `custom_components/wow_character` samt `translations/`; sonst fehlen neue Texte,
 z. B. die Einträge im Menü „Charakter hinzufügen“. Was sich je Version ändert, steht in den
 [Release-Notes](https://github.com/philf90/HA-WOW/releases).
+
+**Update auf 0.31.1:** keine Migration. Die Arsenal-Karte zeigt die
+Spielversion in der Kopfzeile wieder (Retail, Classic Era usw.); seit 0.22.0
+fehlte sie dort, weil die Karte nur das alte Gerätemodell „World of Warcraft
+(retail)“ erkannte. Zeigt die Karte sie nach dem Neustart noch nicht, die Seite
+im Browser neu laden.
 
 **Update auf 0.31.0:** keine Migration. Zwei neue Sensoren je
 Retail-Charakter in der Gruppe Sammlungen: „Erbstücke“ und „Transmog-Vorlagen“
@@ -1250,7 +1256,12 @@ Automatische Tests laufen gegen Home Assistant 2026.2.3; live geprüft wurde unt
 Home Assistant 2026.10.4 mit Retail-Charakteren der Region EU, seit 0.11.2 auch
 mit einem Classic-Era-Charakter (siehe [WoW Classic](#wow-classic)).
 
-- **0.31.x:** 376 automatische Tests. 0.31.0: 8 Tests für die Sensoren
+- **0.31.x:** 381 automatische Tests. 0.31.1: 5 Tests für die Spielversion in
+  der Kopfzeile der Arsenal-Karte (je Spielversion: Gerätemodell seit 0.22.0
+  und bis 0.21.x erkannt, Anzeige wie in der Karte hinterlegt). Gegenprobe:
+  drei Teile der Erkennung einzeln ausgebaut, jedes Mal schlug ein Test fehl;
+  dass Retail ohne Zusatz „Retail“ zeigt, prüft nur eine Probe mit Node außerhalb
+  der automatischen Tests. **Nicht live geprüft.** 0.31.0: 8 Tests für die Sensoren
   „Erbstücke“ und „Transmog-Vorlagen“ (Anzahl, aufgewertete und Stufen;
   verschiedene Vorlagen, Sets, Plätze; gespeichert nur IDs; seltener Takt und
   Diagnose; Gruppe Sammlungen ausgeschaltet ohne Abfrage und Sensor; Antwort
