@@ -65,12 +65,11 @@ DETAIL_ENDPOINTS: dict[str, tuple[str, int]] = {
     "mounts": ("collections/mounts", 360),
     "pets": ("collections/pets", 360),
     "toys": ("collections/toys", 360),
-    # Erbstuecke und Transmog-Vorlagen (E9): seit 0.30.1 nur fuer die Diagnose,
-    # damit die echten Antworten vor dem Bau von Sensoren geprueft werden.
-    # Endpunkte laut @blizzard-api/wow 4.1.4 (character-collections,
-    # CharacterHeirloomsCollectionSummaryResponse,
+    # Erbstuecke und Transmog-Vorlagen (E9): 0.30.1 nur fuer die Diagnose, seit
+    # 0.31.0 mit Sensoren. Endpunkte laut @blizzard-api/wow 4.1.4
+    # (character-collections, CharacterHeirloomsCollectionSummaryResponse,
     # CharacterTransmogCollectionSummaryResponse); die Classic-Doku nennt sie
-    # nicht.
+    # nicht. Live (30.10.2026) bei allen Charakteren eines Kontos gleich.
     "heirlooms": ("collections/heirlooms", 360),
     "transmogs": ("collections/transmogs", 360),
     "media": ("character-media", 360),
@@ -135,8 +134,8 @@ ENDPOINT_GROUPS: dict[str, tuple[str, ...]] = {
 }
 # Detail-Endpunkte nur fuer die Diagnose, ohne Entitaeten: Ihre echten
 # Antworten sollen vor dem Bau von Sensoren geprueft werden (so 0.28.0 fuer
-# die Dungeons, seit 0.30.1 Erbstuecke und Transmog-Vorlagen).
-DIAGNOSTIC_ONLY: tuple[str, ...] = ("heirlooms", "transmogs")
+# die Dungeons, 0.30.1 fuer Erbstuecke und Transmog-Vorlagen). Derzeit keiner.
+DIAGNOSTIC_ONLY: tuple[str, ...] = ()
 # Endpunkte, bei denen ein 404 laut Blizzard-Doku etwas Dauerhaftes ueber den
 # Charakter sagt. hunter-pets: "If the character is a hunter, returns a summary
 # of the character's hunter pets. Otherwise, returns an HTTP 404 Not Found

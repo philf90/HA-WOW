@@ -77,6 +77,8 @@ DETAIL_KEYS: dict[str, str] = {
     "mounts": "mounts",
     "pets": "pets",
     "toys": "toys",
+    "heirlooms": "heirlooms",
+    "transmogs": "transmogs",
     "avatar": "media",
     "full_body": "media",
     "reputation": "reputations",
@@ -615,6 +617,9 @@ class WowDetailCoordinator(_CharacterMixin, DataUpdateCoordinator[dict[str, Any]
                 failed += 1
                 _LOGGER.debug("%s: %s fehlgeschlagen: %s", self.name, endpoint, err)
                 continue
+            if endpoint == "transmogs":
+                # Tausende Vorlagen mit Link; gespeichert werden nur die IDs.
+                data[endpoint] = p.compact_transmogs(data[endpoint])
             if data[endpoint] is not None:
                 self._delivered.add(endpoint)
             self._fetched[endpoint] = now

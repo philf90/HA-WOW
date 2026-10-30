@@ -11,7 +11,7 @@ Home-Assistant-Integration für World-of-Warcraft-Charaktere: Level, Itemlevel,
 Ausrüstung, Raid- und Mythic+-Fortschritt, Berufe, Ruf, Erfolge und mehr als
 Sensoren, dazu WoW-Marke, wöchentlicher Reset und Serverstatus. Die Daten kommen
 aus der offiziellen Battle.net API. Unterstützt Retail, WoW Classic (Era,
-Progression, Anniversary) und ist für WoW Forever vorbereitet. Version 0.30.1.
+Progression, Anniversary) und ist für WoW Forever vorbereitet. Version 0.31.0.
 
 Zwei Dashboard-Karten liefert die Integration selbst mit: „WoW Arsenal“
 (`custom:wow-arsenal-card`) und „WoW Talentbaum“ (`custom:wow-talent-tree-card`,
@@ -147,6 +147,10 @@ neu starten. Wer von Hand aktualisiert, ersetzt den ganzen Ordner
 `custom_components/wow_character` samt `translations/`; sonst fehlen neue Texte,
 z. B. die Einträge im Menü „Charakter hinzufügen“. Was sich je Version ändert, steht in den
 [Release-Notes](https://github.com/philf90/HA-WOW/releases).
+
+**Update auf 0.31.0:** keine Migration. Zwei neue Sensoren je
+Retail-Charakter in der Gruppe Sammlungen: „Erbstücke“ und „Transmog-Vorlagen“
+(siehe [Erbstücke und Transmog-Vorlagen](#erbstücke-und-transmog-vorlagen)).
 
 **Update auf 0.30.1:** keine Migration. Neu abgefragt werden Erbstücke und
 Transmog-Vorlagen, vorerst nur für die Diagnose (siehe [Ändern, Hinweise und
@@ -415,6 +419,7 @@ Die Takte in den Tabellen sind die Vorgaben; seit 0.20.0 lassen sie sich
 | Erfolge (Anzahl, Punkte je Hauptkategorie als Attribut) | Sensor | 1 h | `achievements`; Kategorien aus `achievement-category/index` |
 | Neuer Erfolg | Ereignis | 1 h | `achievements`, `recent_events` |
 | Reittiere, Haustiere, Spielzeuge | Sensoren | 6 h | `collections/*`, Anzahl |
+| Erbstücke, Transmog-Vorlagen | Sensoren | 6 h | `collections/heirlooms`, `collections/transmogs` |
 | Neu gesammelt (Reittier, Haustier, Spielzeug, Titel) | Ereignis | 6 h | `collections/*`, `titles`, Vergleich zweier Abfragen |
 | Abgeschlossene Quests | Sensor | 6 h | `quests/completed`, Anzahl |
 | Spielstatistik (Werte des Statistik-Fensters) | Sensor, **zunächst aus** | 6 h | `achievements/statistics` |
@@ -551,6 +556,36 @@ Antwort ganz, „unbekannt“. Kommt das Journal nicht, zählt die neueste
 Erweiterung der Antwort ohne „Current Season“, die Gesamtzahl ist dann
 unbekannt. Nur Retail und Forever; Classic fragt den Endpunkt nicht ab.
 Mythic+ zeigen die eigenen Mythic+-Sensoren.
+
+### Erbstücke und Transmog-Vorlagen
+
+Seit 0.31.0, nur Retail und Forever; Classic fragt die Endpunkte nicht ab. Beide
+gelten für das ganze Konto: Live (30.10.2026) zeigten alle Charaktere eines
+Kontos dieselben Werte, auch auf verschiedenen Realms. Wie bei den Reittieren
+hat trotzdem jeder Charakter eigene Sensoren, weil die Integration nicht weiß,
+zu welchem Konto ein Charakter gehört; überzählige lassen sich deaktivieren.
+
+**Erbstücke:** Zustand ist die Zahl der gesammelten Erbstücke (live 35).
+
+- `upgraded`: Zahl der mindestens einmal aufgewerteten Erbstücke.
+- `upgrade_levels`: Zahl der Erbstücke je Aufwertungsstufe, z. B.
+  `{"0": 23, "1": 11, "2": 1}`.
+
+Die Antwort nennt je Erbstück nur die erreichte Stufe, nicht die höchste
+mögliche; „voll aufgewertet“ lässt sich daraus nicht ablesen.
+
+**Transmog-Vorlagen:** Zustand ist die Zahl verschiedener Vorlagen über alle
+Plätze. Jede Vorlage zählt einmal, auch wenn sie unter mehreren Plätzen steht.
+
+- `sets`: Zahl der gesammelten Sets (live 317).
+- `slots`: Vorlagen je Platz in der Sprache der Region. Plätze gleichen Namens
+  stehen zusammen (live „Brust“ für Brust und Robe, „Schildhand“ und „Distanz“
+  je zweimal).
+
+Ob die Zahlen denen im Sammlungsfenster des Spiels entsprechen, ist nicht
+geprüft. Die Antwort nennt jede Vorlage mit Link (live 4.337 Einträge); die
+Integration behält nur die IDs. Antwort ohne Listen: 0; keine Antwort:
+„unbekannt“.
 
 ### Ereignisse
 
@@ -732,7 +767,7 @@ weiterhin auf Englisch.
 
 Lange Attribute speichert Home Assistant nicht im Verlauf: `tooltip`, `factions`,
 `runs`, `titles`, `statistics`, `activities`, `pets`, `members`, `transmog`,
-`trees`, `class_nodes`, `spec_nodes`, `hero_nodes` und `gates`. Die Werte stehen trotzdem im aktuellen Zustand.
+`trees`, `class_nodes`, `spec_nodes`, `hero_nodes`, `gates` und `slots`. Die Werte stehen trotzdem im aktuellen Zustand.
 
 ## Abfragen und Takte
 
@@ -1069,9 +1104,10 @@ trees: [class, spec, hero]
   Attribute am Sensor „Wöchentlicher Reset“.
   Seit 0.30.1 stehen dort auch Erbstücke (`collections/heirlooms`) und
   Transmog-Vorlagen (`collections/transmogs`) unter `details` → `heirlooms` und
-  `transmogs`, nur Retail und Forever. Die Integration fragt sie im seltenen
-  Takt (Standard 6 h) nur dafür ab, noch ohne Entitäten: Die echten Antworten
-  sollen geprüft sein, bevor daraus Sensoren werden. Gekürzt: bei Erbstücken die
+  `transmogs`, nur Retail und Forever. 0.30.1 fragte sie nur dafür ab, seit
+  0.31.0 gibt es die Sensoren [Erbstücke und
+  Transmog-Vorlagen](#erbstücke-und-transmog-vorlagen); Transmogs stehen seitdem
+  ohne Links. Gekürzt: bei Erbstücken die
   Schlüssel der Antwort, die Anzahl, die Verteilung der Aufwertungsstufen und
   die ersten drei Einträge; bei Transmogs die Schlüssel, die Zahl der Sets mit
   den ersten drei, je Platz die Zahl der Vorlagen und die ersten zwei Vorlagen
@@ -1209,6 +1245,14 @@ Automatische Tests laufen gegen Home Assistant 2026.2.3; live geprüft wurde unt
 Home Assistant 2026.10.4 mit Retail-Charakteren der Region EU, seit 0.11.2 auch
 mit einem Classic-Era-Charakter (siehe [WoW Classic](#wow-classic)).
 
+- **0.31.x:** 376 automatische Tests. 0.31.0: 8 Tests für die Sensoren
+  „Erbstücke“ und „Transmog-Vorlagen“ (Anzahl, aufgewertete und Stufen;
+  verschiedene Vorlagen, Sets, Plätze; gespeichert nur IDs; seltener Takt und
+  Diagnose; Gruppe Sammlungen ausgeschaltet ohne Abfrage und Sensor; Antwort
+  ohne Listen ergibt 0; 404 unbekannt; doppelte IDs und gleichnamige Plätze;
+  fremde Einträge), die Tests für die Diagnose aus 0.30.1 gehen darin auf;
+  Classic legt die Sensoren nicht an. Gegenprobe: neun Teile einzeln ausgebaut,
+  jedes Mal schlug ein Test fehl. **Nicht live geprüft.**
 - **0.30.x:** 374 automatische Tests. 0.30.1: 6 Tests für Erbstücke und
   Transmog-Vorlagen in der Diagnose (gekürzt mit Anzahl, Aufwertungsstufen,
   Sets und Vorlagen je Platz, keine Entität; unerwartete Antwort ohne Fehler;

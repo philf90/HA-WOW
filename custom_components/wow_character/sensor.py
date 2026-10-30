@@ -315,6 +315,22 @@ DETAIL_SENSORS: tuple[WowSensorDescription, ...] = (
         state_class=SensorStateClass.MEASUREMENT,
         value_fn=lambda d: p.collection_count(d.get("toys"), "toys"),
     ),
+    # Erbstuecke und Transmog-Vorlagen gelten fuers ganze Konto (live bei allen
+    # Charakteren gleich); wie die Reittiere je Charakter.
+    WowSensorDescription(
+        key="heirlooms",
+        translation_key="heirlooms",
+        state_class=SensorStateClass.MEASUREMENT,
+        value_fn=lambda d: p.heirlooms(d.get("heirlooms"))[0],
+        attrs_fn=lambda d: p.heirlooms(d.get("heirlooms"))[1],
+    ),
+    WowSensorDescription(
+        key="transmogs",
+        translation_key="transmogs",
+        state_class=SensorStateClass.MEASUREMENT,
+        value_fn=lambda d: p.transmogs(d.get("transmogs"))[0],
+        attrs_fn=lambda d: p.transmogs(d.get("transmogs"))[1],
+    ),
     WowSensorDescription(
         key="empty_sockets",
         translation_key="empty_sockets",
@@ -587,7 +603,8 @@ class WowSensor(WowCharacterEntity, SensorEntity):
 
     entity_description: WowSensorDescription
     # Lange Listen fuer Karten (M+-Laeufe, Titel, Statistik-Fenster, Talente,
-    # Talentbaum); nur die Sensoren mit diesen Attributen sind betroffen.
+    # Talentbaum, Transmog-Vorlagen je Platz); nur die Sensoren mit diesen
+    # Attributen sind betroffen.
     _unrecorded_attributes = frozenset(
         {
             "runs",
@@ -598,6 +615,7 @@ class WowSensor(WowCharacterEntity, SensorEntity):
             "spec_nodes",
             "hero_nodes",
             "gates",
+            "slots",
         }
     )
 
