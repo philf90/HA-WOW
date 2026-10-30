@@ -11,7 +11,7 @@ Home-Assistant-Integration für World-of-Warcraft-Charaktere: Level, Itemlevel,
 Ausrüstung, Raid- und Mythic+-Fortschritt, Berufe, Ruf, Erfolge und mehr als
 Sensoren, dazu WoW-Marke, wöchentlicher Reset und Serverstatus. Die Daten kommen
 aus der offiziellen Battle.net API. Unterstützt Retail, WoW Classic (Era,
-Progression, Anniversary) und ist für WoW Forever vorbereitet. Version 0.29.1.
+Progression, Anniversary) und ist für WoW Forever vorbereitet. Version 0.30.0.
 
 Zwei Dashboard-Karten liefert die Integration selbst mit: „WoW Arsenal“
 (`custom:wow-arsenal-card`) und „WoW Talentbaum“ (`custom:wow-talent-tree-card`,
@@ -147,6 +147,10 @@ neu starten. Wer von Hand aktualisiert, ersetzt den ganzen Ordner
 `custom_components/wow_character` samt `translations/`; sonst fehlen neue Texte,
 z. B. die Einträge im Menü „Charakter hinzufügen“. Was sich je Version ändert, steht in den
 [Release-Notes](https://github.com/philf90/HA-WOW/releases).
+
+**Update auf 0.30.0:** keine Migration. Der Sensor „Wöchentlicher Reset“
+nennt die laufende Mythic+-Season als Attribute (`season_id`, `season_name`,
+`season_start`, `season_end`).
 
 **Update auf 0.29.1:** keine Migration. Die Spielwelt fragt zusätzlich die
 laufende Mythic+-Season mit Beginn und Ende ab, vorerst nur für die Diagnose
@@ -423,7 +427,7 @@ Je Region ein Gerät „WoW-Spielwelt EU“ (bzw. US, KR, TW):
 | Wert | Typ | Takt | Quelle (Endpunkt, Feld) |
 |---|---|---|---|
 | WoW-Marke | Sensor (Gold) | 1 h | `token/index`, `price` ÷ 10.000 |
-| Wöchentlicher Reset | Zeitstempel | 1 h | `mythic-keystone/period/{aktuell}`, `end_timestamp` + 1 s |
+| Wöchentlicher Reset (laufende Mythic+-Season als Attribute `season_id`, `season_name`, `season_start`, `season_end`) | Zeitstempel | 1 h; Season 6 h | `mythic-keystone/period/{aktuell}`, `end_timestamp` + 1 s; Season aus `mythic-keystone/season/{id}` |
 | Server je Realm | Ein/Aus | 15 min | `connected-realm/{id}`, `status.type` |
 | Warteschlange je Realm | Ein/Aus | 15 min | `connected-realm/{id}`, `has_queue` |
 | Bevölkerung je Realm | Sensor | 15 min | `connected-realm/{id}`, `population.type` (seit 0.22.0; vorher `population.name`) |
@@ -1053,9 +1057,12 @@ trees: [class, spec, hero]
   Seit 0.29.1 steht unter `worlds` → `season_info` die laufende Mythic+-Season
   (`mythic-keystone/season/{id}`, nur Retail): Beginn und Ende als
   Zeitstempel, Name, Zahl der Perioden und die Schlüssel der Antwort. Abgefragt
-  alle 6 Stunden zusammen mit der Season-ID, bisher ohne Entität: Laut
-  Typdefinition ist das Ende optional; ob die laufende Season eins nennt, soll
-  die echte Antwort zeigen, bevor daraus ein Kalender wird.
+  alle 6 Stunden zusammen mit der Season-ID. Live am 30.10.2026 nannte die
+  Antwort für die laufende Season 18 („Dungeons auf Mythisch+ (Midnight Saison
+  2)“) den Beginn (12.08.2026, 04:00 UTC) und 12 Perioden, aber kein Ende
+  (`end_timestamp` fehlte). Ein Kalender hätte damit nur den wöchentlichen Reset
+  gedoppelt; seit 0.30.0 stehen Name, Beginn und (falls geliefert) Ende als
+  Attribute am Sensor „Wöchentlicher Reset“.
   Damit lassen sich Feldnamen prüfen, wenn ein Wert fehlt. Vergebene Talente
   stehen dort mit IDs und Rang, ohne Tooltip-Texte. Beim Herunterladen lädt die
   Diagnose einmal den Talentbaum des aktiven Loadouts (Retail, seit 0.12.1) und
@@ -1188,6 +1195,11 @@ Automatische Tests laufen gegen Home Assistant 2026.2.3; live geprüft wurde unt
 Home Assistant 2026.10.4 mit Retail-Charakteren der Region EU, seit 0.11.2 auch
 mit einem Classic-Era-Charakter (siehe [WoW Classic](#wow-classic)).
 
+- **0.30.x:** 368 automatische Tests. 0.30.0: 3 Tests für die Season-Attribute
+  am Sensor „Wöchentlicher Reset“ (Beginn als Zeitpunkt, Ende leer ohne Angabe;
+  mit Name und Ende; Season-Abfrage gescheitert, Reset bleibt). Gegenprobe:
+  drei Teile einzeln ausgebaut, jedes Mal schlug ein Test fehl. **Nicht live
+  geprüft.**
 - **0.29.x:** 365 automatische Tests. 0.29.1: 4 Tests für die Season in der
   Diagnose (Felder und Schlüssel der Antwort, mit Ende und Name, Fehler lässt
   die anderen Teile laufen, ohne Season-ID keine Abfrage); „alle Teile
