@@ -65,6 +65,14 @@ DETAIL_ENDPOINTS: dict[str, tuple[str, int]] = {
     "mounts": ("collections/mounts", 360),
     "pets": ("collections/pets", 360),
     "toys": ("collections/toys", 360),
+    # Erbstuecke und Transmog-Vorlagen (E9): seit 0.30.1 nur fuer die Diagnose,
+    # damit die echten Antworten vor dem Bau von Sensoren geprueft werden.
+    # Endpunkte laut @blizzard-api/wow 4.1.4 (character-collections,
+    # CharacterHeirloomsCollectionSummaryResponse,
+    # CharacterTransmogCollectionSummaryResponse); die Classic-Doku nennt sie
+    # nicht.
+    "heirlooms": ("collections/heirlooms", 360),
+    "transmogs": ("collections/transmogs", 360),
     "media": ("character-media", 360),
     "equipment": ("equipment", 60),
     "reputations": ("reputations", 360),
@@ -115,7 +123,7 @@ CONF_DISABLED_GROUPS = "disabled_groups"
 ENDPOINT_GROUPS: dict[str, tuple[str, ...]] = {
     "guild": ("guild", "guild_activity", "guild_roster"),
     # Titel gehoeren zum Ereignis "Neu gesammelt".
-    "collections": ("mounts", "pets", "toys", "titles"),
+    "collections": ("mounts", "pets", "toys", "titles", "heirlooms", "transmogs"),
     "achievements": ("achievements",),
     "game_statistics": ("game_statistics",),
     "quests": ("quests",),
@@ -127,8 +135,8 @@ ENDPOINT_GROUPS: dict[str, tuple[str, ...]] = {
 }
 # Detail-Endpunkte nur fuer die Diagnose, ohne Entitaeten: Ihre echten
 # Antworten sollen vor dem Bau von Sensoren geprueft werden (so 0.28.0 fuer
-# die Dungeons). Derzeit keiner.
-DIAGNOSTIC_ONLY: tuple[str, ...] = ()
+# die Dungeons, seit 0.30.1 Erbstuecke und Transmog-Vorlagen).
+DIAGNOSTIC_ONLY: tuple[str, ...] = ("heirlooms", "transmogs")
 # Endpunkte, bei denen ein 404 laut Blizzard-Doku etwas Dauerhaftes ueber den
 # Charakter sagt. hunter-pets: "If the character is a hunter, returns a summary
 # of the character's hunter pets. Otherwise, returns an HTTP 404 Not Found
