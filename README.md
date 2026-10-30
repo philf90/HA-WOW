@@ -1642,9 +1642,9 @@ mit einem Classic-Era-Charakter (siehe [WoW Classic](#wow-classic)).
   Symbole der Talente und der Items brechen nach erneutem 429 bis zum
   nächsten Takt ab). Gegenprobe: vier Fehler einzeln eingebaut, jedes Mal
   schlug mindestens ein Test fehl. Anlass: Nach jedem Neustart fehlten
-  andere Talent-Symbole (Clambo 7, dann 9), also kein dauerhaftes Fehlen bei
-  Blizzard; dass es 429 war, ist nicht belegt, weil gescheiterte Symbole nur
-  im Debug-Log stehen. 0.14.0: 3 Tests für die Karte
+  andere Talent-Symbole (bei einem Charakter 7, dann 9), also kein dauerhaftes
+  Fehlen bei Blizzard; dass es 429 war, ist nicht belegt, weil gescheiterte
+  Symbole nur im Debug-Log stehen. 0.14.0: 3 Tests für die Karte
   „WoW Talentbaum“ (Datei wird ausgeliefert; mit Frontend als Modul geladen,
   Version im Pfad; ohne Frontend nicht). Gegenprobe: drei Fehler einzeln
   eingebaut, jedes Mal schlug mindestens ein Test fehl. Die Karte selbst
