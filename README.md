@@ -11,7 +11,7 @@ Home-Assistant-Integration für World-of-Warcraft-Charaktere: Level, Itemlevel,
 Ausrüstung, Raid- und Mythic+-Fortschritt, Berufe, Ruf, Erfolge und mehr als
 Sensoren, dazu WoW-Marke, wöchentlicher Reset und Serverstatus. Die Daten kommen
 aus der offiziellen Battle.net API. Unterstützt Retail, WoW Classic (Era,
-Progression, Anniversary) und ist für WoW Forever vorbereitet. Version 0.24.0.
+Progression, Anniversary) und ist für WoW Forever vorbereitet. Version 0.25.0.
 
 Zwei Dashboard-Karten liefert die Integration selbst mit: „WoW Arsenal“
 (`custom:wow-arsenal-card`) und „WoW Talentbaum“ (`custom:wow-talent-tree-card`,
@@ -147,6 +147,11 @@ neu starten. Wer von Hand aktualisiert, ersetzt den ganzen Ordner
 `custom_components/wow_character` samt `translations/`; sonst fehlen neue Texte,
 z. B. die Einträge im Menü „Charakter hinzufügen“. Was sich je Version ändert, steht in den
 [Release-Notes](https://github.com/philf90/HA-WOW/releases).
+
+**Update auf 0.25.0:** keine Migration. Der Raid-Fortschritt zählt jetzt für
+alle Charaktere dieselbe, aktuelle Erweiterung und alle ihre Raids (siehe
+[Raid-Fortschritt](#raid-fortschritt)). Charaktere ohne Kills dort zeigen 0
+statt alter Werte oder „unbekannt“; im Verlauf springt der Wert einmal.
 
 **Update auf 0.24.0:** keine Migration. Reparaturhinweise zu einem Charakter
 öffnen beim Anklicken einen Dialog zum Beheben (siehe [Ändern, Hinweise und
@@ -360,7 +365,7 @@ Die Takte in den Tabellen sind die Vorgaben; seit 0.20.0 lassen sie sich
 | Leere Sockel, Verzauberungen, Set-Fortschritt | Sensoren | 1 h | `equipment`, ausgewertet |
 | Leben, Primärwert, Krit, Tempo, Meisterschaft, Vielseitigkeit | Sensoren, **zunächst aus** | 1 h | `statistics` |
 | **Fortschritt** | | | |
-| Raid-Fortschritt LFR, Normal, Heroisch, Mythisch | Sensoren | 1 h | `encounters/raids`, neueste Erweiterung |
+| Raid-Fortschritt LFR, Normal, Heroisch, Mythisch | Sensoren | 1 h; Journal im seltenen Takt (6 h) | `encounters/raids`; Erweiterung, Raids und Bosszahl aus `journal-expansion/index`, `journal-expansion/{id}` und `journal-instance/{id}` |
 | Boss besiegt | Ereignis | 1 h | `encounters/raids`, `last_kill_timestamp` |
 | Mythic+-Wertung der aktuellen Season (Farbe, Season, `api_rating` als Attribute) | Sensor | 15 min | Mythic+-Profil, `current_mythic_rating` |
 | Höchster Mythic+-Schlüssel (beste Läufe als Attribut), Läufe in Zeit | Sensoren | 1 h | `mythic-keystone-profile/season/{aktuelle Season}` |
@@ -442,6 +447,34 @@ liefert z. B. zwei Fraktionen „Bilgewasserkartell“.
   Unterkategorien „Kategorie / Unterkategorie“) und `quantity`. Einzelne Werte
   lassen sich in Karten oder Templates über die `id` auswählen, z. B. 98 (Quests
   abgeschlossen) oder 60 (Tode insgesamt).
+
+### Raid-Fortschritt
+
+Zustand ist die Zahl der besiegten Bosse einer Schwierigkeit über alle Raids der
+aktuellen Erweiterung. Seit 0.25.0 kommt die aktuelle Erweiterung aus dem
+Dungeonkompendium (Journal) und gilt für alle Charaktere gleich: die mit der
+höchsten ID ohne den Eintrag „Current Season“ (ID 505). Der sammelt die Raids
+der Saison aus mehreren Erweiterungen; im Live-System stand dort am 30.10.2026
+z. B. Manaforge Omega aus The War Within neben den Midnight-Raids. Vorher galt je
+Charakter die neueste Erweiterung in seiner eigenen Antwort; wer dort nicht
+geraidet hatte, sah eine ältere Erweiterung.
+
+- `raids`: jeder Raid der Erweiterung in der Reihenfolge des Journals, z. B.
+  `{"The Voidspire": "5/6", "The Dreamrift": "1/1"}`; ohne Kill `0/…`. Namen wie
+  in der Antwort des Charakters (Englisch), für Raids ohne Eintrag aus dem Journal.
+- `total_bosses`: Bosse aller Raids laut Journal (`encounters`); ohne Bossliste
+  im Journal zählt die Angabe der Antwort.
+- `latest_raid`: der Raid mit dem jüngsten Kill in dieser Schwierigkeit, sonst
+  leer.
+- `expansion`, `images` wie bisher.
+
+Charaktere ohne Kills in der Erweiterung zeigen 0; fehlt die Antwort ganz, bleibt
+der Wert unbekannt. Kommt das Journal nicht, rechnet der Sensor wie vor 0.25.0.
+Nur Retail; Classic fragt den Endpunkt nicht ab. Grenze: Die API ordnet einen
+Raid keiner Season zu. Kommt in einer Erweiterung ein Raid dazu, zählt der Zustand
+alte und neue Raids zusammen; die Einzelwerte stehen in `raids`. Felder des
+Journals laut Typdefinitionen von `@blizzard-api/wow` 4.1.4; die Blizzard-Doku
+nennt nur die Pfade.
 
 ### Ereignisse
 
@@ -1065,6 +1098,16 @@ Automatische Tests laufen gegen Home Assistant 2026.2.3; live geprüft wurde unt
 Home Assistant 2026.10.4 mit Retail-Charakteren der Region EU, seit 0.11.2 auch
 mit einem Classic-Era-Charakter (siehe [WoW Classic](#wow-classic)).
 
+- **0.25.x:** 341 automatische Tests. 0.25.0: 10 Tests für den Raid-Fortschritt
+  (nur alte Erweiterung ergibt 0 mit allen Raids des Journals, Antwort ohne
+  Raids ergibt 0, Raid unter „Current Season“ und Erweiterung zählt einmal
+  mit `latest_raid`, „Current Season“ nie neueste Erweiterung, ohne Journal wie
+  vorher, Bosszahl aus der Antwort ohne Bossliste, Bosszahl nur einmal
+  nachgeschlagen, ohne Antwort unbekannt, Reihenfolge und Namen); angepasst
+  wurden 4 Tests mit der neuen Bosszahl, Instanz-IDs wie in echten Antworten und
+  dem Journal als Teil der Spielwelt; Classic fragt das Journal nicht ab.
+  Gegenprobe: zehn Teile einzeln ausgebaut, jedes Mal schlug ein Test fehl.
+  **Nicht live geprüft.**
 - **0.24.x:** 331 automatische Tests. 0.24.0: 11 Tests für den Dialog an den
   Reparaturhinweisen (Hinweis fixierbar mit Eintrag und Charakter; neuer Name
   mit gleicher Entität und gleichem Gerät, Vorgaben und Leerzeichen; gleicher

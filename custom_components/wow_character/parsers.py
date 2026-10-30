@@ -62,29 +62,109 @@ def _current_expansion(raids: dict[str, Any] | None) -> dict[str, Any] | None:
     return max(expansions, key=lambda e: (e.get("expansion") or {}).get("id", 0))
 
 
+def _raid_modes(
+    instance: dict[str, Any] | None, difficulty: str
+) -> dict[str, Any] | None:
+    for mode in (instance or {}).get("modes") or []:
+        if (
+            isinstance(mode, dict)
+            and (mode.get("difficulty") or {}).get("type") == difficulty
+        ):
+            return mode
+    return None
+
+
+def _journal_raids(
+    raids: dict[str, Any], journal: dict[str, Any]
+) -> list[tuple[str, int, dict[str, Any] | None, int | None]]:
+    """Raids des Journals: (Name, Instanz-ID, Eintrag des Charakters, Bosse).
+
+    Den Eintrag des Charakters sucht die Instanz-ID ueber alle Erweiterungen der
+    Antwort; derselbe Raid steht z. B. unter "Midnight" und "Current Season".
+    Der Name kommt aus der Antwort des Charakters (wie bisher), fuer Raids ohne
+    Eintrag aus dem Journal.
+    """
+    by_id: dict[int, dict[str, Any]] = {}
+    for expansion in raids.get("expansions") or []:
+        for instance in (expansion or {}).get("instances") or []:
+            info = (instance or {}).get("instance") or {}
+            if isinstance(info.get("id"), int):
+                by_id.setdefault(info["id"], instance)
+    result = []
+    for raid in journal.get("raids") or []:
+        instance = by_id.get(raid["id"])
+        name = name_of((instance or {}).get("instance")) or raid.get("name") or "?"
+        result.append((name, raid["id"], instance, raid.get("bosses")))
+    return result
+
+
+def _newest_kill(mode: dict[str, Any] | None) -> int:
+    encounters = ((mode or {}).get("progress") or {}).get("encounters") or []
+    kills = [
+        e.get("last_kill_timestamp")
+        for e in encounters
+        if isinstance(e, dict) and isinstance(e.get("last_kill_timestamp"), int)
+    ]
+    return max(kills, default=0)
+
+
 def raid_progress(
-    raids: dict[str, Any] | None, difficulty: str
+    raids: dict[str, Any] | None,
+    difficulty: str,
+    journal: dict[str, Any] | None = None,
 ) -> tuple[int | None, dict[str, Any]]:
-    """Besiegte Bosse einer Schwierigkeit in der neuesten Erweiterung."""
-    expansion = _current_expansion(raids)
-    if expansion is None:
+    """Besiegte Bosse einer Schwierigkeit in der neuesten Erweiterung.
+
+    Mit Journal (Spielwelt, Retail, seit 0.25.0): alle Raids der Erweiterung,
+    die fuer alle Charaktere gleich ist, mit der Bosszahl aus dem Journal; ohne
+    Kill zaehlt der Raid mit 0. Ohne Journal wie vorher: neueste Erweiterung in
+    der Antwort des Charakters, Bosszahl aus der Antwort.
+    """
+    if raids is None:
         return None, {}
-    done = total = 0
-    per_raid: dict[str, str] = {}
-    for instance in expansion.get("instances") or []:
-        for mode in instance.get("modes") or []:
-            if (mode.get("difficulty") or {}).get("type") != difficulty:
+    if journal and journal.get("raids"):
+        rows = []
+        for name, _id, instance, bosses in _journal_raids(raids, journal):
+            mode = _raid_modes(instance, difficulty)
+            progress = (mode or {}).get("progress") or {}
+            total = bosses if bosses is not None else progress.get("total_count", 0)
+            rows.append((name, progress.get("completed_count", 0), total, mode))
+        own = next(
+            (
+                e
+                for e in raids.get("expansions") or []
+                if isinstance(e, dict)
+                and (e.get("expansion") or {}).get("id") == journal.get("id")
+            ),
+            None,
+        )
+        expansion_name = name_of((own or {}).get("expansion")) or journal.get("name")
+    else:
+        expansion = _current_expansion(raids)
+        if expansion is None:
+            return None, {}
+        rows = []
+        for instance in expansion.get("instances") or []:
+            mode = _raid_modes(instance, difficulty)
+            if mode is None:
                 continue
             progress = mode.get("progress") or {}
-            completed = progress.get("completed_count", 0)
-            count = progress.get("total_count", 0)
-            done += completed
-            total += count
-            per_raid[name_of(instance.get("instance")) or "?"] = f"{completed}/{count}"
-    return done, {
-        "expansion": name_of(expansion.get("expansion")),
-        "total_bosses": total,
-        "raids": per_raid,
+            rows.append(
+                (
+                    name_of(instance.get("instance")) or "?",
+                    progress.get("completed_count", 0),
+                    progress.get("total_count", 0),
+                    mode,
+                )
+            )
+        expansion_name = name_of(expansion.get("expansion"))
+    newest = max(rows, key=lambda r: _newest_kill(r[3]), default=None)
+    return sum(r[1] for r in rows), {
+        "expansion": expansion_name,
+        "total_bosses": sum(r[2] for r in rows),
+        "raids": {r[0]: f"{r[1]}/{r[2]}" for r in rows},
+        # Raid mit dem juengsten Kill in dieser Schwierigkeit
+        "latest_raid": newest[0] if newest and _newest_kill(newest[3]) else None,
     }
 
 
@@ -928,8 +1008,17 @@ def game_statistics(data: dict[str, Any] | None) -> list[dict[str, Any]]:
     return result
 
 
-def raid_instances(raids: dict[str, Any] | None) -> dict[str, int]:
-    """Raids der neuesten Erweiterung: Name -> ID der Journal-Instanz."""
+def raid_instances(
+    raids: dict[str, Any] | None, journal: dict[str, Any] | None = None
+) -> dict[str, int]:
+    """Raids der neuesten Erweiterung: Name -> ID der Journal-Instanz.
+
+    Gleiche Namen und Auswahl wie raid_progress.
+    """
+    if journal and journal.get("raids"):
+        if raids is None:
+            return {}
+        return {name: i for name, i, _inst, _b in _journal_raids(raids, journal)}
     expansion = _current_expansion(raids) or {}
     result = {}
     for instance in expansion.get("instances") or []:

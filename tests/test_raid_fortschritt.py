@@ -1,0 +1,207 @@
+"""Tests fuer 0.25.0: Raid-Fortschritt der aktuellen Erweiterung (W3)."""
+
+import copy
+
+import pytest
+from homeassistant.core import HomeAssistant
+from homeassistant.helpers import entity_registry as er
+
+from custom_components.wow_character import parsers as p
+from custom_components.wow_character.const import DOMAIN
+
+from .conftest import (
+    API,
+    GAME,
+    RAIDS,
+    UID1,
+    character_subentry,
+    main_entry,
+    mock_api,
+    mock_token,
+)
+
+RAIDS_URL = f"{API}/encounters/raids"
+
+
+async def _setup(hass: HomeAssistant, aioclient_mock, override: dict | None = None):
+    mock_token(aioclient_mock)
+    mock_api(aioclient_mock, override)
+    entry = main_entry(character_subentry())
+    entry.add_to_hass(hass)
+    assert await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+    return entry
+
+
+def _raid(hass: HomeAssistant, key: str = "raid_heroic"):
+    entity_id = er.async_get(hass).async_get_entity_id(
+        "sensor", DOMAIN, f"{UID1}-{key}"
+    )
+    return hass.states.get(entity_id)
+
+
+def _mode(kind: str, done: int, total: int, kill: int | None = None) -> dict:
+    progress: dict = {"completed_count": done, "total_count": total}
+    if kill is not None:
+        progress["encounters"] = [{"last_kill_timestamp": kill}]
+    return {"difficulty": {"type": kind}, "progress": progress}
+
+
+def _instance(raid_id: int, name: str, *modes: dict) -> dict:
+    return {"instance": {"id": raid_id, "name": name}, "modes": list(modes)}
+
+
+async def test_old_expansion_counts_as_zero(
+    hass: HomeAssistant, aioclient_mock
+) -> None:
+    """Nur Kills einer alten Erweiterung: 0 in der aktuellen statt alter Werte."""
+    old_only = {"expansions": RAIDS["expansions"][:1]}
+    await _setup(hass, aioclient_mock, {RAIDS_URL: old_only})
+    state = _raid(hass)
+    assert state.state == "0"
+    # Erweiterung und Raidnamen aus dem Journal; der Charakter kennt sie nicht.
+    assert state.attributes["expansion"] == "Neue Erweiterung (Journal)"
+    assert state.attributes["raids"] == {
+        "Neuer Raid (Journal)": "0/8",
+        "Zweiter Raid": "0/4",
+    }
+    assert state.attributes["total_bosses"] == 12
+    assert state.attributes["latest_raid"] is None
+
+
+async def test_without_raid_history_zero(hass: HomeAssistant, aioclient_mock) -> None:
+    """Antwort ohne expansions (nie geraidet): 0 statt unbekannt."""
+    await _setup(hass, aioclient_mock, {RAIDS_URL: {"character": {}}})
+    assert _raid(hass).state == "0"
+    assert _raid(hass, "raid_lfr").attributes["total_bosses"] == 12
+
+
+async def test_raid_in_two_tiers_counts_once(
+    hass: HomeAssistant, aioclient_mock
+) -> None:
+    """Derselbe Raid unter "Current Season" und der Erweiterung zaehlt einmal."""
+    raids = {
+        "expansions": [
+            {
+                "expansion": {"id": 505, "name": "Current Season"},
+                "instances": [
+                    _instance(9201, "Neuer Raid", _mode("LFR", 5, 8, 2000)),
+                    _instance(9202, "Zweiter Raid", _mode("LFR", 1, 4, 3000)),
+                    # Raid einer anderen Erweiterung in "Current Season"
+                    _instance(9101, "Alter Raid", _mode("LFR", 7, 9, 4000)),
+                ],
+            },
+            {
+                "expansion": {"id": 514, "name": "Neue Erweiterung"},
+                "instances": [
+                    _instance(9201, "Neuer Raid", _mode("LFR", 5, 8, 2000)),
+                    _instance(9202, "Zweiter Raid", _mode("LFR", 1, 4, 3000)),
+                ],
+            },
+        ]
+    }
+    await _setup(hass, aioclient_mock, {RAIDS_URL: raids})
+    state = _raid(hass, "raid_lfr")
+    assert state.state == "6"
+    assert state.attributes["raids"] == {"Neuer Raid": "5/8", "Zweiter Raid": "1/4"}
+    assert state.attributes["total_bosses"] == 12
+    assert state.attributes["latest_raid"] == "Zweiter Raid"
+    assert state.attributes["expansion"] == "Neue Erweiterung"
+
+
+async def test_current_season_tier_not_newest(
+    hass: HomeAssistant, aioclient_mock
+) -> None:
+    """ "Current Season" (505) gilt nie als neueste Erweiterung."""
+    await _setup(
+        hass,
+        aioclient_mock,
+        {
+            f"{GAME}/journal-expansion/index": {
+                "tiers": [
+                    {"id": 503, "name": "Alte Erweiterung"},
+                    {"id": 505, "name": "Current Season"},
+                ]
+            },
+            f"{GAME}/journal-expansion/503": {
+                "raids": [{"id": 9101, "name": "Alter Raid"}]
+            },
+            f"{GAME}/journal-instance/9101": {"encounters": [{}] * 9},
+            f"{GAME}/media/journal-instance/9101": 404,
+        },
+    )
+    state = _raid(hass)
+    assert state.state == "9"
+    assert state.attributes["raids"] == {"Alter Raid": "9/9"}
+    assert state.attributes["expansion"] == "Alte Erweiterung"
+
+
+async def test_without_journal_as_before(hass: HomeAssistant, aioclient_mock) -> None:
+    """Journal nicht erreichbar: Berechnung wie vor 0.25.0."""
+    await _setup(hass, aioclient_mock, {f"{GAME}/journal-expansion/index": 500})
+    state = _raid(hass)
+    assert state.state == "6"
+    assert state.attributes["raids"] == {"Neuer Raid": "6/8"}
+    assert state.attributes["total_bosses"] == 8
+    assert state.attributes["latest_raid"] == "Neuer Raid"
+
+
+async def test_boss_count_from_answer_without_journal_instance(
+    hass: HomeAssistant, aioclient_mock
+) -> None:
+    """Ohne Bossliste im Journal zaehlt total_count aus der Antwort."""
+    await _setup(hass, aioclient_mock, {f"{GAME}/journal-instance/9201": 404})
+    assert _raid(hass).attributes["raids"] == {
+        "Neuer Raid": "6/8",
+        "Zweiter Raid": "0/4",
+    }
+
+
+async def test_boss_counts_looked_up_once(hass: HomeAssistant, aioclient_mock) -> None:
+    """Die Bosszahl je Raid fragt die Spielwelt nur einmal ab."""
+    entry = await _setup(hass, aioclient_mock)
+    (world,) = entry.runtime_data.worlds.values()
+    world._fetched.clear()
+    await world.async_refresh()
+
+    def calls(path: str) -> int:
+        return sum(1 for c in aioclient_mock.mock_calls if path in str(c[1]))
+
+    assert calls("/journal-expansion/index") == 2
+    assert calls("/data/wow/journal-instance/9201") == 1
+    assert world.data["raid_journal"] == {
+        "id": 514,
+        "name": "Neue Erweiterung (Journal)",
+        "raids": [
+            {"id": 9201, "name": "Neuer Raid (Journal)", "bosses": 8},
+            {"id": 9202, "name": "Zweiter Raid", "bosses": 4},
+        ],
+    }
+
+
+@pytest.mark.parametrize("journal", [None, {"id": 514, "raids": [{"id": 1}]}])
+def test_no_raid_answer_unknown(journal) -> None:
+    """Ohne Antwort des Endpunkts bleibt der Sensor unbekannt."""
+    assert p.raid_progress(None, "HEROIC", journal) == (None, {})
+    assert p.raid_instances(None, journal) == {}
+
+
+def test_journal_raid_order_and_names() -> None:
+    """Reihenfolge des Journals; Namen aus der Antwort, sonst aus dem Journal."""
+    raids = copy.deepcopy(RAIDS)
+    journal = {
+        "id": 514,
+        "name": "J",
+        "raids": [
+            {"id": 9202, "name": "Zweiter Raid", "bosses": 4},
+            {"id": 9201, "name": "Neuer Raid (Journal)", "bosses": 8},
+        ],
+    }
+    assert list(p.raid_progress(raids, "HEROIC", journal)[1]["raids"]) == [
+        "Zweiter Raid",
+        "Neuer Raid",
+    ]
+    assert p.raid_instances(raids, journal) == {
+        "Zweiter Raid": 9202,
+        "Neuer Raid": 9201,
+    }

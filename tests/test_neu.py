@@ -76,7 +76,7 @@ async def test_class_spec_and_raid_images(hass: HomeAssistant, aioclient_mock) -
                 "instances": [
                     {
                         **RAIDS["expansions"][1]["instances"][0],
-                        "instance": {"name": "Neuer Raid", "id": 1302},
+                        "instance": {"name": "Neuer Raid", "id": 9201},
                     }
                 ],
             }
@@ -92,7 +92,7 @@ async def test_class_spec_and_raid_images(hass: HomeAssistant, aioclient_mock) -
             f"{MEDIA}/playable-specialization/64": _icon(
                 "https://render.example/frost.jpg"
             ),
-            f"{MEDIA}/journal-instance/1302": {
+            f"{MEDIA}/journal-instance/9201": {
                 "assets": [{"key": "tile", "value": "https://render.example/raid.jpg"}]
             },
         },
@@ -103,7 +103,11 @@ async def test_class_spec_and_raid_images(hass: HomeAssistant, aioclient_mock) -
     assert level["class_icon"] == "https://render.example/magier.jpg"
     assert level["spec_icon"] == "https://render.example/frost.jpg"
     heroic = hass.states.get(_entity(hass, "sensor", "raid_heroic")).attributes
-    assert heroic["images"] == {"Neuer Raid": "https://render.example/raid.jpg"}
+    # Bild je Raid des Journals; der zweite hat keins (404).
+    assert heroic["images"] == {
+        "Neuer Raid": "https://render.example/raid.jpg",
+        "Zweiter Raid": None,
+    }
 
 
 async def test_guild_sensor(hass: HomeAssistant, aioclient_mock) -> None:
@@ -368,6 +372,7 @@ async def test_world_all_parts_fail(hass: HomeAssistant, aioclient_mock) -> None
             f"{GAME}/mythic-keystone/period/index": 500,
             f"{GAME}/mythic-keystone/season/index": 500,
             f"{GAME}/realm/die-aldor": 500,
+            f"{GAME}/journal-expansion/index": 500,
         },
     )
     await _setup(hass)

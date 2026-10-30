@@ -51,12 +51,13 @@ async def test_retail_values(hass: HomeAssistant, aioclient_mock) -> None:
     )
     assert _state(hass, "sensor", "mythic_rating").attributes["color"] == "#ff8000"
 
-    # Raids: nur die neueste Erweiterung zaehlt
+    # Raids: nur die neueste Erweiterung zaehlt, mit allen Raids des Journals
     heroic = _state(hass, "sensor", "raid_heroic")
     assert heroic.state == "6"
     assert heroic.attributes["expansion"] == "Neue Erweiterung"
-    assert heroic.attributes["total_bosses"] == 8
-    assert heroic.attributes["raids"] == {"Neuer Raid": "6/8"}
+    assert heroic.attributes["total_bosses"] == 12
+    assert heroic.attributes["raids"] == {"Neuer Raid": "6/8", "Zweiter Raid": "0/4"}
+    assert heroic.attributes["latest_raid"] == "Neuer Raid"
     assert _state(hass, "sensor", "raid_mythic").state == "1"
     assert _state(hass, "sensor", "raid_lfr").state == "0"
 
@@ -152,7 +153,7 @@ async def test_events_fire_only_for_new_entries(
                 **RAIDS["expansions"][1],
                 "instances": [
                     {
-                        "instance": {"name": "Neuer Raid"},
+                        "instance": {"name": "Neuer Raid", "id": 9201},
                         "modes": [
                             {
                                 "difficulty": {"type": "HEROIC", "name": "Heroisch"},

@@ -48,6 +48,8 @@ UNDOCUMENTED = (
     "/media/playable-specialization/",
     "/media/profession/",
     "/media/journal-instance/",
+    "/journal-expansion/",
+    "/journal-instance/",
     "/media/achievement/",
     "/achievement-category/",
     "/profession/",
