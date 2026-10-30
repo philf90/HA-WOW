@@ -130,6 +130,56 @@ async def test_refresh_world_device(hass: HomeAssistant, aioclient_mock) -> None
     assert _calls(aioclient_mock, API) == 0
 
 
+class _NewDevice:
+    """Geraet wie in neueren Home-Assistant-Versionen: genau ein Eintrag.
+
+    config_entries ist dort veraltet; schon der Zugriff gilt als Fehler.
+    """
+
+    def __init__(self, device: dr.DeviceEntry) -> None:
+        self._device = device
+        self.config_entry_id = next(iter(device.config_entries))
+
+    @property
+    def config_entries(self):
+        raise AssertionError("veraltetes DeviceEntry.config_entries benutzt")
+
+    def __getattr__(self, name: str):
+        return getattr(self._device, name)
+
+
+def test_device_entry_ids() -> None:
+    old = dr.DeviceEntry(config_entries={"a", "b"})
+    assert services._device_entry_ids(old) == {"a", "b"}
+    new = _NewDevice(dr.DeviceEntry(config_entries={"a"}))
+    assert services._device_entry_ids(new) == {"a"}
+
+
+async def test_refresh_device_new_registry(
+    hass: HomeAssistant, aioclient_mock, monkeypatch
+) -> None:
+    """refresh mit Geraet ohne das veraltete config_entries (0.21.1)."""
+    _mock_all(aioclient_mock)
+    await _setup(
+        hass,
+        character_subentry(),
+        character_subentry(UID_B, "Zweitchar – Die Aldor", character="Zweitchar"),
+    )
+    device_id = _device(hass, UID_B)
+    get = dr.DeviceRegistry.async_get
+
+    def new_get(self, device_id):
+        device = get(self, device_id)
+        return _NewDevice(device) if device else None
+
+    monkeypatch.setattr(dr.DeviceRegistry, "async_get", new_get)
+    aioclient_mock.clear_requests()
+    _mock_all(aioclient_mock)
+    await _refresh(hass, {"device_id": device_id})
+    assert _calls(aioclient_mock, f"{API_B}/professions") == 1
+    assert _calls(aioclient_mock, f"{API}/") == 0
+
+
 async def test_refresh_unknown_device(hass: HomeAssistant, aioclient_mock) -> None:
     _mock_all(aioclient_mock)
     await _setup(hass)

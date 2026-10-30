@@ -122,11 +122,25 @@ def _device_targets(hass: HomeAssistant, device_ids: list[str]) -> list[_Target]
     return targets
 
 
+def _device_entry_ids(device: dr.DeviceEntry) -> set[str]:
+    """Eintraege, zu denen das Geraet gehoert.
+
+    Neuere Home-Assistant-Versionen ordnen ein Geraet genau einem Eintrag zu
+    (config_entry_id); config_entries gilt dort als veraltet und entfaellt in
+    2027.10 (Live-Test 30.10.2026 mit 2026.10.4). Aeltere kennen nur
+    config_entries.
+    """
+    if hasattr(device, "config_entry_id"):
+        entry_id = device.config_entry_id
+        return {entry_id} if entry_id else set()
+    return set(device.config_entries)
+
+
 def _device_target(hass: HomeAssistant, device: dr.DeviceEntry) -> _Target | None:
     idents = {ident for domain, ident in device.identifiers if domain == DOMAIN}
     if not idents:
         return None
-    for entry_id in device.config_entries:
+    for entry_id in _device_entry_ids(device):
         entry = hass.config_entries.async_get_entry(entry_id)
         if entry is None or entry.domain != DOMAIN:
             continue

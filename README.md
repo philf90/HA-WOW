@@ -11,7 +11,7 @@ Home-Assistant-Integration für World-of-Warcraft-Charaktere: Level, Itemlevel,
 Ausrüstung, Raid- und Mythic+-Fortschritt, Berufe, Ruf, Erfolge und mehr als
 Sensoren, dazu WoW-Marke, wöchentlicher Reset und Serverstatus. Die Daten kommen
 aus der offiziellen Battle.net API. Unterstützt Retail, WoW Classic (Era,
-Progression, Anniversary) und ist für WoW Forever vorbereitet. Version 0.21.0.
+Progression, Anniversary) und ist für WoW Forever vorbereitet. Version 0.21.1.
 
 Zwei Dashboard-Karten liefert die Integration selbst mit: „WoW Arsenal“
 (`custom:wow-arsenal-card`) und „WoW Talentbaum“ (`custom:wow-talent-tree-card`,
@@ -147,6 +147,10 @@ neu starten. Wer von Hand aktualisiert, ersetzt den ganzen Ordner
 `custom_components/wow_character` samt `translations/`; sonst fehlen neue Texte,
 z. B. die Einträge im Menü „Charakter hinzufügen“. Was sich je Version ändert, steht in den
 [Release-Notes](https://github.com/philf90/HA-WOW/releases).
+
+**Update auf 0.21.1:** keine Migration, nur eine Korrektur für die Aktion
+`wow_character.refresh` mit Gerät: Sie nutzte eine Angabe am Gerät, die Home
+Assistant 2026.10 als veraltet meldet und die ab 2027.10 entfällt.
 
 **Update auf 0.21.0:** keine Migration. Neu sind die Aktionen
 `wow_character.refresh` und `wow_character.get_character` (siehe
@@ -1004,7 +1008,22 @@ Automatische Tests laufen gegen Home Assistant 2026.2.3; live geprüft wurde unt
 Home Assistant 2026.10.4 mit Retail-Charakteren der Region EU, seit 0.11.2 auch
 mit einem Classic-Era-Charakter (siehe [WoW Classic](#wow-classic)).
 
-- **0.21.x:** 296 automatische Tests. 0.21.0: 17 Tests für die Aktionen
+- **0.21.x:** 298 automatische Tests. 0.21.1: 2 Tests für Geräte ohne das
+  veraltete `config_entries` (Funktion und ganzer Aufruf von `refresh` mit
+  Gerät); Gegenprobe: mit dem alten Zugriff schlagen beide fehl. **Live geprüft
+  mit 0.21.0** (30.10.2026, Home Assistant 2026.10.4, acht Charaktere in EU
+  Retail und Classic Era): Optionsdialog mit Vorgaben 15 / 60 / 360 und neun
+  Gruppen; „selten unter Details“ abgelehnt, Werte unter dem Minimum lehnt
+  Home Assistant selbst ab (englische Meldung „Value 30.0 is too small“);
+  Gruppe Quests aus und wieder an, die sieben Sensoren behalten ihre
+  Entitäts-ID; Profiltakt 5 Minuten im Debug-Log nachgewiesen (Abfragen um
+  08:46:56 und 08:51:56, Details und Spielwelt unverändert); refresh für einen
+  Charakter, alle acht (8,2 s, kein HTTP 429) und die Spielwelt EU, jeweils
+  nur die gewählten Abfragen; get_character für Clambo (alle 19 Felder wie die
+  Sensoren, Realm als Slug und in Großbuchstaben) und für einen
+  Classic-Era-Charakter (ohne Mythic+, Avatar aus `classic1x-eu`); beide
+  Fehlermeldungen wörtlich. Dabei fiel die Warnung zu `config_entries` auf
+  (behoben in 0.21.1). 0.21.0: 17 Tests für die Aktionen
   (refresh ohne Gerät oder mit leerer Geräteliste für alle Charaktere samt seltener Endpunkte und Brackets
   ohne Sensor, nur gewähltes Gerät, Spielwelt-Gerät, unbekanntes Gerät,
   Fehlermeldung bei gescheiterter Abfrage, Eintrag nicht geladen;
