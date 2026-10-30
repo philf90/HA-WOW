@@ -276,6 +276,35 @@ def _shrink(endpoint: str, data: Any) -> Any:
     if endpoint in ("mounts", "pets", "toys"):
         items = data.get(endpoint) or []
         return {"count": len(items), "first": items[:2]}
+    if endpoint == "heirlooms":
+        # Fuer den Sensor-Entwurf: Anzahl und Verteilung der Aufwertungsstufen.
+        items = [i for i in data.get("heirlooms") or [] if isinstance(i, dict)]
+        levels: dict[str, int] = {}
+        for item in items:
+            level = str((item.get("upgrade") or {}).get("level"))
+            levels[level] = levels.get(level, 0) + 1
+        return {
+            "keys": sorted(data),
+            "count": len(items),
+            "upgrade_levels": dict(sorted(levels.items())),
+            "first": items[:3],
+        }
+    if endpoint == "transmogs":
+        # Je Platz oft hunderte Vorlagen; Anzahl je Platz und Beispiele reichen.
+        sets = data.get("appearance_sets") or []
+        slots = [s for s in data.get("slots") or [] if isinstance(s, dict)]
+        return {
+            "keys": sorted(data),
+            "appearance_sets": len(sets),
+            "first_sets": sets[:3],
+            "slots": [
+                {"slot": s.get("slot"), "appearances": len(s.get("appearances") or [])}
+                for s in slots
+            ],
+            "first_appearances": (slots[0].get("appearances") or [])[:2]
+            if slots
+            else [],
+        }
     return data
 
 

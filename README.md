@@ -11,7 +11,7 @@ Home-Assistant-Integration für World-of-Warcraft-Charaktere: Level, Itemlevel,
 Ausrüstung, Raid- und Mythic+-Fortschritt, Berufe, Ruf, Erfolge und mehr als
 Sensoren, dazu WoW-Marke, wöchentlicher Reset und Serverstatus. Die Daten kommen
 aus der offiziellen Battle.net API. Unterstützt Retail, WoW Classic (Era,
-Progression, Anniversary) und ist für WoW Forever vorbereitet. Version 0.30.0.
+Progression, Anniversary) und ist für WoW Forever vorbereitet. Version 0.30.1.
 
 Zwei Dashboard-Karten liefert die Integration selbst mit: „WoW Arsenal“
 (`custom:wow-arsenal-card`) und „WoW Talentbaum“ (`custom:wow-talent-tree-card`,
@@ -147,6 +147,10 @@ neu starten. Wer von Hand aktualisiert, ersetzt den ganzen Ordner
 `custom_components/wow_character` samt `translations/`; sonst fehlen neue Texte,
 z. B. die Einträge im Menü „Charakter hinzufügen“. Was sich je Version ändert, steht in den
 [Release-Notes](https://github.com/philf90/HA-WOW/releases).
+
+**Update auf 0.30.1:** keine Migration. Neu abgefragt werden Erbstücke und
+Transmog-Vorlagen, vorerst nur für die Diagnose (siehe [Ändern, Hinweise und
+Diagnose](#ändern-hinweise-und-diagnose)); neue Entitäten gibt es nicht.
 
 **Update auf 0.30.0:** keine Migration. Der Sensor „Wöchentlicher Reset“
 nennt die laufende Mythic+-Season als Attribute (`season_id`, `season_name`,
@@ -1063,6 +1067,16 @@ trees: [class, spec, hero]
   (`end_timestamp` fehlte). Ein Kalender hätte damit nur den wöchentlichen Reset
   gedoppelt; seit 0.30.0 stehen Name, Beginn und (falls geliefert) Ende als
   Attribute am Sensor „Wöchentlicher Reset“.
+  Seit 0.30.1 stehen dort auch Erbstücke (`collections/heirlooms`) und
+  Transmog-Vorlagen (`collections/transmogs`) unter `details` → `heirlooms` und
+  `transmogs`, nur Retail und Forever. Die Integration fragt sie im seltenen
+  Takt (Standard 6 h) nur dafür ab, noch ohne Entitäten: Die echten Antworten
+  sollen geprüft sein, bevor daraus Sensoren werden. Gekürzt: bei Erbstücken die
+  Schlüssel der Antwort, die Anzahl, die Verteilung der Aufwertungsstufen und
+  die ersten drei Einträge; bei Transmogs die Schlüssel, die Zahl der Sets mit
+  den ersten drei, je Platz die Zahl der Vorlagen und die ersten zwei Vorlagen
+  des ersten Platzes. Beide gehören zur Gruppe Sammlungen; ist sie
+  ausgeschaltet, fragt die Integration sie nicht ab.
   Damit lassen sich Feldnamen prüfen, wenn ein Wert fehlt. Vergebene Talente
   stehen dort mit IDs und Rang, ohne Tooltip-Texte. Beim Herunterladen lädt die
   Diagnose einmal den Talentbaum des aktiven Loadouts (Retail, seit 0.12.1) und
@@ -1195,7 +1209,13 @@ Automatische Tests laufen gegen Home Assistant 2026.2.3; live geprüft wurde unt
 Home Assistant 2026.10.4 mit Retail-Charakteren der Region EU, seit 0.11.2 auch
 mit einem Classic-Era-Charakter (siehe [WoW Classic](#wow-classic)).
 
-- **0.30.x:** 368 automatische Tests. 0.30.0: 3 Tests für die Season-Attribute
+- **0.30.x:** 374 automatische Tests. 0.30.1: 6 Tests für Erbstücke und
+  Transmog-Vorlagen in der Diagnose (gekürzt mit Anzahl, Aufwertungsstufen,
+  Sets und Vorlagen je Platz, keine Entität; unerwartete Antwort ohne Fehler;
+  seltener Takt mit Vorgabe und Option; Gruppe Sammlungen ausgeschaltet ohne
+  Abfrage; 404 ohne Fehler); Classic fragt die Endpunkte nicht ab. Gegenprobe:
+  sechs Teile einzeln ausgebaut, jedes Mal schlug ein Test fehl. **Nicht live
+  geprüft.** 0.30.0: 3 Tests für die Season-Attribute
   am Sensor „Wöchentlicher Reset“ (Beginn als Zeitpunkt, Ende leer ohne Angabe;
   mit Name und Ende; Season-Abfrage gescheitert, Reset bleibt). Gegenprobe:
   drei Teile einzeln ausgebaut, jedes Mal schlug ein Test fehl. **Nicht live

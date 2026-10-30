@@ -176,6 +176,26 @@ def _dungeon_mode(kind: str | None, name: str | None) -> dict:
     }
 
 
+# Aufbau laut @blizzard-api/wow 4.1.4 (CharacterHeirloomsCollectionSummaryResponse,
+# CharacterTransmogCollectionSummaryResponse); Werte erfunden.
+HEIRLOOMS = {
+    "heirlooms": [
+        {"heirloom": {"name": "Erbstueck A", "id": 1}, "upgrade": {"level": 0}},
+        {"heirloom": {"name": "Erbstueck B", "id": 2}, "upgrade": {"level": 6}},
+        {"heirloom": {"name": "Erbstueck C", "id": 3}, "upgrade": {"level": 6}},
+        {"heirloom": {"name": "Erbstueck D", "id": 4}, "upgrade": {"level": 2}},
+    ]
+}
+TRANSMOGS = {
+    "appearance_sets": [{"name": f"Set {i}", "id": i} for i in range(1, 6)],
+    "slots": [
+        {
+            "slot": {"type": "HEAD", "name": "Kopf"},
+            "appearances": [{"id": i} for i in range(1, 8)],
+        },
+        {"slot": {"type": "BACK", "name": "Ruecken"}, "appearances": [{"id": 50}]},
+    ],
+}
 DUNGEONS = {
     "expansions": [
         {
@@ -491,6 +511,8 @@ def mock_api(
         "/collections/mounts": {"mounts": [{}, {}, {}]},
         "/collections/pets": {"pets": [{}, {}]},
         "/collections/toys": {"toys": [{}]},
+        "/collections/heirlooms": HEIRLOOMS,
+        "/collections/transmogs": TRANSMOGS,
         "/character-media": MEDIA,
         "/equipment": EQUIPMENT,
         "/reputations": REPUTATIONS,
