@@ -153,8 +153,13 @@ z. B. die Einträge im Menü „Charakter hinzufügen“. Was sich je Version ä
 **Update auf 0.32.0:** keine Migration. Neue mitgelieferte Karte „WoW
 Charaktere“ (`custom:wow-characters-card`, siehe [Karte „WoW
 Charaktere“](#karte-wow-charaktere-seit-0320)); nach dem Update einmal die Seite
-im Browser neu laden. Die Arsenal-Karte zeigt wieder die Spielversion in der
-Kopfzeile (fehlte seit 0.22.0). Sensoren und Abfragen bleiben gleich.
+im Browser neu laden. Sensoren und Abfragen bleiben gleich.
+
+**Update auf 0.31.1:** keine Migration. Die Arsenal-Karte zeigt die
+Spielversion in der Kopfzeile wieder (Retail, Classic Era usw.); seit 0.22.0
+fehlte sie dort, weil die Karte nur das alte Gerätemodell „World of Warcraft
+(retail)“ erkannte. Zeigt die Karte sie nach dem Neustart noch nicht, die Seite
+im Browser neu laden.
 
 **Update auf 0.31.0:** keine Migration. Zwei neue Sensoren je
 Retail-Charakter in der Gruppe Sammlungen: „Erbstücke“ und „Transmog-Vorlagen“
@@ -988,7 +993,7 @@ entity: sensor.mein_charakter_level   # eine beliebige Entität des Charakters
 ```
 
 - Kopf mit Avatar, Symbol der Spezialisierung, Name, Titel, Spielversion
-  (von 0.22.0 bis 0.31.x fehlte sie, seit 0.32.0 wieder da), Stufe, Volk,
+  (von 0.22.0 bis 0.31.0 fehlte sie, seit 0.31.1 wieder da), Stufe, Volk,
   Spezialisierung und Klasse; Pillen für Itemlevel, Mythic+-Wertung (sonst
   `api_rating`), Fraktion, Realm und Gilde.
 - Ganzkörperbild mit den 18 Plätzen in der Reihenfolge des Arsenals: Symbol mit
@@ -1299,17 +1304,19 @@ Automatische Tests laufen gegen Home Assistant 2026.2.3; live geprüft wurde unt
 Home Assistant 2026.10.4 mit Retail-Charakteren der Region EU, seit 0.11.2 auch
 mit einem Classic-Era-Charakter (siehe [WoW Classic](#wow-classic)).
 
-- **0.32.x:** 377 automatische Tests. 0.32.0: 1 Test für die Auslieferung der
+- **0.32.x:** 382 automatische Tests. 0.32.0: 1 Test für die Auslieferung der
   Karte „WoW Charaktere“; dass sie mit Version im Pfad im Frontend geladen
   wird, prüft der bestehende Test für alle Karten. Die Karte ist in Chromium
   mit erfundenen Daten in 344 und 386 Pixel Breite gezeichnet worden (Retail,
   Classic Era, Classic Progression, ohne Gerät; Deutsch und Englisch; Auswahl
   über `entities` mit nicht vorhandener Entität), ohne Fehler und ohne
-  waagrechten Überlauf. Arsenal-Karte: Kopfzeile in Chromium für alle
-  Formen des Gerätemodells geprüft (neue und alte Form, ohne Modell, fremdes
-  Modell); vor der Korrektur fehlte die Spielversion bei allen neuen Formen.
-  **Nicht live geprüft.**
-- **0.31.x:** 376 automatische Tests. 0.31.0: 8 Tests für die Sensoren
+  waagrechten Überlauf. **Nicht live geprüft.**
+- **0.31.x:** 381 automatische Tests. 0.31.1: 5 Tests für die Spielversion in
+  der Kopfzeile der Arsenal-Karte (je Spielversion: Gerätemodell seit 0.22.0
+  und bis 0.21.x erkannt, Anzeige wie in der Karte hinterlegt). Gegenprobe:
+  drei Teile der Erkennung einzeln ausgebaut, jedes Mal schlug ein Test fehl;
+  dass Retail ohne Zusatz „Retail“ zeigt, prüft nur eine Probe mit Node außerhalb
+  der automatischen Tests. **Nicht live geprüft.** 0.31.0: 8 Tests für die Sensoren
   „Erbstücke“ und „Transmog-Vorlagen“ (Anzahl, aufgewertete und Stufen;
   verschiedene Vorlagen, Sets, Plätze; gespeichert nur IDs; seltener Takt und
   Diagnose; Gruppe Sammlungen ausgeschaltet ohne Abfrage und Sensor; Antwort
