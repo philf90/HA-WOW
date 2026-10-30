@@ -156,6 +156,26 @@ RAIDS = {
         },
     ]
 }
+# Aufbau laut @blizzard-api/wow 4.1.4 (CharacterDungeonsResponse); Werte erfunden.
+DUNGEONS = {
+    "expansions": [
+        {
+            "expansion": {"id": 514, "name": "Neue Erweiterung"},
+            "instances": [
+                {
+                    "instance": {"name": "Erster Dungeon", "id": 9301},
+                    "modes": [
+                        {
+                            "difficulty": {"type": "MYTHIC", "name": "Mythisch"},
+                            "status": {"type": "COMPLETE"},
+                            "progress": {"completed_count": 4, "total_count": 4},
+                        }
+                    ],
+                }
+            ],
+        }
+    ]
+}
 MYTHIC_SEASON = {
     "best_runs": [
         {
@@ -445,6 +465,7 @@ def mock_api(
         "": PROFILE,
         "/mythic-keystone-profile": MYTHIC,
         "/encounters/raids": RAIDS,
+        "/encounters/dungeons": DUNGEONS,
         "/mythic-keystone-profile/season/14": MYTHIC_SEASON,
         "/pvp-summary": PVP,
         "/statistics": STATS,

@@ -146,6 +146,8 @@ class WowArsenalCard extends HTMLElement {
     this._config = { ...config };
     this._signatur = undefined;
     this._offen = undefined;
+    // Andere Entitaet: Entitaeten des Geraets neu suchen
+    this._quelle = undefined;
     if (!this.shadowRoot) {
       this.attachShadow({ mode: "open" });
     }
@@ -153,7 +155,14 @@ class WowArsenalCard extends HTMLElement {
 
   set hass(hass) {
     this._hass = hass;
-    this._entitaeten = this._finden(hass);
+    // Entitaeten des Geraets nur neu suchen, wenn sich die Entitaetsliste
+    // geaendert hat (W7, seit 0.28.0). Bei Zustandsaenderungen ersetzt das
+    // Frontend nur hass.states, hass.entities bleibt dasselbe Objekt
+    // (frontend src/state/connection-mixin.ts, hass-base-mixin.ts).
+    if (this._quelle !== hass.entities) {
+      this._entitaeten = this._finden(hass);
+      this._quelle = hass.entities;
+    }
     // Nur neu zeichnen, wenn sich ein Zustand des Charakters geaendert hat.
     const signatur = [
       ...Object.values(this._entitaeten).map((id) => hass.states[id]),

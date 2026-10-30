@@ -39,6 +39,7 @@ WORLD = "id-world-eu-classic1x"
 # Endpunkte, die die Classic-Doku nicht nennt; die Integration fragt sie nicht ab.
 UNDOCUMENTED = (
     "/encounters/raids",
+    "/encounters/dungeons",
     "/mythic-keystone",
     "/professions",
     "/collections/",

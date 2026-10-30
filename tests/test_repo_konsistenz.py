@@ -90,7 +90,11 @@ def test_endpoint_wiring() -> None:
         coordinator.endpoint_for_key(f"{coordinator.PVP_BRACKET_PREFIX}3v3"),
     }
     assert used <= endpoints, used - endpoints
-    assert endpoints <= used, f"abgefragt, aber ohne Entitaet: {endpoints - used}"
+    # Ausnahme nur fuer Endpunkte, die ausdruecklich nur der Diagnose dienen
+    assert set(const.DIAGNOSTIC_ONLY) <= endpoints
+    assert not set(const.DIAGNOSTIC_ONLY) & used, "Diagnose-Endpunkt mit Entitaet"
+    rest = endpoints - set(const.DIAGNOSTIC_ONLY)
+    assert rest <= used, f"abgefragt, aber ohne Entitaet: {rest - used}"
     for version in const.GAME_VERSIONS.values():
         assert set(version["endpoints"] or ()) <= endpoints
 
