@@ -161,12 +161,13 @@ PROFILE_SENSORS: tuple[WowSensorDescription, ...] = (
 
 
 def _raid_attrs(d: dict[str, Any], difficulty: str) -> dict[str, Any]:
-    attrs = p.raid_progress(d.get("raids"), difficulty)[1]
+    journal = d.get("raid_journal")
+    attrs = p.raid_progress(d.get("raids"), difficulty, journal)[1]
     media = d.get("media_urls") or {}
     # Bild je Raid aus dem Dungeonkompendium, fuer Karten
     attrs["images"] = {
         name: media.get(f"journal-instance/{instance_id}")
-        for name, instance_id in p.raid_instances(d.get("raids")).items()
+        for name, instance_id in p.raid_instances(d.get("raids"), journal).items()
         if name in attrs.get("raids", {})
     }
     return attrs
@@ -178,7 +179,9 @@ def _raid_sensor(key: str) -> WowSensorDescription:
         key=key,
         translation_key=key,
         state_class=SensorStateClass.MEASUREMENT,
-        value_fn=lambda d: p.raid_progress(d.get("raids"), difficulty)[0],
+        value_fn=lambda d: p.raid_progress(
+            d.get("raids"), difficulty, d.get("raid_journal")
+        )[0],
         attrs_fn=lambda d: _raid_attrs(d, difficulty),
     )
 

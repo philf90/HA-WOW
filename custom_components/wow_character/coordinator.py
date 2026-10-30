@@ -40,6 +40,7 @@ from .const import (
     ENDPOINT_GROUPS,
     GAME_VERSIONS,
     INTERVAL_OPTIONS,
+    JOURNAL_CURRENT_SEASON,
     NOT_FOUND_IS_FINAL,
     NOT_FOUND_LIMIT,
     PVP_BRACKETS,
@@ -633,12 +634,17 @@ class WowDetailCoordinator(_CharacterMixin, DataUpdateCoordinator[dict[str, Any]
         await self._lookup_transmog_names(data.get("appearance"), data.get("equipment"))
         data["transmog_names"] = dict(self._transmog_names)
         data["talent_tree"] = await self._talent_tree(data.get("specializations"))
+        # Raids der neuesten Erweiterung fuer die Raid-Sensoren (aus der Spielwelt)
+        world = (self._world.data if self._world else None) or {}
+        data["raid_journal"] = world.get("raid_journal")
         await self._media.lookup(
             [
                 *(("profession", i) for i in self._profession_ids(data)),
                 *(
                     ("journal-instance", i)
-                    for i in p.raid_instances(data.get("raids")).values()
+                    for i in p.raid_instances(
+                        data.get("raids"), data["raid_journal"]
+                    ).values()
                 ),
                 *(
                     ("achievement", a["id"])
@@ -952,7 +958,9 @@ class WowWorldCoordinator(DataUpdateCoordinator[dict[str, Any]]):
     """Spielwelt einer Region: WoW-Marke, Reset, M+-Season und Serverstatus.
 
     data: {"token": Gold oder None, "reset": datetime oder None,
-           "season_id": int oder None, "realms": {slug: {...}}}
+           "season_id": int oder None, "realms": {slug: {...}},
+           "raid_journal": {"id", "name", "raids": [{"id", "name", "bosses"}]}
+           oder None (nur Retail, siehe _raid_journal)}
     """
 
     config_entry: WowConfigEntry
@@ -987,6 +995,13 @@ class WowWorldCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self.token_sensor: bool | None = None
         # Realm-Slug -> (Anzeigename, ID des verbundenen Realms)
         self._realm_info: dict[str, tuple[str, int]] = {}
+        # Raids der neuesten Erweiterung aus dem Dungeonkompendium, nur Retail:
+        # Die Classic-Doku nennt encounters/raids nicht, Forever hat noch
+        # keinen bestaetigten Namespace.
+        self.raid_journal = game_version == "retail"
+        # Journal-Instanz -> Zahl der Bosse; statische Daten, je Lauf der
+        # Integration einmal nachgeschlagen.
+        self._raid_bosses: dict[int, int] = {}
 
     async def async_refresh_now(self) -> None:
         """WoW-Marke, Reset und Season sofort abfragen (Aktion refresh).
@@ -1023,6 +1038,8 @@ class WowWorldCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             parts.append(("period", self._weekly_reset))
         if self.mythic_plus and self._due("season", 360, now):
             parts.append(("season", self._season))
+        if self.raid_journal and self._due("raid_journal", rare, now):
+            parts.append(("raid_journal", self._raid_journal))
         realms = sorted(self.realms)
 
         errors: list[BattleNetError] = []
@@ -1048,6 +1065,54 @@ class WowWorldCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         if errors and len(errors) == len(parts) + len(realms):
             raise _update_failed(errors[0])
         return data
+
+    async def _raid_journal(self) -> dict[str, Any] | None:
+        """Raids der neuesten Erweiterung mit ihrer Bosszahl (W3, seit 0.25.0).
+
+        Neueste Erweiterung ist die mit der hoechsten ID ohne "Current Season"
+        (JOURNAL_CURRENT_SEASON), fuer alle Charaktere gleich; vorher galt die
+        hoechste in der Antwort des jeweiligen Charakters. Felder laut
+        @blizzard-api/wow 4.1.4 (journal): journal-expansion/index -> tiers,
+        journal-expansion/{id} -> raids, journal-instance/{id} -> encounters.
+        """
+        index = await self._get_static("journal-expansion/index")
+        tiers = [
+            t
+            for t in (index or {}).get("tiers") or []
+            if isinstance(t, dict)
+            and isinstance(t.get("id"), int)
+            and t["id"] != JOURNAL_CURRENT_SEASON
+        ]
+        if not tiers:
+            return None
+        tier = max(tiers, key=lambda t: t["id"])
+        expansion = await self._get_static(f"journal-expansion/{tier['id']}")
+        raids = []
+        for raid in (expansion or {}).get("raids") or []:
+            if not isinstance(raid, dict) or not isinstance(raid.get("id"), int):
+                continue
+            if raid["id"] not in self._raid_bosses:
+                instance = await self._get_static(f"journal-instance/{raid['id']}")
+                encounters = (instance or {}).get("encounters")
+                if not isinstance(encounters, list):
+                    # Ohne Bossliste zaehlt total_count aus der Antwort.
+                    raids.append({"id": raid["id"], "name": raid.get("name")})
+                    continue
+                self._raid_bosses[raid["id"]] = len(encounters)
+            raids.append(
+                {
+                    "id": raid["id"],
+                    "name": raid.get("name"),
+                    "bosses": self._raid_bosses[raid["id"]],
+                }
+            )
+        return {"id": tier["id"], "name": tier.get("name"), "raids": raids}
+
+    async def _get_static(self, path: str) -> dict[str, Any] | None:
+        try:
+            return await self.client.get_static_data(self.region, self.suffix, path)
+        except BattleNetNotFound:
+            return None
 
     async def _token(self) -> int | None:
         token = await self._get("token/index")

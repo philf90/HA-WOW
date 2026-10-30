@@ -116,7 +116,7 @@ RAIDS = {
             "expansion": {"id": 503, "name": "Alte Erweiterung"},
             "instances": [
                 {
-                    "instance": {"name": "Alter Raid"},
+                    "instance": {"name": "Alter Raid", "id": 9101},
                     "modes": [
                         {
                             "difficulty": {"type": "HEROIC", "name": "Heroisch"},
@@ -130,7 +130,7 @@ RAIDS = {
             "expansion": {"id": 514, "name": "Neue Erweiterung"},
             "instances": [
                 {
-                    "instance": {"name": "Neuer Raid"},
+                    "instance": {"name": "Neuer Raid", "id": 9201},
                     "modes": [
                         {
                             "difficulty": {"type": "HEROIC", "name": "Heroisch"},
@@ -498,10 +498,32 @@ def mock_api(
             "assets": [{"key": "icon", "value": "https://render.example/helm.jpg"}]
         },
         "/media/item/6002": 404,
-        # Symbole fuer Karten (Beruf; Klasse, Raid und Erfolg haben hier keine ID)
+        # Symbole fuer Karten (Beruf, Raid; Klasse und Erfolg haben hier keine ID)
         "/media/profession/164": {
             "assets": [{"key": "icon", "value": "https://render.example/schmied.jpg"}]
         },
+        # Dungeonkompendium: neueste Erweiterung mit zwei Raids, einer davon
+        # ohne Kill des Charakters ("Current Season" zaehlt nicht mit).
+        "/journal-expansion/index": {
+            "tiers": [
+                {"id": 503, "name": "Alte Erweiterung"},
+                {"id": 505, "name": "Current Season"},
+                {"id": 514, "name": "Neue Erweiterung (Journal)"},
+            ]
+        },
+        "/journal-expansion/514": {
+            "id": 514,
+            "raids": [
+                {"id": 9201, "name": "Neuer Raid (Journal)"},
+                {"id": 9202, "name": "Zweiter Raid"},
+            ],
+        },
+        "/journal-instance/9201": {"id": 9201, "encounters": [{}] * 8},
+        "/journal-instance/9202": {"id": 9202, "encounters": [{}] * 4},
+        "/media/journal-instance/9201": {
+            "assets": [{"key": "tile", "value": "https://render.example/neu.jpg"}]
+        },
+        "/media/journal-instance/9202": 404,
         "/connected-realm/1234": {
             "status": {"type": "UP"},
             "population": {"name": "Hoch", "type": "HIGH"},

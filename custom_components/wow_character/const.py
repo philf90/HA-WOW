@@ -161,6 +161,14 @@ REQUEST_TIMEOUT = 15
 # den die Liste nicht kennt, zeigt der Sensor als unbekannt.
 REALM_POPULATIONS = ("full", "high", "medium", "low", "recommended")
 
+# Dungeonkompendium (Journal): Eintrag "Current Season" unter den Erweiterungen
+# (journal-expansion/index). Er sammelt die Raids der Saison aus mehreren
+# Erweiterungen und ist selbst keine. Blizzard dokumentiert ihn nicht; in echten
+# Antworten von encounters/raids (EU, 30.10.2026) hat er die ID 505, ebenso in
+# mehreren Drittprojekten. Die ID liegt zwischen Dragonflight (503) und The War
+# Within (514), deshalb zaehlt sie bei "neueste = hoechste ID" nicht mit.
+JOURNAL_CURRENT_SEASON = 505
+
 # Sprache der Texte aus der API (Option am Haupteintrag). "region": je Region
 # die Sprache aus REGIONS wie vor 0.19.0; "home_assistant": die Sprache von
 # Home Assistant; sonst eine Sprache aus LANGUAGES.
