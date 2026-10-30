@@ -156,7 +156,26 @@ RAIDS = {
         },
     ]
 }
-# Aufbau laut @blizzard-api/wow 4.1.4 (CharacterDungeonsResponse); Werte erfunden.
+
+
+# Aufbau laut @blizzard-api/wow 4.1.4 (CharacterDungeonsResponse) und echten
+# Antworten (EU, 30.10.2026): nur abgeschlossene Dungeons, je Schwierigkeit 1/1,
+# teils ein Eintrag mit leerer Schwierigkeit. Namen und IDs erfunden.
+def _dungeon_mode(kind: str | None, name: str | None) -> dict:
+    difficulty = {"type": kind, "name": name} if kind else {}
+    return {
+        "difficulty": difficulty,
+        "status": {"type": "COMPLETE", "name": "Fertig"},
+        "progress": {
+            "completed_count": 1,
+            "total_count": 1,
+            "encounters": [
+                {"completed_count": 1, "last_kill_timestamp": 1761000000000}
+            ],
+        },
+    }
+
+
 DUNGEONS = {
     "expansions": [
         {
@@ -165,11 +184,9 @@ DUNGEONS = {
                 {
                     "instance": {"name": "Erster Dungeon", "id": 9301},
                     "modes": [
-                        {
-                            "difficulty": {"type": "MYTHIC", "name": "Mythisch"},
-                            "status": {"type": "COMPLETE"},
-                            "progress": {"completed_count": 4, "total_count": 4},
-                        }
+                        _dungeon_mode("NORMAL", "Normal"),
+                        _dungeon_mode("MYTHIC", "Mythisch"),
+                        _dungeon_mode(None, None),
                     ],
                 }
             ],
@@ -539,6 +556,10 @@ def mock_api(
                 {"id": 9201, "name": "Neuer Raid (Journal)"},
                 {"id": 9202, "name": "Zweiter Raid"},
                 {"id": 9203, "name": "Weltbosse"},
+            ],
+            "dungeons": [
+                {"id": 9301, "name": "Erster Dungeon (Journal)"},
+                {"id": 9302, "name": "Zweiter Dungeon"},
             ],
         },
         "/journal-instance/9201": {

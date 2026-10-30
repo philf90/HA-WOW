@@ -215,6 +215,7 @@
         "reputations": "Ruf",
         "professions": "Berufe",
         "raids": "Raids (Ereignis Boss besiegt)",
+        "dungeons": "Dungeons",
         "pvp": "PvP (Ehre, Brackets)"
       }
     }
@@ -253,6 +254,9 @@
       },
       "raid_mythic": {
         "name": "Raid-Fortschritt Mythisch"
+      },
+      "dungeons": {
+        "name": "Dungeons (aktuelle Erweiterung)"
       },
       "mythic_best_key": {
         "name": "Höchster Mythic+-Schlüssel"
