@@ -297,6 +297,12 @@
       "toys": {
         "name": "Toys"
       },
+      "heirlooms": {
+        "name": "Heirlooms"
+      },
+      "transmogs": {
+        "name": "Transmog appearances"
+      },
       "profession": {
         "name": "Profession {profession}"
       },

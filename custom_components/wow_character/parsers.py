@@ -349,6 +349,83 @@ def collection_count(data: dict[str, Any] | None, key: str) -> int | None:
     return len(items) if isinstance(items, list) else None
 
 
+def heirlooms(data: dict[str, Any] | None) -> tuple[int | None, dict[str, Any]]:
+    """Zahl der Erbstuecke und Verteilung der Aufwertungsstufen.
+
+    Die Antwort nennt je Erbstueck nur die erreichte Stufe (upgrade.level),
+    nicht die hoechste moegliche; live 30.10.2026 Stufen 0 bis 2. Antwort
+    ohne Liste: 0 (wie beim Dungeon-Fortschritt), keine Antwort: unbekannt.
+    """
+    if not isinstance(data, dict):
+        return None, {}
+    items = data.get("heirlooms")
+    items = [i for i in items if isinstance(i, dict)] if isinstance(items, list) else []
+    levels: dict[int, int] = {}
+    for item in items:
+        level = (item.get("upgrade") or {}).get("level")
+        if isinstance(level, int):
+            levels[level] = levels.get(level, 0) + 1
+    return len(items), {
+        "upgraded": sum(n for level, n in levels.items() if level > 0),
+        "upgrade_levels": {str(k): levels[k] for k in sorted(levels)},
+    }
+
+
+def compact_transmogs(data: Any) -> Any:
+    """Transmog-Sammlung ohne Links: Sets mit ID und Name, je Platz die IDs.
+
+    Die Antwort nennt jede Vorlage mit Link (live 30.10.2026: 4.337 Eintraege
+    auf 22 Plaetzen); fuer Sensor und Diagnose reichen die IDs.
+    """
+    if not isinstance(data, dict):
+        return data
+    return {
+        "appearance_sets": [
+            {"id": s.get("id"), "name": s.get("name")}
+            for s in data.get("appearance_sets") or []
+            if isinstance(s, dict)
+        ],
+        "slots": [
+            {
+                "slot": {
+                    k: v for k, v in (slot.get("slot") or {}).items() if k != "key"
+                },
+                "appearances": [
+                    a.get("id")
+                    for a in slot.get("appearances") or []
+                    if isinstance(a, dict) and a.get("id") is not None
+                ],
+            }
+            for slot in data.get("slots") or []
+            if isinstance(slot, dict)
+        ],
+    }
+
+
+def transmogs(data: dict[str, Any] | None) -> tuple[int | None, dict[str, Any]]:
+    """Zahl verschiedener Vorlagen, Sets und Vorlagen je Platz.
+
+    Erwartet die Form von compact_transmogs. Plaetze gleichen Namens (live
+    "Brust" fuer CHEST und ROBE) stehen zusammen; jede ID zaehlt einmal, auch
+    wenn sie unter mehreren Plaetzen steht.
+    """
+    if not isinstance(data, dict):
+        return None, {}
+    seen: set[int] = set()
+    by_slot: dict[str, set[int]] = {}
+    for slot in data.get("slots") or []:
+        ids = {i for i in slot.get("appearances") or [] if isinstance(i, int)}
+        seen |= ids
+        info = slot.get("slot") or {}
+        if name := info.get("name") or info.get("type"):
+            by_slot.setdefault(name, set()).update(ids)
+    sets = data.get("appearance_sets")
+    return len(seen), {
+        "sets": len(sets) if isinstance(sets, list) else None,
+        "slots": {name: len(ids) for name, ids in by_slot.items()},
+    }
+
+
 def media_url(media: dict[str, Any] | None, key: str) -> str | None:
     assets = {
         a.get("key"): a.get("value")

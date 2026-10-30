@@ -297,6 +297,12 @@
       "toys": {
         "name": "Spielzeuge"
       },
+      "heirlooms": {
+        "name": "Erbstücke"
+      },
+      "transmogs": {
+        "name": "Transmog-Vorlagen"
+      },
       "profession": {
         "name": "Beruf {profession}"
       },

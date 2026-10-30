@@ -204,6 +204,12 @@
       "toys": {
         "default": "mdi:teddy-bear"
       },
+      "heirlooms": {
+        "default": "mdi:treasure-chest"
+      },
+      "transmogs": {
+        "default": "mdi:hanger"
+      },
       "hunter_pets": {
         "default": "mdi:paw"
       },

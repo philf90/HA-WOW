@@ -187,6 +187,8 @@ async def test_classic_queries_only_documented_endpoints(
         ("sensor", "mounts"),
         ("sensor", "pets"),
         ("sensor", "toys"),
+        ("sensor", "heirlooms"),
+        ("sensor", "transmogs"),
         ("sensor", "reputation"),
         ("sensor", "titles"),
         ("sensor", "quests_completed"),

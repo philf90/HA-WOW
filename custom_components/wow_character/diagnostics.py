@@ -290,7 +290,8 @@ def _shrink(endpoint: str, data: Any) -> Any:
             "first": items[:3],
         }
     if endpoint == "transmogs":
-        # Je Platz oft hunderte Vorlagen; Anzahl je Platz und Beispiele reichen.
+        # Je Platz oft hunderte Vorlagen (seit 0.31.0 schon beim Abruf auf IDs
+        # gekuerzt); Anzahl je Platz und Beispiele reichen.
         sets = data.get("appearance_sets") or []
         slots = [s for s in data.get("slots") or [] if isinstance(s, dict)]
         return {
