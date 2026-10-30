@@ -921,8 +921,6 @@ class CharacterSubentryFlow(_LoginSteps, ConfigSubentryFlow):
             except BattleNetError:
                 errors["base"] = "cannot_connect"
             else:
-                # Die neue ID gilt als gespeicherter Stand, auch wenn sie sich
-                # geaendert hat: So bestaetigt man einen anderen Charakter.
                 return self.async_update_and_abort(
                     self._get_entry(),
                     subentry,
@@ -930,12 +928,7 @@ class CharacterSubentryFlow(_LoginSteps, ConfigSubentryFlow):
                         f"{profile.get('name', character)} – "
                         f"{self._realms.get(realm, realm)}"
                     ),
-                    data={
-                        **{k: v for k, v in data.items() if k != CONF_CHARACTER_ID},
-                        CONF_REALM: realm,
-                        CONF_CHARACTER: character,
-                        **_character_id(profile),
-                    },
+                    data=character_data(subentry, realm, character, profile),
                 )
         return self.async_show_form(
             step_id="reconfigure",
@@ -948,22 +941,7 @@ class CharacterSubentryFlow(_LoginSteps, ConfigSubentryFlow):
         )
 
     def _character_schema(self) -> vol.Schema:
-        options = [
-            SelectOptionDict(value=slug, label=name)
-            for slug, name in sorted(
-                self._realms.items(), key=lambda item: item[1].casefold()
-            )
-        ]
-        return vol.Schema(
-            {
-                vol.Required(CONF_REALM): SelectSelector(
-                    SelectSelectorConfig(
-                        options=options, mode=SelectSelectorMode.DROPDOWN
-                    )
-                ),
-                vol.Required(CONF_CHARACTER): str,
-            }
-        )
+        return character_schema(self._realms)
 
     def _configured(
         self,
@@ -973,18 +951,8 @@ class CharacterSubentryFlow(_LoginSteps, ConfigSubentryFlow):
         character: str,
         skip: str | None = None,
     ) -> bool:
-        """Gibt es den Charakter schon (nach Daten, nicht nach unique_id)?"""
-        wanted = (region, suffix, realm, character.lower())
-        return any(
-            (
-                sub.data.get(CONF_REGION),
-                sub.data.get(CONF_NAMESPACE_SUFFIX),
-                sub.data.get(CONF_REALM),
-                str(sub.data.get(CONF_CHARACTER, "")).lower(),
-            )
-            == wanted
-            for sub in self._get_entry().subentries.values()
-            if sub.subentry_id != skip and sub.subentry_type == SUBENTRY_CHARACTER
+        return character_configured(
+            self._get_entry(), region, suffix, realm, character, skip
         )
 
     async def _load_realms(
@@ -998,6 +966,64 @@ class CharacterSubentryFlow(_LoginSteps, ConfigSubentryFlow):
                 # 403: Namespace (noch) unbekannt, wie bei der Charaktersuche.
                 continue
         raise BattleNetNotFound("kein Namespace-Kandidat liefert eine Realm-Liste")
+
+
+def character_schema(realms: dict[str, str]) -> vol.Schema:
+    """Realm (Auswahl nach Anzeigename) und Name eines Charakters.
+
+    Auch fuer den Reparaturdialog (repairs.py).
+    """
+    options = [
+        SelectOptionDict(value=slug, label=name)
+        for slug, name in sorted(realms.items(), key=lambda item: item[1].casefold())
+    ]
+    return vol.Schema(
+        {
+            vol.Required(CONF_REALM): SelectSelector(
+                SelectSelectorConfig(options=options, mode=SelectSelectorMode.DROPDOWN)
+            ),
+            vol.Required(CONF_CHARACTER): str,
+        }
+    )
+
+
+def character_configured(
+    entry: ConfigEntry,
+    region: str,
+    suffix: str,
+    realm: str,
+    character: str,
+    skip: str | None = None,
+) -> bool:
+    """Gibt es den Charakter schon (nach Daten, nicht nach unique_id)?"""
+    wanted = (region, suffix, realm, character.lower())
+    return any(
+        (
+            sub.data.get(CONF_REGION),
+            sub.data.get(CONF_NAMESPACE_SUFFIX),
+            sub.data.get(CONF_REALM),
+            str(sub.data.get(CONF_CHARACTER, "")).lower(),
+        )
+        == wanted
+        for sub in entry.subentries.values()
+        if sub.subentry_id != skip and sub.subentry_type == SUBENTRY_CHARACTER
+    )
+
+
+def character_data(
+    subentry: ConfigSubentry, realm: str, character: str, profile: dict[str, Any]
+) -> dict[str, Any]:
+    """Neue Daten eines Charakters nach Umbenennung oder Transfer.
+
+    Die ID aus der Antwort gilt als gespeicherter Stand, auch wenn sie sich
+    geaendert hat: So bestaetigt man einen anderen Charakter.
+    """
+    return {
+        **{k: v for k, v in subentry.data.items() if k != CONF_CHARACTER_ID},
+        CONF_REALM: realm,
+        CONF_CHARACTER: character,
+        **_character_id(profile),
+    }
 
 
 def _character_id(profile: dict[str, Any]) -> dict[str, int]:

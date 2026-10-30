@@ -482,15 +482,117 @@
   "issues": {
     "character_not_found": {
       "title": "Charakter {character} nicht gefunden",
-      "description": "Die Battle.net API findet {character} nicht mehr. Mögliche Gründe: Der Charakter wurde umbenannt, auf einen anderen Realm verschoben oder gelöscht, oder er war lange nicht eingeloggt.\n\nHast du ihn umbenannt oder verschoben, öffne Einstellungen → Geräte & Dienste → WoW Charakter, suche den Charakter unter dem Eintrag „Battle.net API“ und wähle ⋮ → Neu konfigurieren. Sonst lösche den Charakter dort. Der Hinweis verschwindet, sobald der Charakter wieder gefunden wird."
+      "description": "Die Battle.net API findet {character} nicht mehr. Mögliche Gründe: Der Charakter wurde umbenannt, auf einen anderen Realm verschoben oder gelöscht, oder er war lange nicht eingeloggt.\n\nWähle **Beheben**, um den neuen Realm oder Namen einzutragen oder den Charakter zu entfernen. Der Hinweis verschwindet auch, sobald der Charakter wieder gefunden wird.",
+      "fix_flow": {
+        "step": {
+          "init": {
+            "title": "{character} reparieren",
+            "description": "Was ist mit {character} passiert?",
+            "menu_options": {
+              "character": "Neuen Realm oder Namen eintragen (umbenannt oder verschoben)",
+              "remove": "Charakter entfernen (gelöscht oder nicht mehr gewünscht)"
+            }
+          },
+          "character": {
+            "title": "Neuer Realm und Name",
+            "description": "Trag ein, wo {character} jetzt zu finden ist. Gerät, Entitäts-IDs und Verlauf bleiben erhalten. Derselbe Name übernimmt den aktuellen Charakter.",
+            "data": {
+              "realm": "Realm",
+              "character": "Charakter"
+            }
+          },
+          "remove": {
+            "title": "Charakter entfernen",
+            "description": "{character} wird mit Gerät und Entitäten entfernt."
+          }
+        },
+        "error": {
+          "character_not_found": "Charakter auf diesem Realm nicht gefunden. Namen prüfen; der Charakter muss sich einmal ausgeloggt haben.",
+          "cannot_connect": "Battle.net API nicht erreichbar.",
+          "already_configured": "Dieser Charakter ist bereits eingerichtet."
+        },
+        "abort": {
+          "character_removed": "Dieser Charakter ist nicht mehr eingerichtet.",
+          "entry_not_loaded": "Der Eintrag des API-Clients ist nicht geladen.",
+          "cannot_connect": "Battle.net API nicht erreichbar."
+        }
+      }
     },
     "character_changed": {
       "title": "{character} ist jetzt ein anderer Charakter",
-      "description": "Den Namen {character} trägt jetzt ein anderer Charakter als der eingerichtete (die Charakter-ID bei Battle.net hat sich geändert). Das passiert meist nach einer Umbenennung, einem Realm-Transfer oder wenn ein Charakter gelöscht und neu erstellt wurde. Bis du das bestätigst, zeigt die Integration für ihn keine Daten.\n\nÖffne Einstellungen → Geräte & Dienste → WoW Charakter, suche den Charakter unter dem Eintrag „Battle.net API“ und wähle ⋮ → Neu konfigurieren. Speichern übernimmt den aktuellen Charakter; wurde deiner umbenannt, trage dort den neuen Namen ein."
+      "description": "Den Namen {character} trägt jetzt ein anderer Charakter als der eingerichtete (die Charakter-ID bei Battle.net hat sich geändert). Das passiert meist nach einer Umbenennung, einem Realm-Transfer oder wenn ein Charakter gelöscht und neu erstellt wurde. Bis du das bestätigst, zeigt die Integration für ihn keine Daten.\n\nWähle **Beheben**: Derselbe Name übernimmt den aktuellen Charakter; wurde deiner umbenannt, trag den neuen Namen ein. Dort kannst du den Charakter auch entfernen.",
+      "fix_flow": {
+        "step": {
+          "init": {
+            "title": "{character} reparieren",
+            "description": "Was ist mit {character} passiert?",
+            "menu_options": {
+              "character": "Neuen Realm oder Namen eintragen (umbenannt oder verschoben)",
+              "remove": "Charakter entfernen (gelöscht oder nicht mehr gewünscht)"
+            }
+          },
+          "character": {
+            "title": "Neuer Realm und Name",
+            "description": "Trag ein, wo {character} jetzt zu finden ist. Gerät, Entitäts-IDs und Verlauf bleiben erhalten. Derselbe Name übernimmt den aktuellen Charakter.",
+            "data": {
+              "realm": "Realm",
+              "character": "Charakter"
+            }
+          },
+          "remove": {
+            "title": "Charakter entfernen",
+            "description": "{character} wird mit Gerät und Entitäten entfernt."
+          }
+        },
+        "error": {
+          "character_not_found": "Charakter auf diesem Realm nicht gefunden. Namen prüfen; der Charakter muss sich einmal ausgeloggt haben.",
+          "cannot_connect": "Battle.net API nicht erreichbar.",
+          "already_configured": "Dieser Charakter ist bereits eingerichtet."
+        },
+        "abort": {
+          "character_removed": "Dieser Charakter ist nicht mehr eingerichtet.",
+          "entry_not_loaded": "Der Eintrag des API-Clients ist nicht geladen.",
+          "cannot_connect": "Battle.net API nicht erreichbar."
+        }
+      }
     },
     "character_invalid": {
       "title": "{character} ist nicht mehr gültig",
-      "description": "Blizzard meldet das Profil von {character} als nicht mehr gültig. Blizzard bittet, solche Daten nicht mehr anzuzeigen, deshalb zeigt die Integration für diesen Charakter nichts an.\n\nHast du ihn umbenannt oder verschoben, wähle am Charakter unter Einstellungen → Geräte & Dienste → WoW Charakter ⋮ → Neu konfigurieren; sonst lösche ihn dort."
+      "description": "Blizzard meldet das Profil von {character} als nicht mehr gültig. Blizzard bittet, solche Daten nicht mehr anzuzeigen, deshalb zeigt die Integration für diesen Charakter nichts an.\n\nWähle **Beheben**, um nach einer Umbenennung oder einem Transfer den neuen Realm oder Namen einzutragen oder den Charakter zu entfernen.",
+      "fix_flow": {
+        "step": {
+          "init": {
+            "title": "{character} reparieren",
+            "description": "Was ist mit {character} passiert?",
+            "menu_options": {
+              "character": "Neuen Realm oder Namen eintragen (umbenannt oder verschoben)",
+              "remove": "Charakter entfernen (gelöscht oder nicht mehr gewünscht)"
+            }
+          },
+          "character": {
+            "title": "Neuer Realm und Name",
+            "description": "Trag ein, wo {character} jetzt zu finden ist. Gerät, Entitäts-IDs und Verlauf bleiben erhalten. Derselbe Name übernimmt den aktuellen Charakter.",
+            "data": {
+              "realm": "Realm",
+              "character": "Charakter"
+            }
+          },
+          "remove": {
+            "title": "Charakter entfernen",
+            "description": "{character} wird mit Gerät und Entitäten entfernt."
+          }
+        },
+        "error": {
+          "character_not_found": "Charakter auf diesem Realm nicht gefunden. Namen prüfen; der Charakter muss sich einmal ausgeloggt haben.",
+          "cannot_connect": "Battle.net API nicht erreichbar.",
+          "already_configured": "Dieser Charakter ist bereits eingerichtet."
+        },
+        "abort": {
+          "character_removed": "Dieser Charakter ist nicht mehr eingerichtet.",
+          "entry_not_loaded": "Der Eintrag des API-Clients ist nicht geladen.",
+          "cannot_connect": "Battle.net API nicht erreichbar."
+        }
+      }
     }
   },
   "exceptions": {
