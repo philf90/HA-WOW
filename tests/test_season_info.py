@@ -87,3 +87,52 @@ async def test_no_season_id_no_query(hass: HomeAssistant, aioclient_mock) -> Non
     assert not [
         c for c in aioclient_mock.mock_calls if str(c[1]).startswith(SEASON_URL)
     ]
+
+
+# 0.30.0: Season als Attribute am Sensor "Woechentlicher Reset"
+
+
+def _reset_attrs(hass: HomeAssistant) -> dict:
+    return dict(hass.states.get("sensor.wow_world_eu_weekly_reset").attributes)
+
+
+async def test_reset_sensor_season_attributes(
+    hass: HomeAssistant, aioclient_mock
+) -> None:
+    """Beginn als Zeitpunkt; ohne Ende in der Antwort bleibt season_end leer."""
+    await _setup(hass, aioclient_mock)
+    attrs = _reset_attrs(hass)
+    assert attrs["season_id"] == 14
+    assert attrs["season_name"] is None
+    assert attrs["season_start"] == "2025-10-14T07:00:00+00:00"
+    assert attrs["season_end"] is None
+
+
+async def test_reset_sensor_season_with_end(
+    hass: HomeAssistant, aioclient_mock
+) -> None:
+    await _setup(
+        hass,
+        aioclient_mock,
+        {
+            SEASON_URL: {
+                "id": 14,
+                "start_timestamp": 1760425200000,
+                "end_timestamp": 1767682800000,
+                "season_name": "Season 14",
+                "periods": [],
+            }
+        },
+    )
+    attrs = _reset_attrs(hass)
+    assert attrs["season_name"] == "Season 14"
+    assert attrs["season_end"] == "2026-01-06T07:00:00+00:00"
+
+
+async def test_reset_sensor_without_season(hass: HomeAssistant, aioclient_mock) -> None:
+    """Season-Abfrage gescheitert: Attribute leer, Reset-Zustand bleibt."""
+    await _setup(hass, aioclient_mock, {SEASON_URL: 500})
+    state = hass.states.get("sensor.wow_world_eu_weekly_reset")
+    assert state.state not in ("unknown", "unavailable")
+    assert state.attributes["season_start"] is None
+    assert state.attributes["season_name"] is None

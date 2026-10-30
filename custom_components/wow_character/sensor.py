@@ -895,6 +895,26 @@ class WowResetSensor(WowWorldEntity, SensorEntity):
     def native_value(self) -> datetime | None:
         return (self.coordinator.data or {}).get("reset")
 
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        """Laufende Mythic+-Season (seit 0.30.0, aus season_info der Spielwelt).
+
+        Live (EU, 30.10.2026) nannte die API fuer die laufende Season kein
+        Ende (end_timestamp fehlte); season_end bleibt dann leer.
+        """
+        info = (self.coordinator.data or {}).get("season_info") or {}
+
+        def iso(value: Any) -> str | None:
+            moment = p.timestamp(value)
+            return moment.isoformat() if moment else None
+
+        return {
+            "season_id": info.get("id"),
+            "season_name": info.get("season_name"),
+            "season_start": iso(info.get("start_timestamp")),
+            "season_end": iso(info.get("end_timestamp")),
+        }
+
 
 class WowRealmPopulationSensor(WowWorldEntity, SensorEntity):
     """Bevoelkerung als uebersetzbarer Zustand (seit 0.22.0, vorher Text der API)."""
