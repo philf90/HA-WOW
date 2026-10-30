@@ -1031,7 +1031,16 @@ mit einem Classic-Era-Charakter (siehe [WoW Classic](#wow-classic)).
   fehlender Typ ergeben „unbekannt“ statt eines Fehlers) und das Gerätemodell
   für Retail und Classic Era; ein Test angepasst (Bevölkerung `high` statt
   „Hoch“). Gegenprobe: neun Teile einzeln ausgebaut, jedes Mal schlug ein
-  Test fehl. **Nicht live geprüft.**
+  Test fehl. **Live geprüft mit 0.22.0** (30.10.2026, Home Assistant
+  2026.10.4, acht Charaktere in EU Retail und Classic Era): Bevölkerung mit den
+  Zuständen `full`, `medium` und `low` (vorher „Voll“, „Mittel“, „Niedrig“) und
+  den fünf Optionen; Gerätemodell „World of Warcraft“ bzw. „World of Warcraft
+  Classic Era“; Diagnose bereinigt unter `character` auch im echten
+  Mythic+-Profil (nur der Realm bleibt); das Mythic+-Profil enthält
+  `current_period`. Nicht live belegbar: fremde Namen, weil kein Charakter in
+  einer Gilde ist und es keine Mythic+-Läufe mit Gruppe gab, sowie `best_runs`
+  (keine Läufe in Season 18); wie die Oberfläche die Zustände anzeigt, ist
+  über das MCP nicht sichtbar. Kein Eintrag im Log.
 - **0.21.x:** 298 automatische Tests. 0.21.1: 2 Tests für Geräte ohne das
   veraltete `config_entries` (Funktion und ganzer Aufruf von `refresh` mit
   Gerät); Gegenprobe: mit dem alten Zugriff schlagen beide fehl. **Live geprüft
