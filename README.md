@@ -11,7 +11,7 @@ Home-Assistant-Integration für World-of-Warcraft-Charaktere: Level, Itemlevel,
 Ausrüstung, Raid- und Mythic+-Fortschritt, Berufe, Ruf, Erfolge und mehr als
 Sensoren, dazu WoW-Marke, wöchentlicher Reset und Serverstatus. Die Daten kommen
 aus der offiziellen Battle.net API. Unterstützt Retail, WoW Classic (Era,
-Progression, Anniversary) und ist für WoW Forever vorbereitet. Version 0.25.1.
+Progression, Anniversary) und ist für WoW Forever vorbereitet. Version 0.26.0.
 
 Zwei Dashboard-Karten liefert die Integration selbst mit: „WoW Arsenal“
 (`custom:wow-arsenal-card`) und „WoW Talentbaum“ (`custom:wow-talent-tree-card`,
@@ -147,6 +147,11 @@ neu starten. Wer von Hand aktualisiert, ersetzt den ganzen Ordner
 `custom_components/wow_character` samt `translations/`; sonst fehlen neue Texte,
 z. B. die Einträge im Menü „Charakter hinzufügen“. Was sich je Version ändert, steht in den
 [Release-Notes](https://github.com/philf90/HA-WOW/releases).
+
+**Update auf 0.26.0:** keine Migration. Charaktere fragen beim Start parallel
+ab, höchstens vier zugleich; mit mehreren Charakteren startet die Integration
+schneller. Raid-Bilder, die Blizzards Bildserver nicht ausliefert, stehen in
+`images` als `null` statt als defekte Adresse.
 
 **Update auf 0.25.1:** keine Migration. Der Raid-Fortschritt zählt nur noch
 echte Raids in der Schwierigkeit des Sensors, ohne Weltbosse; Raidnamen kommen
@@ -724,6 +729,11 @@ Speichern lädt die Integration einmal neu.
   später einen Wert haben (seit 0.18.0; von 0.11.3 bis 0.17.x fragte sie solche
   Endpunkte bis zum Neuladen gar nicht ab). Fällt eine Bedingung weg (z. B.
   Gilde verlassen), bleibt die Entität und zeigt „unbekannt“.
+- Start: Zuerst fragt die Integration die Spielwelten ab (die Charaktere
+  brauchen Season und Raid-Journal daraus), dann die Charaktere parallel, höchstens
+  vier zugleich, je Charakter erst das Profil, dann die Details (seit 0.26.0;
+  vorher alle nacheinander). Damit laufen höchstens vier Abfragen gleichzeitig,
+  weit unter dem Abfragelimit.
 - Ereignisse holen nach Neustart oder Neuladen nach, was in der Zwischenzeit
   dazukam, bis 24 Stunden zurück (seit 0.23.0, siehe [Ereignisse](#ereignisse)).
 - Abfragelimit: Blizzard erlaubt laut Doku („Getting Started“, Throttling)
@@ -1122,10 +1132,16 @@ Automatische Tests laufen gegen Home Assistant 2026.2.3; live geprüft wurde unt
 Home Assistant 2026.10.4 mit Retail-Charakteren der Region EU, seit 0.11.2 auch
 mit einem Classic-Era-Charakter (siehe [WoW Classic](#wow-classic)).
 
-- **0.25.x:** 346 automatische Tests. Nächste Version: 4 Tests für die Prüfung
+- **0.26.x:** 350 automatische Tests. 0.26.0: 4 Tests für den parallelen Start
+  (Charaktere fragen zugleich ab, Zuordnung und Reihenfolge der Untereinträge
+  bleiben; höchstens vier zugleich; je Charakter Details erst nach dem Profil;
+  ein scheiternder Charakter hält die anderen nicht auf) und 4 für die Prüfung
   der Raid-Bilder (Bildserver ohne Bild, 403 und 404, ergibt `null` und wird nur
   einmal gefragt; Bildserver nicht erreichbar, nächster Takt prüft neu; andere
-  Symbole werden nicht geprüft); „Current Season“ nicht mehr abgefragt. 0.25.1: 1 Test neu (Weltbosse und Raids
+  Symbole werden nicht geprüft); „Current Season“ nicht mehr abgefragt.
+  Gegenprobe: elf Teile einzeln ausgebaut, jedes Mal schlug ein Test fehl.
+  **Nicht live geprüft.**
+- **0.25.x:** 342 automatische Tests. 0.25.1: 1 Test neu (Weltbosse und Raids
   ohne die Schwierigkeit zählen nicht), 7 angepasst (Namen aus dem Journal, LFR
   ohne Raid ohne LFR, Kategorie, Schwierigkeiten und „Current Season“ im
   Journal der Spielwelt). Gegenprobe: acht Teile einzeln ausgebaut, jedes Mal
