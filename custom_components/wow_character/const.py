@@ -37,6 +37,10 @@ CONF_CHARACTERS = "characters"
 # Takt der Spielwelt (Realms, WoW-Marke, Reset). Die Takte der Charaktere
 # stehen in INTERVAL_OPTIONS.
 WORLD_INTERVAL = timedelta(minutes=15)
+# Beim Start fragen hoechstens so viele Charaktere gleichzeitig ab (W4); jeder
+# nacheinander, also ebenso viele Anfragen zugleich. Blizzard erlaubt laut Doku
+# ("Getting Started", Throttling) 100 Anfragen je Sekunde.
+STARTUP_PARALLEL = 4
 # Abstand der Pruefung ueber den Status-Endpunkt (is_valid und ID).
 STATUS_INTERVAL = timedelta(hours=24)
 # Erst nach so vielen 404 in Folge gilt ein Charakter als nicht gefunden

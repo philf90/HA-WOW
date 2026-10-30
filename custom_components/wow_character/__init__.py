@@ -50,6 +50,7 @@ from .const import (
     GAME_VERSIONS,
     MAIN_TITLE,
     REGIONS,
+    STARTUP_PARALLEL,
     SUBENTRY_CHARACTER,
 )
 from .coordinator import (
@@ -149,24 +150,41 @@ async def async_setup_entry(hass: HomeAssistant, entry: WowConfigEntry) -> bool:
         key = (subentry.data[CONF_REGION], subentry.data[CONF_NAMESPACE_SUFFIX])
         realms.setdefault(key, set()).add(subentry.data[CONF_REALM])
         versions[key] = subentry.data[CONF_GAME_VERSION]
-    for (region, suffix), slugs in realms.items():
-        world = WowWorldCoordinator(
-            hass, entry, client, region, suffix, slugs, versions[(region, suffix)]
-        )
-        await world.async_refresh()
-        runtime.worlds[(region, suffix)] = world
+    # Zuerst die Spielwelten: Die Charaktere brauchen Season und Raid-Journal.
+    runtime.worlds.update(
+        {
+            (region, suffix): WowWorldCoordinator(
+                hass, entry, client, region, suffix, slugs, versions[(region, suffix)]
+            )
+            for (region, suffix), slugs in realms.items()
+        }
+    )
+    await asyncio.gather(*(w.async_refresh() for w in runtime.worlds.values()))
 
-    # Bewusst kein async_config_entry_first_refresh: Scheitert ein Charakter,
-    # sind nur seine Sensoren nicht verfuegbar, die anderen laufen.
-    for subentry_id, subentry in characters.items():
+    # Charaktere parallel, hoechstens STARTUP_PARALLEL zugleich (W4, seit
+    # 0.26.0; vorher nacheinander). Je Charakter erst das Profil: Die Details
+    # brauchen z. B. die Gilde daraus. Bewusst kein
+    # async_config_entry_first_refresh: Scheitert ein Charakter, sind nur seine
+    # Sensoren nicht verfuegbar, die anderen laufen.
+    limit = asyncio.Semaphore(STARTUP_PARALLEL)
+
+    async def start(
+        subentry: ConfigSubentry,
+    ) -> tuple[WowCoordinator, WowDetailCoordinator]:
         world = runtime.worlds.get(
             (subentry.data[CONF_REGION], subentry.data[CONF_NAMESPACE_SUFFIX])
         )
         coordinator = WowCoordinator(hass, entry, client, subentry, world)
-        await coordinator.async_refresh()
-        runtime.coordinators[subentry_id] = coordinator
         detail = WowDetailCoordinator(hass, entry, client, subentry, coordinator, world)
-        await detail.async_refresh()
+        async with limit:
+            await coordinator.async_refresh()
+            await detail.async_refresh()
+        return coordinator, detail
+
+    started = await asyncio.gather(*(start(s) for s in characters.values()))
+    # In der Reihenfolge der Untereintraege, wie vorher
+    for subentry_id, (coordinator, detail) in zip(characters, started, strict=True):
+        runtime.coordinators[subentry_id] = coordinator
         runtime.details[subentry_id] = detail
     # Waehrend der Abfragen geloeschte Charaktere nicht mehr einrichten; Home
     # Assistant lehnt Entitaeten fuer unbekannte Untereintraege ab (Live-Test

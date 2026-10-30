@@ -520,10 +520,6 @@ def mock_api(
                 {"id": 9203, "name": "Weltbosse"},
             ],
         },
-        "/journal-expansion/505": {
-            "id": 505,
-            "raids": [{"id": 9202, "name": "Zweiter Raid"}],
-        },
         "/journal-instance/9201": {
             "id": 9201,
             "encounters": [{}] * 8,
@@ -568,3 +564,5 @@ def mock_api(
             aioclient_mock.get(path, status=body)
         else:
             aioclient_mock.get(path, json=body)
+    # Bildserver: Raid-Bilder prueft die Integration mit HEAD.
+    aioclient_mock.head("https://render.example/neu.jpg", status=200)

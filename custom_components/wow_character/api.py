@@ -231,6 +231,26 @@ class BattleNetClient:
             raise BattleNetError(f"{path}: Antwort ist kein JSON-Objekt")
         return data
 
+    async def image_available(self, url: str) -> bool:
+        """Liefert der Bildserver unter url ein Bild? Ohne Token (oeffentlich).
+
+        Blizzards Medien-Endpunkt nennt teils Adressen, unter denen nichts liegt:
+        render.worldofwarcraft.com antwortete am 30.10.2026 fuer
+        zones/midnight-small.jpg und zones/the-tidebound-grotto-small.jpg mit
+        HTTP 403 (AccessDenied), auch auf HEAD.
+        """
+        try:
+            async with self._session.head(
+                url, timeout=aiohttp.ClientTimeout(total=REQUEST_TIMEOUT)
+            ) as resp:
+                return resp.status == 200
+        except TimeoutError as err:
+            raise BattleNetError(
+                f"{url}: keine Antwort nach {REQUEST_TIMEOUT} s"
+            ) from err
+        except aiohttp.ClientError as err:
+            raise BattleNetError(f"{url}: {type(err).__name__} {err}".strip()) from err
+
     @staticmethod
     def namespace(kind: str, suffix: str, region: str) -> str:
         """z. B. ("profile", "", "eu") -> "profile-eu"."""
