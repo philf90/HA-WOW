@@ -69,7 +69,8 @@ DETAIL_ENDPOINTS: dict[str, tuple[str, int]] = {
     # 0.31.0 mit Sensoren. Endpunkte laut @blizzard-api/wow 4.1.4
     # (character-collections, CharacterHeirloomsCollectionSummaryResponse,
     # CharacterTransmogCollectionSummaryResponse); die Classic-Doku nennt sie
-    # nicht. Live (30.10.2026) bei allen Charakteren eines Kontos gleich.
+    # nicht. Live (30.10.2026) Erbstuecke bei allen 7 Retail-Charakteren gleich,
+    # Transmogs bei 6 gleich und bei einem deutlich weniger (Ursache unbekannt).
     "heirlooms": ("collections/heirlooms", 360),
     "transmogs": ("collections/transmogs", 360),
     "media": ("character-media", 360),

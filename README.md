@@ -559,11 +559,15 @@ Mythic+ zeigen die eigenen Mythic+-Sensoren.
 
 ### Erbstücke und Transmog-Vorlagen
 
-Seit 0.31.0, nur Retail und Forever; Classic fragt die Endpunkte nicht ab. Beide
-gelten für das ganze Konto: Live (30.10.2026) zeigten alle Charaktere eines
-Kontos dieselben Werte, auch auf verschiedenen Realms. Wie bei den Reittieren
-hat trotzdem jeder Charakter eigene Sensoren, weil die Integration nicht weiß,
-zu welchem Konto ein Charakter gehört; überzählige lassen sich deaktivieren.
+Seit 0.31.0, nur Retail und Forever; Classic fragt die Endpunkte nicht ab. Wie
+bei den Reittieren hat jeder Charakter eigene Sensoren. Meist zeigen die
+Charaktere eines Kontos dieselben Werte, aber nicht immer: Live (30.10.2026,
+7 Retail-Charaktere auf 2 Realms) waren die Erbstücke überall gleich (35), die
+Transmog-Vorlagen bei 6 Charakteren (4.328, 317 Sets), bei einem
+Level-11-Charakter aber deutlich weniger (1.519, 170 Sets). Klasse und letzter
+Login erklären das nicht: Ein Druide zeigte die vollen 4.328 samt Schildhand,
+und auch Umhänge, die jede Klasse trägt, fehlten dem einen Charakter. Die
+Ursache ist nicht geklärt. Gleiche Sensoren lassen sich deaktivieren.
 
 **Erbstücke:** Zustand ist die Zahl der gesammelten Erbstücke (live 35).
 
@@ -583,8 +587,9 @@ Plätze. Jede Vorlage zählt einmal, auch wenn sie unter mehreren Plätzen steht
   je zweimal).
 
 Ob die Zahlen denen im Sammlungsfenster des Spiels entsprechen, ist nicht
-geprüft. Die Antwort nennt jede Vorlage mit Link (live 4.337 Einträge); die
-Integration behält nur die IDs. Antwort ohne Listen: 0; keine Antwort:
+geprüft. Die Antwort nennt jede Vorlage mit Link (live 4.337 Einträge, davon
+9 unter zwei Plätzen, also 4.328 verschiedene); die Integration behält nur die
+IDs. Antwort ohne Listen: 0; keine Antwort:
 „unbekannt“.
 
 ### Ereignisse
@@ -1252,7 +1257,12 @@ mit einem Classic-Era-Charakter (siehe [WoW Classic](#wow-classic)).
   ohne Listen ergibt 0; 404 unbekannt; doppelte IDs und gleichnamige Plätze;
   fremde Einträge), die Tests für die Diagnose aus 0.30.1 gehen darin auf;
   Classic legt die Sensoren nicht an. Gegenprobe: neun Teile einzeln ausgebaut,
-  jedes Mal schlug ein Test fehl. **Nicht live geprüft.**
+  jedes Mal schlug ein Test fehl. **Live geprüft** (30.10.2026, 7 Retail- und
+  ein Classic-Era-Charakter in EU): Erbstücke überall 35 mit 12 aufgewerteten
+  (Stufen 0/1/2: 23/11/1); Transmog-Vorlagen 4.328 bei 6 Charakteren (Summe
+  über die Plätze 4.337, gleichnamige Plätze ohne Überschneidung), 1.519 bei
+  einem; Classic-Era ohne die Sensoren; keine Fehler im Log. Nicht geprüft: der
+  Abgleich mit dem Sammlungsfenster im Spiel.
 - **0.30.x:** 374 automatische Tests. 0.30.1: 6 Tests für Erbstücke und
   Transmog-Vorlagen in der Diagnose (gekürzt mit Anzahl, Aufwertungsstufen,
   Sets und Vorlagen je Platz, keine Entität; unerwartete Antwort ohne Fehler;
