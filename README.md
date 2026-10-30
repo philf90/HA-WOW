@@ -11,7 +11,7 @@ Home-Assistant-Integration für World-of-Warcraft-Charaktere: Level, Itemlevel,
 Ausrüstung, Raid- und Mythic+-Fortschritt, Berufe, Ruf, Erfolge und mehr als
 Sensoren, dazu WoW-Marke, wöchentlicher Reset und Serverstatus. Die Daten kommen
 aus der offiziellen Battle.net API. Unterstützt Retail, WoW Classic (Era,
-Progression, Anniversary) und ist für WoW Forever vorbereitet. Version 0.22.0.
+Progression, Anniversary) und ist für WoW Forever vorbereitet. Version 0.23.0.
 
 Zwei Dashboard-Karten liefert die Integration selbst mit: „WoW Arsenal“
 (`custom:wow-arsenal-card`) und „WoW Talentbaum“ (`custom:wow-talent-tree-card`,
@@ -147,6 +147,11 @@ neu starten. Wer von Hand aktualisiert, ersetzt den ganzen Ordner
 `custom_components/wow_character` samt `translations/`; sonst fehlen neue Texte,
 z. B. die Einträge im Menü „Charakter hinzufügen“. Was sich je Version ändert, steht in den
 [Release-Notes](https://github.com/philf90/HA-WOW/releases).
+
+**Update auf 0.23.0:** keine Migration. Ereignisse merken sich ihren Stand
+über Neustart und Neuladen (siehe [Ereignisse](#ereignisse)). Beim ersten
+Start mit 0.23.0 gibt es noch keinen gespeicherten Stand; ab dann holen sie
+Verpasstes nach. Zurück auf 0.22.0 geht ohne Backup.
 
 **Update auf 0.22.0:** keine Migration, Entitäts-IDs bleiben. Geändert:
 Der Sensor „Bevölkerung“ hat jetzt feste Zustände (`full`, `high`, `medium`,
@@ -432,7 +437,20 @@ liefert z. B. zwei Fraktionen „Bilgewasserkartell“.
 
 ### Ereignisse
 
-Ereignisse lösen nur für Neues seit dem Start von Home Assistant aus.
+Ereignisse lösen für Neues aus. Seit 0.23.0 merken sie sich ihren Stand über
+Neustart und Neuladen (z. B. beim Hinzufügen eines Charakters oder Speichern
+der Optionen): Kam in der Zwischenzeit etwas dazu, löst es danach aus.
+
+- Nachgeholt wird nur, wenn der gespeicherte Stand höchstens 24 Stunden alt
+  ist; Bosskills und Erfolge zudem nur, wenn sie selbst höchstens 24 Stunden
+  zurückliegen. War Home Assistant länger aus, gilt der Stand beim Start wie
+  vor 0.23.0 als bekannt, statt eine Flut alter Meldungen auszulösen.
+- Nachgeholt wird erst, wenn Home Assistant gestartet ist; vorher sind
+  Automationen womöglich noch nicht bereit.
+- Den Stand speichert Home Assistant mit der Entität (wie den letzten
+  Zustand). Für „Neu gesammelt“ sind das die IDs aller Reittiere, Haustiere,
+  Spielzeuge und Titel, z. B. 494 Zahlen bei 166 Reittieren, 166 Haustieren,
+  107 Spielzeugen und 55 Titeln (Live-System, 30.10.2026).
 
 - **Boss besiegt:** `boss`, `raid`, `difficulty`, `timestamp`.
 - **Neuer Erfolg:** `achievement`, `id`, `timestamp`, `icon` (Symbol des Erfolgs).
@@ -641,8 +659,8 @@ Speichern lädt die Integration einmal neu.
   später einen Wert haben (seit 0.18.0; von 0.11.3 bis 0.17.x fragte sie solche
   Endpunkte bis zum Neuladen gar nicht ab). Fällt eine Bedingung weg (z. B.
   Gilde verlassen), bleibt die Entität und zeigt „unbekannt“.
-- Ereignisse lösen nur für Einträge aus, die nach dem Start von Home Assistant
-  dazukommen.
+- Ereignisse holen nach Neustart oder Neuladen nach, was in der Zwischenzeit
+  dazukam, bis 24 Stunden zurück (seit 0.23.0, siehe [Ereignisse](#ereignisse)).
 - Abfragelimit: Blizzard erlaubt laut Doku („Getting Started“, Throttling)
   100 Abfragen je Sekunde und meldet darüber HTTP 429 bis zum Ende der Sekunde.
   Bei 429 wartet die Integration eine Sekunde und fragt einmal erneut (seit
@@ -1024,6 +1042,15 @@ Automatische Tests laufen gegen Home Assistant 2026.2.3; live geprüft wurde unt
 Home Assistant 2026.10.4 mit Retail-Charakteren der Region EU, seit 0.11.2 auch
 mit einem Classic-Era-Charakter (siehe [WoW Classic](#wow-classic)).
 
+- **0.23.x:** 319 automatische Tests. 0.23.0: 12 Tests für Ereignisse über
+  Neustart und Neuladen (Bosskill während des Neustarts löst aus, älter als
+  24 Stunden nicht, auch nicht bei der nächsten Abfrage; gespeicherter Stand
+  älter als 24 Stunden wird verworfen; unbrauchbarer Stand in vier Formen ohne
+  Fehler; Neuladen behält den Stand; gespeichert werden der Stand von Home
+  Assistant und der eigene; vor dem Start löst nichts aus, danach Bosskill und
+  Level; neues Reittier und neues Level nach dem Neustart). Gegenprobe: zehn
+  Teile einzeln ausgebaut, jedes Mal schlug ein Test fehl. **Nicht live
+  geprüft.**
 - **0.22.x:** 307 automatische Tests. 0.22.0: 9 Tests für die Diagnose ohne
   andere Spieler (Mythic+-Läufe der Season und der Woche, Gildenmitglieder
   und -aktivitäten, Hilfsfunktion; der eigene Name bleibt), `best_runs` ohne
@@ -1031,7 +1058,16 @@ mit einem Classic-Era-Charakter (siehe [WoW Classic](#wow-classic)).
   fehlender Typ ergeben „unbekannt“ statt eines Fehlers) und das Gerätemodell
   für Retail und Classic Era; ein Test angepasst (Bevölkerung `high` statt
   „Hoch“). Gegenprobe: neun Teile einzeln ausgebaut, jedes Mal schlug ein
-  Test fehl. **Nicht live geprüft.**
+  Test fehl. **Live geprüft mit 0.22.0** (30.10.2026, Home Assistant
+  2026.10.4, acht Charaktere in EU Retail und Classic Era): Bevölkerung mit den
+  Zuständen `full`, `medium` und `low` (vorher „Voll“, „Mittel“, „Niedrig“) und
+  den fünf Optionen; Gerätemodell „World of Warcraft“ bzw. „World of Warcraft
+  Classic Era“; Diagnose bereinigt unter `character` auch im echten
+  Mythic+-Profil (nur der Realm bleibt); das Mythic+-Profil enthält
+  `current_period`. Nicht live belegbar: fremde Namen, weil kein Charakter in
+  einer Gilde ist und es keine Mythic+-Läufe mit Gruppe gab, sowie `best_runs`
+  (keine Läufe in Season 18); wie die Oberfläche die Zustände anzeigt, ist
+  über das MCP nicht sichtbar. Kein Eintrag im Log.
 - **0.21.x:** 298 automatische Tests. 0.21.1: 2 Tests für Geräte ohne das
   veraltete `config_entries` (Funktion und ganzer Aufruf von `refresh` mit
   Gerät); Gegenprobe: mit dem alten Zugriff schlagen beide fehl. **Live geprüft
