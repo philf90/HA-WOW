@@ -303,7 +303,14 @@
         "name": "Wöchentlicher Reset"
       },
       "realm_population": {
-        "name": "Bevölkerung {realm}"
+        "name": "Bevölkerung {realm}",
+        "state": {
+          "full": "Voll",
+          "high": "Hoch",
+          "medium": "Mittel",
+          "low": "Niedrig",
+          "recommended": "Empfohlen"
+        }
       },
       "equipment_head": {
         "name": "Ausrüstung Kopf"

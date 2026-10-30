@@ -19,7 +19,7 @@ from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from . import parsers as p
-from .const import EQUIPMENT_SLOTS, PVP_BRACKETS
+from .const import EQUIPMENT_SLOTS, PVP_BRACKETS, REALM_POPULATIONS
 from .coordinator import (
     EQUIPMENT_PREFIX,
     PROFESSION_PREFIX,
@@ -883,10 +883,14 @@ class WowResetSensor(WowWorldEntity, SensorEntity):
 
 
 class WowRealmPopulationSensor(WowWorldEntity, SensorEntity):
+    """Bevoelkerung als uebersetzbarer Zustand (seit 0.22.0, vorher Text der API)."""
+
     _attr_translation_key = "realm_population"
+    _attr_device_class = SensorDeviceClass.ENUM
 
     def __init__(self, coordinator: WowWorldCoordinator, slug: str) -> None:
         super().__init__(coordinator, f"realm-{slug}-population")
+        self._attr_options = list(REALM_POPULATIONS)
         self._slug = slug
         realm = (coordinator.data or {}).get("realms", {}).get(slug) or {}
         self._attr_translation_placeholders = {"realm": realm.get("name") or slug}
@@ -894,4 +898,5 @@ class WowRealmPopulationSensor(WowWorldEntity, SensorEntity):
     @property
     def native_value(self) -> str | None:
         realm = (self.coordinator.data or {}).get("realms", {}).get(self._slug)
-        return (realm or {}).get("population")
+        value = str((realm or {}).get("population_type") or "").lower()
+        return value if value in REALM_POPULATIONS else None
