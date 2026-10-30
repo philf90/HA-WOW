@@ -1,4 +1,8 @@
-"""Diagnose: API-Antworten ohne Zugangsdaten, zum Pruefen der Feldnamen."""
+"""Diagnose: API-Antworten ohne Zugangsdaten, zum Pruefen der Feldnamen.
+
+Fuer den ganzen Eintrag (alle Charaktere und Spielwelten) und seit 0.27.0 je
+Geraet: ein Charakter mit der Spielwelt seiner Region oder eine Spielwelt.
+"""
 
 from __future__ import annotations
 
@@ -7,10 +11,16 @@ from typing import Any
 
 from homeassistant.components.diagnostics import async_redact_data
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers.device_registry import DeviceEntry
 
 from .api import BattleNetError, region_locale
-from .const import CONF_CLIENT_ID, CONF_CLIENT_SECRET
-from .coordinator import WowConfigEntry, WowDetailCoordinator
+from .const import CONF_CLIENT_ID, CONF_CLIENT_SECRET, DOMAIN
+from .coordinator import (
+    WowConfigEntry,
+    WowCoordinator,
+    WowDetailCoordinator,
+    WowWorldCoordinator,
+)
 
 TO_REDACT = {CONF_CLIENT_ID, CONF_CLIENT_SECRET}
 # Was einen Spieler erkennbar macht, unter jedem Schluessel "character": Name,
@@ -269,23 +279,31 @@ def _shrink(endpoint: str, data: Any) -> Any:
     return data
 
 
+async def _character(
+    coordinator: WowCoordinator, detail: WowDetailCoordinator
+) -> dict[str, Any]:
+    return {
+        "game_version": coordinator.game_version,
+        "profile": _without_players(coordinator.data),
+        "details": {
+            endpoint: _without_players(_shrink(endpoint, value))
+            for endpoint, value in (detail.data or {}).items()
+        },
+        "needed_endpoints": sorted(detail.needed_endpoints()),
+        "talent_tree": await _talent_tree(detail),
+    }
+
+
 async def async_get_config_entry_diagnostics(
     hass: HomeAssistant, entry: WowConfigEntry
 ) -> dict[str, Any]:
     runtime = entry.runtime_data
-    characters = {}
-    for subentry_id, coordinator in runtime.coordinators.items():
-        detail = runtime.details[subentry_id]
-        characters[coordinator.subentry.title] = {
-            "game_version": coordinator.game_version,
-            "profile": _without_players(coordinator.data),
-            "details": {
-                endpoint: _without_players(_shrink(endpoint, value))
-                for endpoint, value in (detail.data or {}).items()
-            },
-            "needed_endpoints": sorted(detail.needed_endpoints()),
-            "talent_tree": await _talent_tree(detail),
-        }
+    characters = {
+        coordinator.subentry.title: await _character(
+            coordinator, runtime.details[subentry_id]
+        )
+        for subentry_id, coordinator in runtime.coordinators.items()
+    }
     return {
         "entry": async_redact_data(dict(entry.data), TO_REDACT),
         "options": dict(entry.options),
@@ -300,3 +318,41 @@ async def async_get_config_entry_diagnostics(
             for (region, suffix), world in runtime.worlds.items()
         },
     }
+
+
+async def async_get_device_diagnostics(
+    hass: HomeAssistant, entry: WowConfigEntry, device: DeviceEntry
+) -> dict[str, Any]:
+    """Nur ein Charakter (mit der Spielwelt seiner Region) oder eine Spielwelt.
+
+    Kleiner als die Diagnose des Eintrags und ohne die anderen Charaktere, z. B.
+    fuer einen Fehlerbericht zu einem Charakter. Zugangsdaten enthaelt sie nicht.
+    Geraete-Kennungen wie in entity.py.
+    """
+    runtime = entry.runtime_data
+    idents = {ident for domain, ident in device.identifiers if domain == DOMAIN}
+
+    def world_data(world: WowWorldCoordinator) -> dict[str, Any]:
+        return {
+            "world": f"{world.region}{world.suffix}",
+            "locale": region_locale(world.region, runtime.client.language),
+            "data": world.data,
+        }
+
+    base = {"options": dict(entry.options)}
+    for subentry_id, coordinator in runtime.coordinators.items():
+        if coordinator.subentry.unique_id in idents:
+            world = runtime.worlds.get((coordinator.region, coordinator.suffix))
+            return {
+                **base,
+                "character": {
+                    "title": coordinator.subentry.title,
+                    **await _character(coordinator, runtime.details[subentry_id]),
+                },
+                "world": world_data(world) if world else None,
+            }
+    for (region, suffix), world in runtime.worlds.items():
+        if f"{entry.entry_id}-world-{region}{suffix}" in idents:
+            return {**base, "world": world_data(world)}
+    # Geraet ohne Daten (z. B. Charakter gerade entfernt)
+    return base
