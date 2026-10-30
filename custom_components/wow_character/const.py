@@ -53,6 +53,11 @@ NOT_FOUND_LIMIT = 3
 # aktiviert ist (oder noch gar nicht angelegt wurde).
 DETAIL_ENDPOINTS: dict[str, tuple[str, int]] = {
     "raids": ("encounters/raids", 60),
+    # Dungeon-Fortschritt (E9): seit 0.28.0 nur abgefragt, um echte Antworten
+    # in der Diagnose zu pruefen; noch ohne Entitaeten, deshalb im seltenen
+    # Takt. Endpunkt laut @blizzard-api/wow 4.1.4 (character-encounters,
+    # CharacterDungeonsResponse); die Classic-Doku nennt ihn nicht.
+    "dungeons": ("encounters/dungeons", 360),
     "mythic_season": ("mythic-keystone-profile/season/{season}", 60),
     "pvp": ("pvp-summary", 60),
     "statistics": ("statistics", 60),
@@ -120,6 +125,9 @@ ENDPOINT_GROUPS: dict[str, tuple[str, ...]] = {
     "raids": ("raids",),
     "pvp": ("pvp", "pvp_brackets"),
 }
+# Detail-Endpunkte nur fuer die Diagnose, ohne Entitaeten: Ihre echten
+# Antworten sollen vor dem Bau von Sensoren geprueft werden.
+DIAGNOSTIC_ONLY: tuple[str, ...] = ("dungeons",)
 # Endpunkte, bei denen ein 404 laut Blizzard-Doku etwas Dauerhaftes ueber den
 # Charakter sagt. hunter-pets: "If the character is a hunter, returns a summary
 # of the character's hunter pets. Otherwise, returns an HTTP 404 Not Found

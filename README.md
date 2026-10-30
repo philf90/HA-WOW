@@ -11,7 +11,7 @@ Home-Assistant-Integration für World-of-Warcraft-Charaktere: Level, Itemlevel,
 Ausrüstung, Raid- und Mythic+-Fortschritt, Berufe, Ruf, Erfolge und mehr als
 Sensoren, dazu WoW-Marke, wöchentlicher Reset und Serverstatus. Die Daten kommen
 aus der offiziellen Battle.net API. Unterstützt Retail, WoW Classic (Era,
-Progression, Anniversary) und ist für WoW Forever vorbereitet. Version 0.27.0.
+Progression, Anniversary) und ist für WoW Forever vorbereitet. Version 0.28.0.
 
 Zwei Dashboard-Karten liefert die Integration selbst mit: „WoW Arsenal“
 (`custom:wow-arsenal-card`) und „WoW Talentbaum“ (`custom:wow-talent-tree-card`,
@@ -147,6 +147,12 @@ neu starten. Wer von Hand aktualisiert, ersetzt den ganzen Ordner
 `custom_components/wow_character` samt `translations/`; sonst fehlen neue Texte,
 z. B. die Einträge im Menü „Charakter hinzufügen“. Was sich je Version ändert, steht in den
 [Release-Notes](https://github.com/philf90/HA-WOW/releases).
+
+**Update auf 0.28.0:** keine Migration. Die Arsenal-Karte sucht die Entitäten
+ihres Charakters nur noch, wenn sich die Entitätsliste ändert, nicht bei jeder
+Zustandsänderung. Neu abgefragt wird der Dungeon-Fortschritt, vorerst nur für
+die Diagnose (siehe [Ändern, Hinweise und
+Diagnose](#ändern-hinweise-und-diagnose)); neue Entitäten gibt es nicht.
 
 **Update auf 0.27.0:** keine Migration. Die Diagnose gibt es jetzt auch je
 Gerät: nur ein Charakter oder nur eine Spielwelt (siehe [Ändern, Hinweise und
@@ -1010,6 +1016,10 @@ trees: [class, spec, hero]
   oben) und die Spielwelt seiner Region, für eine Spielwelt nur diese; die
   anderen Charaktere fehlen. Das hält z. B. einen Fehlerbericht zu einem
   Charakter klein. Zugangsdaten enthält sie nicht, nur die Optionen.
+  Seit 0.28.0 steht dort auch der Dungeon-Fortschritt (`encounters/dungeons`,
+  unter `details` → `dungeons`, nur Retail und Forever). Die Integration fragt
+  ihn im seltenen Takt (Standard 6 h) nur dafür ab, noch ohne Entitäten: Die
+  echten Antworten sollen geprüft sein, bevor daraus Sensoren werden.
   Damit lassen sich Feldnamen prüfen, wenn ein Wert fehlt. Vergebene Talente
   stehen dort mit IDs und Rang, ohne Tooltip-Texte. Beim Herunterladen lädt die
   Diagnose einmal den Talentbaum des aktiven Loadouts (Retail, seit 0.12.1) und
@@ -1142,6 +1152,15 @@ Automatische Tests laufen gegen Home Assistant 2026.2.3; live geprüft wurde unt
 Home Assistant 2026.10.4 mit Retail-Charakteren der Region EU, seit 0.11.2 auch
 mit einem Classic-Era-Charakter (siehe [WoW Classic](#wow-classic)).
 
+- **0.28.x:** 358 automatische Tests. 0.28.0: 4 Tests für den Dungeon-Fortschritt
+  in der Diagnose (Antwort unverändert in der Diagnose, keine Entität; seltener
+  Takt mit Vorgabe und Option; 404 ohne Fehler); Classic fragt den Endpunkt
+  nicht ab; der Konsistenztest erlaubt Endpunkte ohne Entität nur über
+  `DIAGNOSTIC_ONLY`. Gegenprobe: vier Teile einzeln ausgebaut, jedes Mal schlug
+  ein Test fehl. Arsenal-Karte (W7) ohne automatischen Test: in Node mit
+  nachgebildetem `hass` geprüft, drei Zustandswechsel lösen eine Suche aus
+  (vorher drei), neue Entitätsliste und andere Entität je eine.
+  **Nicht live geprüft.**
 - **0.27.x:** 354 automatische Tests. 0.27.0: 4 Tests für die Diagnose je
   Gerät (Charakter mit denselben Daten wie in der Diagnose des Eintrags und der
   Spielwelt seiner Region, ohne den anderen Charakter und ohne Zugangsdaten;
