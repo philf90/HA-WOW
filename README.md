@@ -11,7 +11,7 @@ Home-Assistant-Integration für World-of-Warcraft-Charaktere: Level, Itemlevel,
 Ausrüstung, Raid- und Mythic+-Fortschritt, Berufe, Ruf, Erfolge und mehr als
 Sensoren, dazu WoW-Marke, wöchentlicher Reset und Serverstatus. Die Daten kommen
 aus der offiziellen Battle.net API. Unterstützt Retail, WoW Classic (Era,
-Progression, Anniversary) und ist für WoW Forever vorbereitet. Version 0.26.0.
+Progression, Anniversary) und ist für WoW Forever vorbereitet. Version 0.27.0.
 
 Zwei Dashboard-Karten liefert die Integration selbst mit: „WoW Arsenal“
 (`custom:wow-arsenal-card`) und „WoW Talentbaum“ (`custom:wow-talent-tree-card`,
@@ -147,6 +147,10 @@ neu starten. Wer von Hand aktualisiert, ersetzt den ganzen Ordner
 `custom_components/wow_character` samt `translations/`; sonst fehlen neue Texte,
 z. B. die Einträge im Menü „Charakter hinzufügen“. Was sich je Version ändert, steht in den
 [Release-Notes](https://github.com/philf90/HA-WOW/releases).
+
+**Update auf 0.27.0:** keine Migration. Die Diagnose gibt es jetzt auch je
+Gerät: nur ein Charakter oder nur eine Spielwelt (siehe [Ändern, Hinweise und
+Diagnose](#ändern-hinweise-und-diagnose)).
 
 **Update auf 0.26.0:** keine Migration. Charaktere fragen beim Start parallel
 ab, höchstens vier zugleich; mit mehreren Charakteren startet die Integration
@@ -1000,6 +1004,12 @@ trees: [class, spec, hero]
   Gildenmitglieder und -aktivitäten); Realm, Stufe, Klasse und
   Spezialisierung bleiben zum Prüfen der Feldnamen stehen. Der eigene
   Charakter steht weiter mit Namen im Profil.
+  Seit 0.27.0 auch je Gerät: auf der Geräteseite eines Charakters oder einer
+  Spielwelt **Diagnose herunterladen**.
+  Für einen Charakter enthält sie nur dessen Daten (gekürzt und bereinigt wie
+  oben) und die Spielwelt seiner Region, für eine Spielwelt nur diese; die
+  anderen Charaktere fehlen. Das hält z. B. einen Fehlerbericht zu einem
+  Charakter klein. Zugangsdaten enthält sie nicht, nur die Optionen.
   Damit lassen sich Feldnamen prüfen, wenn ein Wert fehlt. Vergebene Talente
   stehen dort mit IDs und Rang, ohne Tooltip-Texte. Beim Herunterladen lädt die
   Diagnose einmal den Talentbaum des aktiven Loadouts (Retail, seit 0.12.1) und
@@ -1132,6 +1142,12 @@ Automatische Tests laufen gegen Home Assistant 2026.2.3; live geprüft wurde unt
 Home Assistant 2026.10.4 mit Retail-Charakteren der Region EU, seit 0.11.2 auch
 mit einem Classic-Era-Charakter (siehe [WoW Classic](#wow-classic)).
 
+- **0.27.x:** 354 automatische Tests. 0.27.0: 4 Tests für die Diagnose je
+  Gerät (Charakter mit denselben Daten wie in der Diagnose des Eintrags und der
+  Spielwelt seiner Region, ohne den anderen Charakter und ohne Zugangsdaten;
+  zweiter Charakter; Spielwelt ohne Charaktere; unbekanntes Gerät nur mit den
+  Optionen). Gegenprobe: sechs Teile einzeln ausgebaut, jedes Mal schlug ein
+  Test fehl. **Nicht live geprüft.**
 - **0.26.x:** 350 automatische Tests. 0.26.0: 4 Tests für den parallelen Start
   (Charaktere fragen zugleich ab, Zuordnung und Reihenfolge der Untereinträge
   bleiben; höchstens vier zugleich; je Charakter Details erst nach dem Profil;
