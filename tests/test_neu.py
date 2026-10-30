@@ -103,9 +103,9 @@ async def test_class_spec_and_raid_images(hass: HomeAssistant, aioclient_mock) -
     assert level["class_icon"] == "https://render.example/magier.jpg"
     assert level["spec_icon"] == "https://render.example/frost.jpg"
     heroic = hass.states.get(_entity(hass, "sensor", "raid_heroic")).attributes
-    # Bild je Raid des Journals; der zweite hat keins (404).
+    # Bild je Raid des Journals; der zweite hat keins (404), Weltbosse fehlen.
     assert heroic["images"] == {
-        "Neuer Raid": "https://render.example/raid.jpg",
+        "Neuer Raid (Journal)": "https://render.example/raid.jpg",
         "Zweiter Raid": None,
     }
 

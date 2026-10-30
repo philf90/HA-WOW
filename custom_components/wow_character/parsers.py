@@ -76,13 +76,15 @@ def _raid_modes(
 
 def _journal_raids(
     raids: dict[str, Any], journal: dict[str, Any]
-) -> list[tuple[str, int, dict[str, Any] | None, int | None]]:
-    """Raids des Journals: (Name, Instanz-ID, Eintrag des Charakters, Bosse).
+) -> list[tuple[str, dict[str, Any], dict[str, Any] | None]]:
+    """Raids des Journals: (Name, Eintrag im Journal, Eintrag des Charakters).
 
-    Den Eintrag des Charakters sucht die Instanz-ID ueber alle Erweiterungen der
-    Antwort; derselbe Raid steht z. B. unter "Midnight" und "Current Season".
-    Der Name kommt aus der Antwort des Charakters (wie bisher), fuer Raids ohne
-    Eintrag aus dem Journal.
+    Nur Instanzen der Kategorie RAID; ohne Kategorie zaehlen sie mit. Weltbosse
+    (WORLD_BOSS) fuehrt das Journal ebenfalls unter "raids". Den Eintrag des
+    Charakters sucht die Instanz-ID ueber alle Erweiterungen der Antwort;
+    derselbe Raid steht z. B. unter "Midnight" und "Current Season". Namen
+    kommen aus dem Journal (Sprache der Region, seit 0.25.1), sonst aus der
+    Antwort des Charakters, die sie auf Englisch liefert.
     """
     by_id: dict[int, dict[str, Any]] = {}
     for expansion in raids.get("expansions") or []:
@@ -92,9 +94,11 @@ def _journal_raids(
                 by_id.setdefault(info["id"], instance)
     result = []
     for raid in journal.get("raids") or []:
+        if raid.get("category") not in (None, "RAID"):
+            continue
         instance = by_id.get(raid["id"])
-        name = name_of((instance or {}).get("instance")) or raid.get("name") or "?"
-        result.append((name, raid["id"], instance, raid.get("bosses")))
+        name = raid.get("name") or name_of((instance or {}).get("instance")) or "?"
+        result.append((name, raid, instance))
     return result
 
 
@@ -117,28 +121,28 @@ def raid_progress(
 
     Mit Journal (Spielwelt, Retail, seit 0.25.0): alle Raids der Erweiterung,
     die fuer alle Charaktere gleich ist, mit der Bosszahl aus dem Journal; ohne
-    Kill zaehlt der Raid mit 0. Ohne Journal wie vorher: neueste Erweiterung in
-    der Antwort des Charakters, Bosszahl aus der Antwort.
+    Kill zaehlt der Raid mit 0. Seit 0.25.1 nur Instanzen der Kategorie RAID
+    mit dieser Schwierigkeit, Namen aus dem Journal. Ohne Journal wie vor
+    0.25.0: neueste Erweiterung in der Antwort des Charakters, Bosszahl aus der
+    Antwort.
     """
     if raids is None:
         return None, {}
     if journal and journal.get("raids"):
         rows = []
-        for name, _id, instance, bosses in _journal_raids(raids, journal):
+        for name, raid, instance in _journal_raids(raids, journal):
+            # Nur Raids mit dieser Schwierigkeit (z. B. Instanzen mit einem
+            # Boss ohne LFR); ohne Angabe zaehlen sie mit.
+            if raid.get("modes") is not None and difficulty not in raid["modes"]:
+                continue
             mode = _raid_modes(instance, difficulty)
             progress = (mode or {}).get("progress") or {}
+            bosses = raid.get("bosses")
             total = bosses if bosses is not None else progress.get("total_count", 0)
             rows.append((name, progress.get("completed_count", 0), total, mode))
-        own = next(
-            (
-                e
-                for e in raids.get("expansions") or []
-                if isinstance(e, dict)
-                and (e.get("expansion") or {}).get("id") == journal.get("id")
-            ),
-            None,
+        expansion_name = journal.get("name") or name_of(
+            (_current_expansion(raids) or {}).get("expansion")
         )
-        expansion_name = name_of((own or {}).get("expansion")) or journal.get("name")
     else:
         expansion = _current_expansion(raids)
         if expansion is None:
@@ -1018,7 +1022,9 @@ def raid_instances(
     if journal and journal.get("raids"):
         if raids is None:
             return {}
-        return {name: i for name, i, _inst, _b in _journal_raids(raids, journal)}
+        return {
+            name: raid["id"] for name, raid, _inst in _journal_raids(raids, journal)
+        }
     expansion = _current_expansion(raids) or {}
     result = {}
     for instance in expansion.get("instances") or []:
