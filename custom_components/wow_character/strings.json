@@ -482,15 +482,114 @@
   "issues": {
     "character_not_found": {
       "title": "Character {character} not found",
-      "description": "The Battle.net API no longer finds {character}. Possible reasons: the character was renamed, moved to another realm or deleted, or has not logged in for a long time.\n\nIf you renamed or moved the character, open Settings → Devices & services → WoW Charakter, find the character under the Battle.net API entry and choose ⋮ → Reconfigure. Otherwise delete the character there. This notice disappears once the character is found again."
+      "fix_flow": {
+        "step": {
+          "init": {
+            "title": "Fix {character}",
+            "description": "The Battle.net API no longer finds {character}. Possible reasons: the character was renamed, moved to another realm or deleted, or has not logged in for a long time. This notice also disappears once the character is found again.\n\nWhat do you want to do?",
+            "menu_options": {
+              "character": "Enter a new realm or name (renamed or moved)",
+              "remove": "Remove the character (deleted or no longer wanted)"
+            }
+          },
+          "character": {
+            "title": "New realm and name",
+            "description": "Enter where {character} can be found now. Device, entity IDs and history are kept. Keeping the same name accepts the current character.",
+            "data": {
+              "realm": "Realm",
+              "character": "Character"
+            }
+          },
+          "remove": {
+            "title": "Remove character",
+            "description": "{character} is removed together with its device and entities."
+          }
+        },
+        "error": {
+          "character_not_found": "Character not found on this realm. Check the name; a character must have logged out once.",
+          "cannot_connect": "Battle.net API is not reachable.",
+          "already_configured": "This character is already configured."
+        },
+        "abort": {
+          "character_removed": "This character is no longer set up.",
+          "entry_not_loaded": "The API client entry is not loaded.",
+          "cannot_connect": "Battle.net API is not reachable."
+        }
+      }
     },
     "character_changed": {
       "title": "{character} is a different character now",
-      "description": "A different character than the one set up now carries the name {character} (the Battle.net character ID changed). This usually happens after a rename, a realm transfer or a deleted and newly created character. Until you confirm, the integration shows no data for it.\n\nOpen Settings → Devices & services → WoW Charakter, find the character under the Battle.net API entry and choose ⋮ → Reconfigure. Saving there accepts the current character; enter the new name if yours was renamed."
+      "fix_flow": {
+        "step": {
+          "init": {
+            "title": "Fix {character}",
+            "description": "The name {character} now belongs to a different character than the one set up (the character ID at Battle.net changed). This usually happens after a rename, a realm transfer, or when a character was deleted and created again. Until you confirm, the integration shows no data for it.\n\nKeeping the name accepts the current character; if yours was renamed, enter the new name.",
+            "menu_options": {
+              "character": "Enter a new realm or name (renamed or moved)",
+              "remove": "Remove the character (deleted or no longer wanted)"
+            }
+          },
+          "character": {
+            "title": "New realm and name",
+            "description": "Enter where {character} can be found now. Device, entity IDs and history are kept. Keeping the same name accepts the current character.",
+            "data": {
+              "realm": "Realm",
+              "character": "Character"
+            }
+          },
+          "remove": {
+            "title": "Remove character",
+            "description": "{character} is removed together with its device and entities."
+          }
+        },
+        "error": {
+          "character_not_found": "Character not found on this realm. Check the name; a character must have logged out once.",
+          "cannot_connect": "Battle.net API is not reachable.",
+          "already_configured": "This character is already configured."
+        },
+        "abort": {
+          "character_removed": "This character is no longer set up.",
+          "entry_not_loaded": "The API client entry is not loaded.",
+          "cannot_connect": "Battle.net API is not reachable."
+        }
+      }
     },
     "character_invalid": {
       "title": "{character} is no longer valid",
-      "description": "Blizzard reports the profile of {character} as no longer valid. Blizzard asks applications not to show such data, so the integration shows nothing for this character.\n\nIf you renamed or moved the character, choose ⋮ → Reconfigure on the character under Settings → Devices & services → WoW Charakter; otherwise delete it there."
+      "fix_flow": {
+        "step": {
+          "init": {
+            "title": "Fix {character}",
+            "description": "Blizzard reports the profile of {character} as no longer valid. Blizzard asks not to display such data, so the integration shows nothing for this character.\n\nIf you renamed or moved it, enter the new realm or name; otherwise you can remove the character.",
+            "menu_options": {
+              "character": "Enter a new realm or name (renamed or moved)",
+              "remove": "Remove the character (deleted or no longer wanted)"
+            }
+          },
+          "character": {
+            "title": "New realm and name",
+            "description": "Enter where {character} can be found now. Device, entity IDs and history are kept. Keeping the same name accepts the current character.",
+            "data": {
+              "realm": "Realm",
+              "character": "Character"
+            }
+          },
+          "remove": {
+            "title": "Remove character",
+            "description": "{character} is removed together with its device and entities."
+          }
+        },
+        "error": {
+          "character_not_found": "Character not found on this realm. Check the name; a character must have logged out once.",
+          "cannot_connect": "Battle.net API is not reachable.",
+          "already_configured": "This character is already configured."
+        },
+        "abort": {
+          "character_removed": "This character is no longer set up.",
+          "entry_not_loaded": "The API client entry is not loaded.",
+          "cannot_connect": "Battle.net API is not reachable."
+        }
+      }
     }
   },
   "exceptions": {

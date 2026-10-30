@@ -11,7 +11,7 @@ Home-Assistant-Integration für World-of-Warcraft-Charaktere: Level, Itemlevel,
 Ausrüstung, Raid- und Mythic+-Fortschritt, Berufe, Ruf, Erfolge und mehr als
 Sensoren, dazu WoW-Marke, wöchentlicher Reset und Serverstatus. Die Daten kommen
 aus der offiziellen Battle.net API. Unterstützt Retail, WoW Classic (Era,
-Progression, Anniversary) und ist für WoW Forever vorbereitet. Version 0.23.1.
+Progression, Anniversary) und ist für WoW Forever vorbereitet. Version 0.24.0.
 
 Zwei Dashboard-Karten liefert die Integration selbst mit: „WoW Arsenal“
 (`custom:wow-arsenal-card`) und „WoW Talentbaum“ (`custom:wow-talent-tree-card`,
@@ -147,6 +147,11 @@ neu starten. Wer von Hand aktualisiert, ersetzt den ganzen Ordner
 `custom_components/wow_character` samt `translations/`; sonst fehlen neue Texte,
 z. B. die Einträge im Menü „Charakter hinzufügen“. Was sich je Version ändert, steht in den
 [Release-Notes](https://github.com/philf90/HA-WOW/releases).
+
+**Update auf 0.24.0:** keine Migration. Reparaturhinweise zu einem Charakter
+öffnen beim Anklicken einen Dialog zum Beheben (siehe [Ändern, Hinweise und
+Diagnose](#ändern-hinweise-und-diagnose)). Ein Hinweis aus einer älteren
+Version bekommt den Dialog, sobald die Integration ihn das nächste Mal meldet.
 
 **Update auf 0.23.1:** keine Migration. Kommt der Talentbaum nicht, steht das
 jetzt einmal als Warnung im Log (siehe [Allgemein](#allgemein)).
@@ -896,9 +901,17 @@ trees: [class, spec, hero]
   - unter dem Namen jetzt ein anderer Charakter steht (andere ID) oder
   - Blizzard das Profil als ungültig meldet.
 
-  In den letzten beiden Fällen zeigen die Entitäten keine Werte, bis du über
-  **Neu konfigurieren** bestätigst. Der Hinweis verschwindet von selbst, sobald
-  alles wieder passt.
+  In den letzten beiden Fällen zeigen die Entitäten keine Werte, bis du
+  bestätigst. Seit 0.24.0 geht das direkt am Hinweis: Ein Klick
+  darauf öffnet einen Dialog mit zwei Wegen:
+  - **Neuen Realm oder Namen eintragen:** wie „Neu konfigurieren“; Realm aus
+    der Liste, Name, vorausgefüllt mit dem bisherigen. Derselbe Name übernimmt
+    den aktuellen Charakter (neue ID). Gerät, Entitäts-IDs und Verlauf bleiben,
+    die Integration lädt einmal neu.
+  - **Charakter entfernen:** mit Gerät und Entitäten, nach Bestätigung.
+
+  „Neu konfigurieren“ am Charakter geht weiterhin. Der Hinweis verschwindet
+  auch von selbst, sobald alles wieder passt.
 - **Nicht mehr benötigte Geräte:** Das Gerät eines Charakters entfernt Home
   Assistant mit dem Charakter. Spielwelt-Geräte und Realm-Entitäten ohne
   Charakter entfernt die Integration beim nächsten Start. Übrig gebliebene
@@ -1052,6 +1065,14 @@ Automatische Tests laufen gegen Home Assistant 2026.2.3; live geprüft wurde unt
 Home Assistant 2026.10.4 mit Retail-Charakteren der Region EU, seit 0.11.2 auch
 mit einem Classic-Era-Charakter (siehe [WoW Classic](#wow-classic)).
 
+- **0.24.x:** 331 automatische Tests. 0.24.0: 11 Tests für den Dialog an den
+  Reparaturhinweisen (Hinweis fixierbar mit Eintrag und Charakter; neuer Name
+  mit gleicher Entität und gleichem Gerät, Vorgaben und Leerzeichen; gleicher
+  Name übernimmt die neue ID; nicht gefunden, API nicht erreichbar, schon
+  eingerichteter Charakter; Charakter entfernen; Eintrag nicht geladen;
+  Realm-Liste nicht ladbar; Texte des Dialogs für alle drei Hinweise in
+  `strings.json` und `de.json`). Gegenprobe: zehn Teile einzeln ausgebaut,
+  jedes Mal schlug ein Test fehl. **Nicht live geprüft.**
 - **0.23.x:** 320 automatische Tests. 0.23.1: 1 Test für die Meldungen zum
   Talentbaum (Warnung einmal mit Charakter und Pfad, keine zweite bei erneutem
   Fehlschlag, Info bei Erholung); Gegenprobe: drei Teile einzeln ausgebaut,

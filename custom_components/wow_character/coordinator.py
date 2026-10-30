@@ -397,14 +397,20 @@ class WowCoordinator(_CharacterMixin, DataUpdateCoordinator[dict[str, Any]]):
         self.subentry = entry.subentries[self.subentry.subentry_id]
 
     def _create_issue(self, reason: str) -> None:
+        # Mit Dialog zum Beheben (repairs.py, seit 0.24.0): neuer Realm und
+        # Name oder Charakter entfernen.
         ir.async_create_issue(
             self.hass,
             DOMAIN,
             issue_id(self.subentry.subentry_id),
-            is_fixable=False,
+            is_fixable=True,
             severity=ir.IssueSeverity.WARNING,
             translation_key=reason,
             translation_placeholders={"character": self.subentry.title},
+            data={
+                "entry_id": self.config_entry.entry_id,
+                "subentry_id": self.subentry.subentry_id,
+            },
         )
 
 

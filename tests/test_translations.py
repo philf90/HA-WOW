@@ -94,7 +94,10 @@ def test_issue_and_exception_keys_translated(path: str) -> None:
     )
     assert issues <= set(strings["issues"]), issues - set(strings["issues"])
     for key in issues:
-        assert "{character}" in strings["issues"][key]["description"]
+        # Mit Dialog (seit 0.24.0) steht der Text im ersten Schritt.
+        issue = strings["issues"][key]
+        text = issue["fix_flow"]["step"]["init"]["description"]
+        assert "{character}" in text
 
 
 def test_icons_match_translation_keys() -> None:
