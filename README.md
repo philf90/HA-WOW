@@ -1024,8 +1024,8 @@ response_variable: charakter
 
 ## Dashboard-Karten
 
-Elf Karten liefert die Integration selbst mit; Home Assistant lädt sie mit dem
-Frontend, ohne zusätzliche HACS-Karten oder Dashboard-Ressourcen:
+Dreizehn Karten liefert die Integration selbst mit; Home Assistant lädt sie mit
+dem Frontend, ohne zusätzliche HACS-Karten oder Dashboard-Ressourcen:
 
 - [„WoW Arsenal“](#karte-wow-arsenal-seit-0150) (`custom:wow-arsenal-card`,
   seit 0.15.0): Charakterseite mit Ausrüstung und Kennzahlen.
@@ -1092,8 +1092,8 @@ ohne diese Voraussetzungen (siehe
 
 ### Charakter auswählen (seit 0.33.0)
 
-Im Karten-Editor (Karte hinzufügen → „WoW …“) aller mitgelieferten Karten wählt
-man nur den Charakter aus einer Liste „Name – Realm · Spielversion“; die
+Im Karten-Editor (Karte hinzufügen → „WoW …“) aller mitgelieferten Karten außer
+„WoW Spielwelt“ wählt man nur den Charakter aus einer Liste „Name – Realm · Spielversion“; die
 Spielwelt-Geräte stehen nicht darin. Die Spielwelt-Karte bietet stattdessen
 die Spielwelt-Geräte an („WoW-Spielwelt EU“, „WoW-Spielwelt EU Classic Era“);
 gespeichert wird die WoW-Marke, ohne sie der wöchentliche Reset oder ein
@@ -1765,8 +1765,15 @@ mit einem Classic-Era-Charakter (siehe [WoW Classic](#wow-classic)).
   Überlauf; dazu Realm offline, mit Warteschlange und ohne Daten, Spielwelt
   ohne Verlauf (Fehler der Abfrage), Wert und Zeitpunkt mit der Maus
   innerhalb der Karte, nur eine Verlaufsabfrage bei unveränderten Daten.
-  **Nicht live geprüft:** die Karte in Home Assistant, insbesondere die
-  Antwort der Verlaufsabfrage. 0.33.8 **live geprüft** (31.10.2026, iOS-App):
+  0.33.9 **live geprüft** (31.10.2026, iOS-App): Der Editor bietet die beiden
+  Spielwelten (Retail und Classic Era) an; WoW-Marke 400.493 g, Reset Mi
+  05:00 (04:00 UTC), Season, Woche 12 und beide Realms mit Status und
+  Bevölkerung stimmen mit den Sensoren überein. Der Verlauf kommt aus dem
+  Recorder: höchster Wert 449.398 (Do 29.10., 06:10), niedrigster 393.195,
+  wie im Verlauf des Sensors; er beginnt am 26.10. um 11:06, weil Home
+  Assistant davor keinen Wert liefert, und ein „nicht verfügbar“ von 15
+  Minuten fällt ohne Einbruch weg. Nicht live geprüft: Wert und Zeitpunkt
+  beim Tippen und die Classic-Spielwelt. 0.33.8 **live geprüft** (31.10.2026, iOS-App):
   Werte, Set 3/5, Klassenfarbe (`class_id` 8 und 7) und ein Classic-Charakter
   mit ausgeschalteten Werte-Sensoren stimmen mit den Sensoren überein; nicht
   live geprüft: Sockel- und Verzauberungssymbole des Retail-Charakters und
