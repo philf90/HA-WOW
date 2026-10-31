@@ -67,7 +67,7 @@ const TEXT = {
     none: "Kein Ruf-Sensor gefunden.",
     missing: "Keine Entitäten der Integration „WoW Charakter“ zu",
     factions: "Fraktionen (leer: neueste mit Ruhmstufe)",
-    count: "Anzahl ohne Auswahl",
+    count: "Anzahl neueste Ruhmstufen (leer: 6; nur ohne Fraktionsauswahl)",
   },
   en: {
     renownTitle: "Renown",
@@ -80,7 +80,7 @@ const TEXT = {
     none: "No reputation sensor found.",
     missing: "No entities of the integration “WoW Charakter” for",
     factions: "Factions (empty: newest with renown)",
-    count: "Count without selection",
+    count: "Number of newest renown factions (empty: 6; only without faction selection)",
   },
 };
 
