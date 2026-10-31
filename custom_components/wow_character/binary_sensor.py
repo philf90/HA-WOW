@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Callable, Iterator
 from functools import partial
+from typing import Any
 
 from homeassistant.components.binary_sensor import (
     BinarySensorDeviceClass,
@@ -55,6 +56,12 @@ class _RealmEntity(WowWorldEntity, BinarySensorEntity):
     @property
     def _realm(self) -> dict | None:
         return (self.coordinator.data or {}).get("realms", {}).get(self._slug)
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        # Name des Realms, damit Karten Server, Warteschlange und Bevoelkerung
+        # eines Realms unabhaengig von Sprache und Entity-ID zuordnen
+        return {"realm": self._attr_translation_placeholders["realm"]}
 
 
 class WowRealmStatus(_RealmEntity):

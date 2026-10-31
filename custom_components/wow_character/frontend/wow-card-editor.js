@@ -1,5 +1,6 @@
 /*
- * Editor "Charakter auswaehlen" fuer die Karten der Integration WoW Charakter.
+ * Editor "Charakter auswaehlen" fuer die Karten der Integration WoW Charakter
+ * (fuer die Spielwelt-Karte "Spielwelt auswaehlen").
  *
  * Statt aller Sensoren der Integration bietet er nur die Charaktere an
  * ("Name – Realm · Spielversion"). Gespeichert wird wie bisher eine Entitaet
@@ -14,6 +15,9 @@
  *   multiple  mehrere Charaktere (leer: alle)
  *   require   nur Charaktere mit einer Entitaet dieses Schluessels
  *             (z. B. "talent_tree")
+ *   welt      statt der Charaktere die Spielwelt-Geraete ("WoW-Spielwelt EU",
+ *             "WoW-Spielwelt EU Classic Era"); gespeichert wird die WoW-Marke,
+ *             sonst der woechentliche Reset oder ein Server-Sensor
  *   extra     weitere ha-form-Felder, als Liste oder als Funktion
  *             (lang, {hass, entity}) fuer uebersetzte Auswahltexte oder
  *             Auswahlen aus den Daten des gewaehlten Charakters (entity =
@@ -24,14 +28,18 @@ const TEXT = {
   de: {
     entity: "Charakter",
     entities: "Charaktere (leer: alle)",
+    world: "Spielwelt",
     unknown: "nicht gefunden",
     none: "Keine Charaktere der Integration „WoW Charakter“ gefunden.",
+    noWorld: "Keine Spielwelt der Integration „WoW Charakter“ gefunden.",
   },
   en: {
     entity: "Character",
     entities: "Characters (empty: all)",
+    world: "Game world",
     unknown: "not found",
     none: "No characters of the integration “WoW Charakter” found.",
+    noWorld: "No game world of the integration “WoW Charakter” found.",
   },
 };
 
@@ -76,6 +84,30 @@ export function charaktere(hass, require) {
     .sort((a, b) => a.label.localeCompare(b.label));
 }
 
+// Spielwelten: Geraete der Integration mit WoW-Marke, Reset oder Server-
+// Sensor, sortiert nach Name; Eintrag ist die erste vorhandene dieser Entitaeten
+const WELT_KEYS = ["token", "weekly_reset", "realm_status"];
+
+export function welten(hass) {
+  const geraete = {};
+  for (const e of Object.values(hass?.entities || {})) {
+    if (e.platform === "wow_character" && e.device_id && WELT_KEYS.includes(e.translation_key)) {
+      const keys = (geraete[e.device_id] = geraete[e.device_id] || {});
+      // Mehrere Server je Spielwelt: der erste nach Entity-ID
+      if (!keys[e.translation_key] || e.entity_id < keys[e.translation_key]) {
+        keys[e.translation_key] = e.entity_id;
+      }
+    }
+  }
+  return Object.entries(geraete)
+    .map(([id, keys]) => {
+      const g = (hass.devices || {})[id] || {};
+      const entity = WELT_KEYS.map((k) => keys[k]).find(Boolean);
+      return { device: id, entity, label: g.name_by_user || g.name || entity };
+    })
+    .sort((a, b) => a.label.localeCompare(b.label));
+}
+
 class WowCharacterEditor extends HTMLElement {
   constructor() {
     super();
@@ -97,7 +129,8 @@ class WowCharacterEditor extends HTMLElement {
     return (TEXT[lang] || TEXT.en)[key];
   }
 
-  // Konfigurierte Entitaet -> Level-Sensor desselben Charakters
+  // Konfigurierte Entitaet -> Eintrag desselben Geraets (Level-Sensor des
+  // Charakters bzw. Entitaet der Spielwelt)
   _zuLevel(id, liste) {
     const device = (this._hass?.entities || {})[id]?.device_id;
     return liste.find((c) => c.entity === id || (device && c.device === device))?.entity || id;
@@ -108,7 +141,7 @@ class WowCharacterEditor extends HTMLElement {
       return;
     }
     const o = this.optionen;
-    const liste = charaktere(this._hass, o.require);
+    const liste = o.welt ? welten(this._hass) : charaktere(this._hass, o.require);
     const optionen = liste.map((c) => ({ value: c.entity, label: c.label }));
     const werte = o.multiple ? this._config[o.name] || [] : [this._config[o.name]].filter(Boolean);
     const daten = { ...this._config };
@@ -139,7 +172,7 @@ class WowCharacterEditor extends HTMLElement {
     }
     if (!liste.length) {
       this._hinweis = this._hinweis || this.insertBefore(document.createElement("p"), this._form);
-      this._hinweis.textContent = this._t("none");
+      this._hinweis.textContent = this._t(o.welt ? "noWorld" : "none");
     } else if (this._hinweis) {
       this._hinweis.remove();
       this._hinweis = undefined;
@@ -149,7 +182,7 @@ class WowCharacterEditor extends HTMLElement {
     this._form.schema = schema;
     this._form.computeLabel = (s) => {
       if (s.name === o.name) {
-        return this._t(o.multiple ? "entities" : "entity");
+        return this._t(o.welt ? "world" : o.multiple ? "entities" : "entity");
       }
       const label = (o.labels || {})[s.name];
       return label ? label[lang] || label.en : undefined;
