@@ -11,15 +11,16 @@ Home-Assistant-Integration für World-of-Warcraft-Charaktere: Level, Itemlevel,
 Ausrüstung, Raid- und Mythic+-Fortschritt, Berufe, Ruf, Erfolge und mehr als
 Sensoren, dazu WoW-Marke, wöchentlicher Reset und Serverstatus. Die Daten kommen
 aus der offiziellen Battle.net API. Unterstützt Retail, WoW Classic (Era,
-Progression, Anniversary) und ist für WoW Forever vorbereitet. Version 0.33.6.
+Progression, Anniversary) und ist für WoW Forever vorbereitet. Version 0.33.7.
 
-Zehn Dashboard-Karten liefert die Integration selbst mit: „WoW Arsenal“
+Elf Dashboard-Karten liefert die Integration selbst mit: „WoW Arsenal“
 (`custom:wow-arsenal-card`), „WoW Berufe“ (`custom:wow-professions-card`),
 „WoW Charaktere“ (`custom:wow-characters-card`), „WoW Garderobe“
 (`custom:wow-wardrobe-card`, Retail), „WoW Mythic+“
 (`custom:wow-mythic-card`, Retail), „WoW PvP“ (`custom:wow-pvp-card`), „WoW
 Raids“ (`custom:wow-raid-card`, Retail), „WoW Ruf“ (`custom:wow-reputation-card`,
-Retail), „WoW Sammlungen“ (`custom:wow-collections-card`) und „WoW Talentbaum“
+Retail), „WoW Sammlungen“ (`custom:wow-collections-card`), „WoW Gilde“
+(`custom:wow-guild-card`) und „WoW Talentbaum“
 (`custom:wow-talent-tree-card`, Retail), ohne zusätzliche HACS-Karten oder
 Dashboard-Ressourcen. Im Karten-Editor wählt man nur den Charakter.
 
@@ -130,7 +131,8 @@ Client ohne Redirect-URL lässt sich unter **Manage Client** ergänzen.
   [„WoW PvP“](#karte-wow-pvp-seit-0332),
   [„WoW Raids“](#karte-wow-raids-seit-0334),
   [„WoW Ruf“](#karte-wow-ruf-seit-0335),
-  [„WoW Sammlungen“](#karte-wow-sammlungen-seit-0336) und
+  [„WoW Sammlungen“](#karte-wow-sammlungen-seit-0336),
+  [„WoW Gilde“](#karte-wow-gilde-seit-0337) und
   [„WoW Talentbaum“](#karte-wow-talentbaum-seit-0140); weitere Karten als YAML
   siehe [Dashboard-Karten](#dashboard-karten).
 
@@ -161,6 +163,11 @@ neu starten. Wer von Hand aktualisiert, ersetzt den ganzen Ordner
 `custom_components/wow_character` samt `translations/`; sonst fehlen neue Texte,
 z. B. die Einträge im Menü „Charakter hinzufügen“. Was sich je Version ändert, steht in den
 [Release-Notes](https://github.com/philf90/HA-WOW/releases).
+
+**Update auf 0.33.7:** keine Migration. Neue mitgelieferte Karte „WoW Gilde“
+(`custom:wow-guild-card`, siehe [Karte „WoW Gilde“](#karte-wow-gilde-seit-0337)).
+Nach dem Update einmal die Seite im Browser neu laden, in der Companion App
+den Frontend-Cache zurücksetzen.
 
 **Update auf 0.33.6:** keine Migration. Neue mitgelieferte Karte „WoW
 Sammlungen“ (`custom:wow-collections-card`, siehe [Karte „WoW
@@ -995,7 +1002,7 @@ response_variable: charakter
 
 ## Dashboard-Karten
 
-Zehn Karten liefert die Integration selbst mit; Home Assistant lädt sie mit dem
+Elf Karten liefert die Integration selbst mit; Home Assistant lädt sie mit dem
 Frontend, ohne zusätzliche HACS-Karten oder Dashboard-Ressourcen:
 
 - [„WoW Arsenal“](#karte-wow-arsenal-seit-0150) (`custom:wow-arsenal-card`,
@@ -1021,6 +1028,8 @@ Frontend, ohne zusätzliche HACS-Karten oder Dashboard-Ressourcen:
 - [„WoW Sammlungen“](#karte-wow-sammlungen-seit-0336)
   (`custom:wow-collections-card`, seit 0.33.6): Reittiere, Haustiere,
   Spielzeuge, Titel, Erfolge je Kategorie und Statistik.
+- [„WoW Gilde“](#karte-wow-gilde-seit-0337) (`custom:wow-guild-card`, seit
+  0.33.7): Gilde mit Mitgliedern, Klassen, Rängen und Aktivität.
 - [„WoW Talentbaum“](#karte-wow-talentbaum-seit-0140)
   (`custom:wow-talent-tree-card`, seit 0.14.0): Talentbäume mit vergebenen
   Punkten (Retail).
@@ -1038,8 +1047,10 @@ für das Arsenal-Popup) stehen im Kopf jeder Datei. Die Arsenal-Karte liefert
 die Integration seit 0.15.0 auch selbst mit, die Charaktere-Karte seit 0.32.0,
 die Berufe-Karte seit 0.33.0, die Mythic+-Karte seit 0.33.1, die PvP-Karte seit
 0.33.2, die Garderobe-Karte seit 0.33.3, die Raid-Karte seit 0.33.4, die
-Ruf-Karte seit 0.33.5 und die Sammlung-Karte seit 0.33.6, alle ohne diese
-Voraussetzungen (siehe [Karte „WoW Sammlungen“](#karte-wow-sammlungen-seit-0336),
+Ruf-Karte seit 0.33.5, die Sammlung-Karte seit 0.33.6 und die Gilde-Karte seit
+0.33.7, alle ohne diese Voraussetzungen (siehe
+[Karte „WoW Gilde“](#karte-wow-gilde-seit-0337),
+[Karte „WoW Sammlungen“](#karte-wow-sammlungen-seit-0336),
 [Karte „WoW Ruf“](#karte-wow-ruf-seit-0335),
 [Karte „WoW Raids“](#karte-wow-raids-seit-0334),
 [Karte „WoW Garderobe“](#karte-wow-garderobe-seit-0333),
@@ -1165,6 +1176,40 @@ entity: sensor.mein_charakter_level   # eine beliebige Entität des Charakters
 - Farben: Mit dem Nachtblau-Theme nutzt sie dessen Variablen (heller und
   dunkler Modus), sonst ist sie in beiden Modi dunkel. Die Wertungsfarbe der
   API zeigt sie nicht, sie ist auf heller Hülle nicht sicher lesbar.
+
+### Karte „WoW Gilde“ (seit 0.33.7)
+
+Die Gilde-Karte aus `wow-gilde-karte.yaml` als eigene Karte der Integration,
+im selben Aufbau und Nachtblau-Stil, aber ohne `custom:button-card`.
+
+```yaml
+type: custom:wow-guild-card
+entity: sensor.mein_charakter_level   # eine beliebige Entität des Charakters
+# optional, 0 blendet den Abschnitt aus:
+members: 5
+activities: 3
+```
+
+- Kopf mit dem Gildennamen, darunter Spielversion, Realm, Fraktion und
+  Gründungsjahr.
+- Kacheln für Mitglieder, Anzahl auf der höchsten Stufe der Liste und
+  Erfolgspunkte der Gilde (nur, wenn die API sie liefert).
+- Klassen mit Anzahl und Klassenpunkt, die häufigsten zuerst.
+- Die ersten Mitglieder nach Rang („Gildenmeister“ für Rang 0, sonst „Rang
+  N“), mit „dein Charakter“ bei Charakteren, die in Home Assistant
+  eingerichtet sind (Name und Realm wie ein Charakter der Integration).
+- Die neuesten Bosskills und Erfolge der Gilde.
+- Im Editor die Zahl der Mitglieder in der Liste (leer: 5) und der
+  Aktivitäten (leer: 3); 0 blendet den Abschnitt aus. Angeboten werden alle
+  Charaktere; ohne Gilde nennt die Karte das.
+- Die Klassenfarben hängen an der Klassen-ID (`class_id` der Mitglieder),
+  nicht am Namen; sie stimmen deshalb in jeder Sprache. Die YAML-Karte las sie
+  aus deutschen Klassennamen.
+- Die Karte findet den Sensor „Gilde“ über das Gerät des Charakters und den
+  Übersetzungsschlüssel `guild`; sie braucht kein Präfix.
+- Farben: Mit dem Nachtblau-Theme nutzt sie dessen Variablen (heller und
+  dunkler Modus), sonst ist sie in beiden Modi dunkel; Klassenpunkte in den
+  Klassenfarben des Spiels.
 
 ### Karte „WoW Sammlungen“ (seit 0.33.6)
 
@@ -1425,7 +1470,7 @@ weiterhin.
   „Custom element doesn't exist: wow-talent-tree-card“ (oder
   `wow-arsenal-card`, `wow-characters-card`, `wow-professions-card`,
   `wow-mythic-card`, `wow-pvp-card`, `wow-wardrobe-card`, `wow-raid-card`,
-  `wow-reputation-card`, `wow-collections-card`), hat die App oder der Browser die Datei der Karte nicht
+  `wow-reputation-card`, `wow-collections-card`, `wow-guild-card`), hat die App oder der Browser die Datei der Karte nicht
   geladen. Ein Fehler beim Laden steht nur in der Konsole des Browsers („Failed
   to load extra module …“), nicht im Log von Home Assistant. Abhilfe: in der
   Companion App den Frontend-Cache zurücksetzen (Einstellungen der App,
@@ -1604,7 +1649,22 @@ Automatische Tests laufen gegen Home Assistant 2026.2.3; live geprüft wurde unt
 Home Assistant 2026.10.4 mit Retail-Charakteren der Region EU, seit 0.11.2 auch
 mit einem Classic-Era-Charakter (siehe [WoW Classic](#wow-classic)).
 
-- **0.33.x:** 400 automatische Tests. 0.33.6: 2 Tests (Auslieferung der
+- **0.33.x:** 402 automatische Tests. 0.33.7: 2 Tests (Auslieferung der
+  Karte „WoW Gilde“, Editor zur Charakterauswahl). Gegenprobe: Karte nicht
+  registriert, Editor ohne Version im Pfad – jedes Mal schlug ein Test fehl.
+  Klassen-IDs der Farben: 1, 2, 5, 7, 8, 9 und 11 aus der Diagnose einer
+  Live-Instanz (`character_class`), 3 aus den Testdaten, alle 13 laut
+  warcraft.wiki.gg/wiki/ClassId übereinstimmend. In Chromium mit erfundenen
+  Gildendaten (16 Mitglieder mit allen 13 Klassen und einer unbekannten,
+  eigener Charakter, Bosskill und Erfolg), 344 und 386 Pixel, Deutsch und
+  Englisch (englische Klassennamen, gleiche Farben), ohne Fehler und ohne
+  waagrechten Überlauf; `members` 3 und `activities` 0, Charakter ohne
+  Gilde, Classic-Gilde ohne Erfolgspunkte. **Nicht live geprüft:** keiner der
+  Live-Charaktere ist in einer Gilde. 0.33.6 **live geprüft** (31.10.2026,
+  iOS-App): Der Editor bietet alle 8 Charaktere und beide Zusatzfelder an;
+  166/166/107/55, 16.045/1.753/2.479, aktiver Titel und die ersten zwei
+  Kategorien stimmen mit den Sensoren überein. Nicht live geprüft: Statistik,
+  Fußzeilen und die Statistik-Auswahl. 0.33.6: 2 Tests (Auslieferung der
   Karte „WoW Sammlungen“, Editor zur Charakterauswahl). Gegenprobe: Karte
   nicht registriert, Editor ohne Version im Pfad – jedes Mal schlug ein Test
   fehl. In Chromium mit den Werten eines Live-Charakters (166/166/107/55,
