@@ -11,14 +11,15 @@ Home-Assistant-Integration für World-of-Warcraft-Charaktere: Level, Itemlevel,
 Ausrüstung, Raid- und Mythic+-Fortschritt, Berufe, Ruf, Erfolge und mehr als
 Sensoren, dazu WoW-Marke, wöchentlicher Reset und Serverstatus. Die Daten kommen
 aus der offiziellen Battle.net API. Unterstützt Retail, WoW Classic (Era,
-Progression, Anniversary) und ist für WoW Forever vorbereitet. Version 0.33.4.
+Progression, Anniversary) und ist für WoW Forever vorbereitet. Version 0.33.5.
 
-Acht Dashboard-Karten liefert die Integration selbst mit: „WoW Arsenal“
+Neun Dashboard-Karten liefert die Integration selbst mit: „WoW Arsenal“
 (`custom:wow-arsenal-card`), „WoW Berufe“ (`custom:wow-professions-card`),
 „WoW Charaktere“ (`custom:wow-characters-card`), „WoW Garderobe“
 (`custom:wow-wardrobe-card`, Retail), „WoW Mythic+“
 (`custom:wow-mythic-card`, Retail), „WoW PvP“ (`custom:wow-pvp-card`), „WoW
-Raids“ (`custom:wow-raid-card`, Retail) und „WoW Talentbaum“
+Raids“ (`custom:wow-raid-card`, Retail), „WoW Ruf“ (`custom:wow-reputation-card`,
+Retail) und „WoW Talentbaum“
 (`custom:wow-talent-tree-card`, Retail), ohne zusätzliche HACS-Karten oder
 Dashboard-Ressourcen. Im Karten-Editor wählt man nur den Charakter.
 
@@ -127,7 +128,8 @@ Client ohne Redirect-URL lässt sich unter **Manage Client** ergänzen.
   [„WoW Garderobe“](#karte-wow-garderobe-seit-0333),
   [„WoW Mythic+“](#karte-wow-mythic-seit-0331),
   [„WoW PvP“](#karte-wow-pvp-seit-0332),
-  [„WoW Raids“](#karte-wow-raids-seit-0334) und
+  [„WoW Raids“](#karte-wow-raids-seit-0334),
+  [„WoW Ruf“](#karte-wow-ruf-seit-0335) und
   [„WoW Talentbaum“](#karte-wow-talentbaum-seit-0140); weitere Karten als YAML
   siehe [Dashboard-Karten](#dashboard-karten).
 
@@ -158,6 +160,11 @@ neu starten. Wer von Hand aktualisiert, ersetzt den ganzen Ordner
 `custom_components/wow_character` samt `translations/`; sonst fehlen neue Texte,
 z. B. die Einträge im Menü „Charakter hinzufügen“. Was sich je Version ändert, steht in den
 [Release-Notes](https://github.com/philf90/HA-WOW/releases).
+
+**Update auf 0.33.5:** keine Migration. Neue mitgelieferte Karte „WoW Ruf“
+(`custom:wow-reputation-card`, siehe [Karte „WoW Ruf“](#karte-wow-ruf-seit-0335)).
+Nach dem Update einmal die Seite im Browser neu laden, in der Companion App
+den Frontend-Cache zurücksetzen.
 
 **Update auf 0.33.4:** keine Migration. Neue mitgelieferte Karte „WoW
 Raids“ (`custom:wow-raid-card`, siehe [Karte „WoW
@@ -980,7 +987,7 @@ response_variable: charakter
 
 ## Dashboard-Karten
 
-Acht Karten liefert die Integration selbst mit; Home Assistant lädt sie mit dem
+Neun Karten liefert die Integration selbst mit; Home Assistant lädt sie mit dem
 Frontend, ohne zusätzliche HACS-Karten oder Dashboard-Ressourcen:
 
 - [„WoW Arsenal“](#karte-wow-arsenal-seit-0150) (`custom:wow-arsenal-card`,
@@ -1001,6 +1008,8 @@ Frontend, ohne zusätzliche HACS-Karten oder Dashboard-Ressourcen:
   0.33.2): Ehrenstufe, ehrenhafte Siege und Wertungen je Bracket.
 - [„WoW Raids“](#karte-wow-raids-seit-0334) (`custom:wow-raid-card`, seit
   0.33.4): Raid-Fortschritt je Schwierigkeit und letzter Boss (Retail).
+- [„WoW Ruf“](#karte-wow-ruf-seit-0335) (`custom:wow-reputation-card`, seit
+  0.33.5): Ruf und Ruhmstufen mit Fortschritt und Paragon (Retail).
 - [„WoW Talentbaum“](#karte-wow-talentbaum-seit-0140)
   (`custom:wow-talent-tree-card`, seit 0.14.0): Talentbäume mit vergebenen
   Punkten (Retail).
@@ -1017,8 +1026,9 @@ Alle brauchen `custom:button-card`; weitere Voraussetzungen (z. B. browser_mod
 für das Arsenal-Popup) stehen im Kopf jeder Datei. Die Arsenal-Karte liefert
 die Integration seit 0.15.0 auch selbst mit, die Charaktere-Karte seit 0.32.0,
 die Berufe-Karte seit 0.33.0, die Mythic+-Karte seit 0.33.1, die PvP-Karte seit
-0.33.2, die Garderobe-Karte seit 0.33.3 und die Raid-Karte seit 0.33.4, alle
-ohne diese Voraussetzungen (siehe
+0.33.2, die Garderobe-Karte seit 0.33.3, die Raid-Karte seit 0.33.4 und die
+Ruf-Karte seit 0.33.5, alle ohne diese Voraussetzungen (siehe
+[Karte „WoW Ruf“](#karte-wow-ruf-seit-0335),
 [Karte „WoW Raids“](#karte-wow-raids-seit-0334),
 [Karte „WoW Garderobe“](#karte-wow-garderobe-seit-0333),
 [Karte „WoW Arsenal“](#karte-wow-arsenal-seit-0150),
@@ -1037,10 +1047,11 @@ für alle). Die Karten finden die übrigen Entitäten über das Gerät des
 Charakters. Steht in einem bestehenden Dashboard eine andere Entität des
 Charakters, zeigt der Editor trotzdem den passenden Charakter; eine Entität,
 die zu keinem Charakter gehört, steht mit „nicht gefunden“ in der Liste. Die
-Karten „WoW Talentbaum“, „WoW Mythic+“, „WoW Garderobe“ und „WoW Raids“
-bieten nur Charaktere mit Sensor „Talentbaum“, „Mythic+-Wertung“,
-„Transmog-Vorlagen“ bzw. „Raid-Fortschritt LFR“ an (Retail). Weitere
-Einstellungen einer Karte (z. B. die Schwierigkeitsgrade der Raid-Karte) sind
+Karten „WoW Talentbaum“, „WoW Mythic+“, „WoW Garderobe“, „WoW Raids“ und „WoW
+Ruf“ bieten nur Charaktere mit Sensor „Talentbaum“, „Mythic+-Wertung“,
+„Transmog-Vorlagen“, „Raid-Fortschritt LFR“ bzw. „Ruf“ an (Retail). Weitere
+Einstellungen einer Karte (z. B. die Schwierigkeitsgrade der Raid-Karte oder
+die Fraktionen der Ruf-Karte, aus den Daten des gewählten Charakters) sind
 optional und stehen darunter. Bis 0.32.x bot der Editor alle Sensoren der Integration an.
 
 <p align="center">
@@ -1142,6 +1153,36 @@ entity: sensor.mein_charakter_level   # eine beliebige Entität des Charakters
 - Farben: Mit dem Nachtblau-Theme nutzt sie dessen Variablen (heller und
   dunkler Modus), sonst ist sie in beiden Modi dunkel. Die Wertungsfarbe der
   API zeigt sie nicht, sie ist auf heller Hülle nicht sicher lesbar.
+
+### Karte „WoW Ruf“ (seit 0.33.5)
+
+Die Ruf-Karte aus `wow-ruf-karte.yaml` als eigene Karte der Integration, im
+selben Aufbau und Nachtblau-Stil, aber ohne `custom:button-card`.
+
+```yaml
+type: custom:wow-reputation-card
+entity: sensor.mein_charakter_level   # eine beliebige Entität des Charakters
+# optional, Fraktions-IDs in dieser Reihenfolge:
+factions: [2710, 2696]
+# optional, ohne factions: so viele Fraktionen mit Ruhmstufe (Vorgabe 6)
+count: 6
+```
+
+- Je Fraktion Name, Stufe („Ruhmstufe 15“, „Freundlich“) und Fortschritt
+  innerhalb der Stufe als Balken, bei Paragon zusätzlich dessen Fortschritt
+  in Violett. Eine Stufe ohne Fortschritt (z. B. „Ehrfürchtig“ 0/0) hat einen
+  vollen Balken.
+- Ohne `factions` (Titel „Ruhmstufen“) die Fraktionen mit Ruhmstufe, neueste
+  zuerst, höchstens `count`; „neueste“ heißt höchste Fraktions-ID, weil die
+  API Fraktionen keiner Erweiterung zuordnet. Mit `factions` (Titel „Ruf“)
+  genau diese, in dieser Reihenfolge; unbekannte IDs fallen weg.
+- Im Editor stehen die Fraktionen des gewählten Charakters mit Name und ID
+  zur Auswahl, darunter „Anzahl ohne Auswahl“.
+- Die Karte findet den Sensor „Ruf“ über das Gerät des Charakters und den
+  Übersetzungsschlüssel `reputation`; sie braucht kein Präfix. Für WoW Classic
+  nennt sie, dass die Classic-API keinen Ruf liefert.
+- Farben: Mit dem Nachtblau-Theme nutzt sie dessen Variablen (heller und
+  dunkler Modus), sonst ist sie in beiden Modi dunkel.
 
 ### Karte „WoW Raids“ (seit 0.33.4)
 
@@ -1336,7 +1377,8 @@ weiterhin.
 - **Karte fehlt nach einem Update:** Zeigt das Dashboard statt einer Karte
   „Custom element doesn't exist: wow-talent-tree-card“ (oder
   `wow-arsenal-card`, `wow-characters-card`, `wow-professions-card`,
-  `wow-mythic-card`, `wow-pvp-card`, `wow-wardrobe-card`, `wow-raid-card`), hat die App oder der Browser die Datei der Karte nicht
+  `wow-mythic-card`, `wow-pvp-card`, `wow-wardrobe-card`, `wow-raid-card`,
+  `wow-reputation-card`), hat die App oder der Browser die Datei der Karte nicht
   geladen. Ein Fehler beim Laden steht nur in der Konsole des Browsers („Failed
   to load extra module …“), nicht im Log von Home Assistant. Abhilfe: in der
   Companion App den Frontend-Cache zurücksetzen (Einstellungen der App,
@@ -1515,7 +1557,24 @@ Automatische Tests laufen gegen Home Assistant 2026.2.3; live geprüft wurde unt
 Home Assistant 2026.10.4 mit Retail-Charakteren der Region EU, seit 0.11.2 auch
 mit einem Classic-Era-Charakter (siehe [WoW Classic](#wow-classic)).
 
-- **0.33.x:** 396 automatische Tests. 0.33.4: 2 Tests (Auslieferung der
+- **0.33.x:** 398 automatische Tests. 0.33.5: 2 Tests (Auslieferung der
+  Karte „WoW Ruf“, Editor zur Charakterauswahl). Gegenprobe: Karte nicht
+  registriert, Editor ohne Version im Pfad – jedes Mal schlug ein Test fehl.
+  In Chromium mit den Ruf-Werten eines Live-Charakters (die sechs neuesten
+  Fraktionen mit Ruhmstufe, Balken 350/2500 = 14 % usw. nachgerechnet) und
+  erfundenen Ergänzungen (Paragon 4200/10000, Fraktion ohne Ruhmstufe), 344
+  und 386 Pixel, Deutsch und Englisch, ohne Fehler und ohne waagrechten
+  Überlauf; `factions` mit IDs als Zahl und Text samt unbekannter ID,
+  `count` 3, ungültiges `factions`, Charakter ohne Ruhmstufe, Classic Era;
+  Editor mit den Fraktionen des gewählten Charakters, nach Wechsel des
+  Charakters neu. Editor-Prüfungen der früheren Karten wiederholt, ohne
+  Befund. **Nicht live geprüft.** 0.33.4 **live geprüft** (31.10.2026,
+  iOS-App): Der Editor bietet die 7 Retail-Charaktere und das Zusatzfeld
+  „Schwierigkeitsgrade“ mit vier Kästchen an; Titel „Raids · Midnight“,
+  „höchste Stufe: LFR“, LFR 6/20 und die Raids samt Reihenfolge, grünem 1/1
+  und Raid ohne Bild stimmen mit den Sensoren überein. Nicht live geprüft:
+  Normal, Heroisch, „Letzter Boss“ und das Speichern einer Auswahl.
+  0.33.4: 2 Tests (Auslieferung der
   Karte „WoW Raids“, Editor zur Charakterauswahl). Gegenprobe: Karte nicht
   registriert, Editor ohne Version im Pfad – jedes Mal schlug ein Test fehl.
   In Chromium mit den Raid-Attributen eines Live-Charakters (LFR 6/20, ein

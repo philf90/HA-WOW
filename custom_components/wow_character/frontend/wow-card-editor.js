@@ -14,9 +14,10 @@
  *   multiple  mehrere Charaktere (leer: alle)
  *   require   nur Charaktere mit einer Entitaet dieses Schluessels
  *             (z. B. "talent_tree")
- *   extra     weitere ha-form-Felder, als Liste oder als Funktion der Sprache
- *             ("de", "en", ...) fuer uebersetzte Auswahltexte;
- *             labels: {name: {de, en}}
+ *   extra     weitere ha-form-Felder, als Liste oder als Funktion
+ *             (lang, {hass, entity}) fuer uebersetzte Auswahltexte oder
+ *             Auswahlen aus den Daten des gewaehlten Charakters (entity =
+ *             sein Level-Sensor); labels: {name: {de, en}}
  */
 
 const TEXT = {
@@ -120,7 +121,9 @@ class WowCharacterEditor extends HTMLElement {
     }
     daten[o.name] = o.multiple ? gezeigt : gezeigt[0];
     const lang = (this._hass.locale?.language || "en").slice(0, 2);
-    const extra = typeof o.extra === "function" ? o.extra(lang) : o.extra || [];
+    const gewaehlt = o.multiple ? undefined : daten[o.name];
+    const extra =
+      typeof o.extra === "function" ? o.extra(lang, { hass: this._hass, entity: gewaehlt }) : o.extra || [];
     const schema = [
       {
         name: o.name,
