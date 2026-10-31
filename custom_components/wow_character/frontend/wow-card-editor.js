@@ -14,7 +14,9 @@
  *   multiple  mehrere Charaktere (leer: alle)
  *   require   nur Charaktere mit einer Entitaet dieses Schluessels
  *             (z. B. "talent_tree")
- *   extra     weitere ha-form-Felder; labels: {name: {de, en}}
+ *   extra     weitere ha-form-Felder, als Liste oder als Funktion der Sprache
+ *             ("de", "en", ...) fuer uebersetzte Auswahltexte;
+ *             labels: {name: {de, en}}
  */
 
 const TEXT = {
@@ -117,13 +119,15 @@ class WowCharacterEditor extends HTMLElement {
       }
     }
     daten[o.name] = o.multiple ? gezeigt : gezeigt[0];
+    const lang = (this._hass.locale?.language || "en").slice(0, 2);
+    const extra = typeof o.extra === "function" ? o.extra(lang) : o.extra || [];
     const schema = [
       {
         name: o.name,
         required: !o.multiple,
         selector: { select: { mode: o.multiple ? "list" : "dropdown", multiple: !!o.multiple, options: optionen } },
       },
-      ...(o.extra || []),
+      ...extra,
     ];
     if (!this._form) {
       this._form = document.createElement("ha-form");
@@ -137,7 +141,6 @@ class WowCharacterEditor extends HTMLElement {
       this._hinweis.remove();
       this._hinweis = undefined;
     }
-    const lang = (this._hass.locale?.language || "en").slice(0, 2);
     this._form.hass = this._hass;
     this._form.data = daten;
     this._form.schema = schema;
