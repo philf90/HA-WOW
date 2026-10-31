@@ -9,7 +9,7 @@ import pytest
 from homeassistant.core import HomeAssistant
 from homeassistant.setup import async_setup_component
 
-from custom_components.wow_character import CARD_PATH, CARDS
+from custom_components.wow_character import CARD_EDITOR, CARD_PATH, CARDS
 from custom_components.wow_character.const import DOMAIN, GAME_VERSIONS
 
 MANIFEST = Path(__file__).parents[1] / "custom_components" / DOMAIN / "manifest.json"
@@ -25,6 +25,8 @@ ARSENAL = (MANIFEST.parent / "frontend" / "wow-arsenal-card.js").read_text(
         ("wow-talent-tree-card.js", "wow-talent-tree-card"),
         ("wow-arsenal-card.js", "wow-arsenal-card"),
         ("wow-characters-card.js", "wow-characters-card"),
+        ("wow-professions-card.js", "wow-professions-card"),
+        ("wow-card-editor.js", "wow-character-editor"),
     ],
 )
 async def test_card_is_served(
@@ -75,3 +77,13 @@ def test_arsenal_reads_game_version_from_model(version: str) -> None:
     old = regex.match(f"World of Warcraft ({version})")
     assert old, "Modell bis 0.21.x nicht erkannt"
     assert names[old[1]] == names[version]
+
+
+@pytest.mark.parametrize("card", CARDS)
+def test_card_uses_character_editor(card: str) -> None:
+    """Im Editor nur den Charakter waehlen: gemeinsamer Editor, kein Formular
+    mit allen Sensoren der Integration (seit 0.33.0)."""
+    text = (MANIFEST.parent / "frontend" / card).read_text(encoding="utf-8")
+    assert "static async getConfigElement()" in text
+    assert f"`{CARD_EDITOR}${{new URL(import.meta.url).search}}`" in text
+    assert "getConfigForm" not in text

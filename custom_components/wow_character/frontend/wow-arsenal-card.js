@@ -11,7 +11,7 @@
  * Uebersetzungsschluessel der Integration, nicht ueber Entity-IDs; sie
  * funktioniert deshalb mit jeder Sprache und ohne Praefix.
  *
- * Konfiguration:
+ * Konfiguration (im Editor nur den Charakter waehlen):
  *   type: custom:wow-arsenal-card
  *   entity: sensor.<charakter>_level   # eine beliebige Entitaet des Charakters
  *
@@ -140,16 +140,10 @@ class WowArsenalCard extends HTMLElement {
     return { entity: entry?.entity_id || "" };
   }
 
-  static getConfigForm() {
-    return {
-      schema: [
-        {
-          name: "entity",
-          required: true,
-          selector: { entity: { domain: "sensor", integration: "wow_character" } },
-        },
-      ],
-    };
+  static async getConfigElement() {
+    // Auswahl nur der Charaktere (wow-card-editor.js), mit Version im Pfad
+    const { editor } = await import(new URL(`wow-card-editor.js${new URL(import.meta.url).search}`, import.meta.url));
+    return editor({ name: "entity" });
   }
 
   setConfig(config) {
