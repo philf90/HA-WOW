@@ -30,6 +30,7 @@ ARSENAL = (MANIFEST.parent / "frontend" / "wow-arsenal-card.js").read_text(
         ("wow-pvp-card.js", "wow-pvp-card"),
         ("wow-wardrobe-card.js", "wow-wardrobe-card"),
         ("wow-raid-card.js", "wow-raid-card"),
+        ("wow-reputation-card.js", "wow-reputation-card"),
         ("wow-card-editor.js", "wow-character-editor"),
     ],
 )
