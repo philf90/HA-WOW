@@ -1111,6 +1111,11 @@ die Fraktionen der Ruf-Karte und die Statistiken der Sammlung-Karte, aus den
 Daten des gewählten Charakters) sind optional und stehen darunter. Bis 0.32.x bot der Editor alle Sensoren der Integration an.
 
 <p align="center">
+  <img src="https://raw.githubusercontent.com/philf90/HA-WOW/main/assets/vorschau-spielwelt-arsenal-raids.png" alt="Spielwelt-, Arsenal- und Raid-Karte im Nachtblau-Stil mit Beispieldaten" width="100%">
+</p>
+<p align="center"><sub>Spielwelt, Arsenal und Raids, gezeichnet mit den mitgelieferten Karten (0.33.9) · Beispieldaten</sub></p>
+
+<p align="center">
   <img src="https://raw.githubusercontent.com/philf90/HA-WOW/main/assets/vorschau-galerie.png" alt="Mythic+-, Sammlungen-, Werte- und Ruhmstufen-Karte im Nachtblau-Stil mit Beispieldaten" width="100%">
 </p>
 <p align="center"><sub>Mythic+, Sammlungen &amp; Erfolge, Werte und Ruhmstufen · Beispieldaten</sub></p>
