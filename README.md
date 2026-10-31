@@ -11,19 +11,20 @@ Home-Assistant-Integration für World-of-Warcraft-Charaktere: Level, Itemlevel,
 Ausrüstung, Raid- und Mythic+-Fortschritt, Berufe, Ruf, Erfolge und mehr als
 Sensoren, dazu WoW-Marke, wöchentlicher Reset und Serverstatus. Die Daten kommen
 aus der offiziellen Battle.net API. Unterstützt Retail, WoW Classic (Era,
-Progression, Anniversary) und ist für WoW Forever vorbereitet. Version 0.33.8.
+Progression, Anniversary) und ist für WoW Forever vorbereitet. Version 0.33.9.
 
-Zwölf Dashboard-Karten liefert die Integration selbst mit: „WoW Arsenal“
+Dreizehn Dashboard-Karten liefert die Integration selbst mit: „WoW Arsenal“
 (`custom:wow-arsenal-card`), „WoW Berufe“ (`custom:wow-professions-card`),
 „WoW Charaktere“ (`custom:wow-characters-card`), „WoW Garderobe“
 (`custom:wow-wardrobe-card`, Retail), „WoW Mythic+“
 (`custom:wow-mythic-card`, Retail), „WoW PvP“ (`custom:wow-pvp-card`), „WoW
 Raids“ (`custom:wow-raid-card`, Retail), „WoW Ruf“ (`custom:wow-reputation-card`,
 Retail), „WoW Sammlungen“ (`custom:wow-collections-card`), „WoW Gilde“
-(`custom:wow-guild-card`), „WoW Werte“ (`custom:wow-stats-card`) und „WoW
-Talentbaum“
+(`custom:wow-guild-card`), „WoW Werte“ (`custom:wow-stats-card`), „WoW
+Spielwelt“ (`custom:wow-world-card`) und „WoW Talentbaum“
 (`custom:wow-talent-tree-card`, Retail), ohne zusätzliche HACS-Karten oder
-Dashboard-Ressourcen. Im Karten-Editor wählt man nur den Charakter.
+Dashboard-Ressourcen. Im Karten-Editor wählt man nur den Charakter, bei der
+Spielwelt-Karte die Spielwelt.
 
 <p align="center">
   <img src="https://raw.githubusercontent.com/philf90/HA-WOW/main/assets/vorschau-karten.png" alt="Arsenal-, Charaktere-, Berufe- und Raid-Karte im Nachtblau-Stil mit Beispieldaten" width="100%">
@@ -134,7 +135,8 @@ Client ohne Redirect-URL lässt sich unter **Manage Client** ergänzen.
   [„WoW Ruf“](#karte-wow-ruf-seit-0335),
   [„WoW Sammlungen“](#karte-wow-sammlungen-seit-0336),
   [„WoW Gilde“](#karte-wow-gilde-seit-0337),
-  [„WoW Werte“](#karte-wow-werte-seit-0338) und
+  [„WoW Werte“](#karte-wow-werte-seit-0338),
+  [„WoW Spielwelt“](#karte-wow-spielwelt-seit-0339) und
   [„WoW Talentbaum“](#karte-wow-talentbaum-seit-0140); weitere Karten als YAML
   siehe [Dashboard-Karten](#dashboard-karten).
 
@@ -165,6 +167,13 @@ neu starten. Wer von Hand aktualisiert, ersetzt den ganzen Ordner
 `custom_components/wow_character` samt `translations/`; sonst fehlen neue Texte,
 z. B. die Einträge im Menü „Charakter hinzufügen“. Was sich je Version ändert, steht in den
 [Release-Notes](https://github.com/philf90/HA-WOW/releases).
+
+**Update auf 0.33.9:** keine Migration. Neue mitgelieferte Karte „WoW
+Spielwelt“ (`custom:wow-world-card`, siehe [Karte „WoW
+Spielwelt“](#karte-wow-spielwelt-seit-0339)). Server, Warteschlange und
+Bevölkerung je Realm haben das neue Attribut `realm` (Name des Realms). Nach
+dem Update einmal die Seite im Browser neu laden, in der Companion App den
+Frontend-Cache zurücksetzen.
 
 **Update auf 0.33.8:** keine Migration. Neue mitgelieferte Karte „WoW Werte“
 (`custom:wow-stats-card`, siehe [Karte „WoW Werte“](#karte-wow-werte-seit-0338)).
@@ -520,6 +529,10 @@ Je Region ein Gerät „WoW-Spielwelt EU“ (bzw. US, KR, TW):
 | Server je Realm | Ein/Aus | 15 min | `connected-realm/{id}`, `status.type` |
 | Warteschlange je Realm | Ein/Aus | 15 min | `connected-realm/{id}`, `has_queue` |
 | Bevölkerung je Realm | Sensor | 15 min | `connected-realm/{id}`, `population.type` (seit 0.22.0; vorher `population.name`) |
+
+Server, Warteschlange und Bevölkerung tragen seit 0.33.9 das Attribut `realm`
+(Name des Realms), damit Karten die drei Entitäten eines Realms unabhängig von
+Sprache und Entity-ID zusammenfinden.
 
 ## Attribute im Detail
 
@@ -1041,6 +1054,9 @@ Frontend, ohne zusätzliche HACS-Karten oder Dashboard-Ressourcen:
   0.33.7): Gilde mit Mitgliedern, Klassen, Rängen und Aktivität.
 - [„WoW Werte“](#karte-wow-werte-seit-0338) (`custom:wow-stats-card`, seit
   0.33.8): Charakterwerte wie im Spiel, Set, leere Sockel und Verzauberungen.
+- [„WoW Spielwelt“](#karte-wow-spielwelt-seit-0339) (`custom:wow-world-card`,
+  seit 0.33.9): Reset, Mythic+-Season, WoW-Marke mit Verlauf und Server je
+  Realm.
 - [„WoW Talentbaum“](#karte-wow-talentbaum-seit-0140)
   (`custom:wow-talent-tree-card`, seit 0.14.0): Talentbäume mit vergebenen
   Punkten (Retail).
@@ -1059,7 +1075,9 @@ die Integration seit 0.15.0 auch selbst mit, die Charaktere-Karte seit 0.32.0,
 die Berufe-Karte seit 0.33.0, die Mythic+-Karte seit 0.33.1, die PvP-Karte seit
 0.33.2, die Garderobe-Karte seit 0.33.3, die Raid-Karte seit 0.33.4, die
 Ruf-Karte seit 0.33.5, die Sammlung-Karte seit 0.33.6, die Gilde-Karte seit
-0.33.7 und die Werte-Karte seit 0.33.8, alle ohne diese Voraussetzungen (siehe
+0.33.7, die Werte-Karte seit 0.33.8 und die Spielwelt-Karte seit 0.33.9, alle
+ohne diese Voraussetzungen (siehe
+[Karte „WoW Spielwelt“](#karte-wow-spielwelt-seit-0339),
 [Karte „WoW Werte“](#karte-wow-werte-seit-0338),
 [Karte „WoW Gilde“](#karte-wow-gilde-seit-0337),
 [Karte „WoW Sammlungen“](#karte-wow-sammlungen-seit-0336),
@@ -1076,7 +1094,10 @@ Ruf-Karte seit 0.33.5, die Sammlung-Karte seit 0.33.6, die Gilde-Karte seit
 
 Im Karten-Editor (Karte hinzufügen → „WoW …“) aller mitgelieferten Karten wählt
 man nur den Charakter aus einer Liste „Name – Realm · Spielversion“; die
-Spielwelt-Geräte stehen nicht darin. Gespeichert wird wie bisher `entity:`
+Spielwelt-Geräte stehen nicht darin. Die Spielwelt-Karte bietet stattdessen
+die Spielwelt-Geräte an („WoW-Spielwelt EU“, „WoW-Spielwelt EU Classic Era“);
+gespeichert wird die WoW-Marke, ohne sie der wöchentliche Reset oder ein
+Server-Sensor. Gespeichert wird wie bisher `entity:`
 mit dem Level-Sensor des Charakters (bei „WoW Charaktere“ `entities:`, leer
 für alle). Die Karten finden die übrigen Entitäten über das Gerät des
 Charakters. Steht in einem bestehenden Dashboard eine andere Entität des
@@ -1188,6 +1209,38 @@ entity: sensor.mein_charakter_level   # eine beliebige Entität des Charakters
 - Farben: Mit dem Nachtblau-Theme nutzt sie dessen Variablen (heller und
   dunkler Modus), sonst ist sie in beiden Modi dunkel. Die Wertungsfarbe der
   API zeigt sie nicht, sie ist auf heller Hülle nicht sicher lesbar.
+
+### Karte „WoW Spielwelt“ (seit 0.33.9)
+
+Die Spielwelt-Karte aus `wow-spielwelt-karte.yaml` als eigene Karte der
+Integration, im selben Aufbau und Nachtblau-Stil, aber ohne
+`custom:button-card`, `custom:apexcharts-card` und card-mod.
+
+```yaml
+type: custom:wow-world-card
+entity: sensor.wow_spielwelt_eu_wow_marke   # eine Entität der Spielwelt
+```
+
+- Kopf mit dem Namen der Spielwelt, darunter der Countdown bis zum
+  wöchentlichen Reset und dessen Zeitpunkt.
+- Mythic+-Season über die ganze Breite: Kurzname, Season-Woche, Fortschritt
+  der laufenden Woche als Balken, Beginn (und Ende, wenn die API es nennt).
+- WoW-Marke in Gold und je Realm Server online/offline, Bevölkerung und
+  Warteschlange; der Zustand steht immer auch als Wort in der Pille.
+- Verlauf der WoW-Marke der letzten 7 Tage als Stundenmittel, aus dem
+  Verlauf von Home Assistant (die Standard-Aufbewahrung von 10 Tagen reicht);
+  Stunden ohne neuen Preis behalten den letzten Wert. Mit der Maus oder per
+  Tippen Wert und Zeitpunkt. Die Karte lädt den Verlauf beim Öffnen, bei
+  neuem Preis höchstens alle 5 Minuten und sonst alle 30 Minuten neu.
+- Im Editor die Spielwelt statt eines Charakters. WoW Classic: Die Spielwelt
+  einer Classic-Version hat keinen Reset und die WoW-Marke nur, wenn die API
+  einen Preis liefert; was fehlt, fällt weg.
+- Server, Warteschlange und Bevölkerung eines Realms findet die Karte über
+  das Attribut `realm` (seit 0.33.9), nicht über Entity-IDs; sie braucht kein
+  Präfix und funktioniert in jeder Sprache. Die YAML-Karte las sie aus
+  deutschen Entity-IDs.
+- Farben: Mit dem Nachtblau-Theme nutzt sie dessen Variablen (heller und
+  dunkler Modus, auch der Verlauf), sonst ist sie in beiden Modi dunkel.
 
 ### Karte „WoW Werte“ (seit 0.33.8)
 
@@ -1699,7 +1752,25 @@ Automatische Tests laufen gegen Home Assistant 2026.2.3; live geprüft wurde unt
 Home Assistant 2026.10.4 mit Retail-Charakteren der Region EU, seit 0.11.2 auch
 mit einem Classic-Era-Charakter (siehe [WoW Classic](#wow-classic)).
 
-- **0.33.x:** 404 automatische Tests. 0.33.8: 2 Tests (Auslieferung der
+- **0.33.x:** 406 automatische Tests. 0.33.9: 2 Tests (Auslieferung der
+  Karte „WoW Spielwelt“, Editor) und drei Prüfungen im bestehenden Test der
+  Spielwelt (`realm` an Server, Warteschlange und Bevölkerung). Gegenprobe:
+  Karte nicht registriert, Editor ohne Version im Pfad, `realm` an den
+  Binärsensoren entfernt, `realm` an der Bevölkerung entfernt – jedes Mal
+  schlug ein Test fehl. In Chromium mit Daten nach dem Muster einer
+  Live-Instanz (WoW-Marke 401.720 g, Season „Dungeons auf Mythisch+ (Midnight
+  Saison 2)“ seit 12.08.2026, zwei Realms, Classic-Spielwelt mit einem Realm)
+  und einem erfundenen Verlauf über 7 Tage mit einer Lücke von 5 Stunden, 344
+  und 386 Pixel, Deutsch und Englisch, ohne Fehler und ohne waagrechten
+  Überlauf; dazu Realm offline, mit Warteschlange und ohne Daten, Spielwelt
+  ohne Verlauf (Fehler der Abfrage), Wert und Zeitpunkt mit der Maus
+  innerhalb der Karte, nur eine Verlaufsabfrage bei unveränderten Daten.
+  **Nicht live geprüft:** die Karte in Home Assistant, insbesondere die
+  Antwort der Verlaufsabfrage. 0.33.8 **live geprüft** (31.10.2026, iOS-App):
+  Werte, Set 3/5, Klassenfarbe (`class_id` 8 und 7) und ein Classic-Charakter
+  mit ausgeschalteten Werte-Sensoren stimmen mit den Sensoren überein; nicht
+  live geprüft: Sockel- und Verzauberungssymbole des Retail-Charakters und
+  das Fenster. 0.33.8: 2 Tests (Auslieferung der
   Karte „WoW Werte“, Editor zur Charakterauswahl) und eine Prüfung im
   bestehenden Test der Symbole (`class_id` am Level-Sensor). Gegenprobe: Karte
   nicht registriert, Editor ohne Version im Pfad, `class_id` entfernt – jedes

@@ -954,3 +954,8 @@ class WowRealmPopulationSensor(WowWorldEntity, SensorEntity):
         realm = (self.coordinator.data or {}).get("realms", {}).get(self._slug)
         value = str((realm or {}).get("population_type") or "").lower()
         return value if value in REALM_POPULATIONS else None
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        # Name des Realms wie an Server und Warteschlange (seit 0.33.9)
+        return {"realm": self._attr_translation_placeholders["realm"]}
