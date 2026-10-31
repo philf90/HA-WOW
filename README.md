@@ -11,12 +11,13 @@ Home-Assistant-Integration für World-of-Warcraft-Charaktere: Level, Itemlevel,
 Ausrüstung, Raid- und Mythic+-Fortschritt, Berufe, Ruf, Erfolge und mehr als
 Sensoren, dazu WoW-Marke, wöchentlicher Reset und Serverstatus. Die Daten kommen
 aus der offiziellen Battle.net API. Unterstützt Retail, WoW Classic (Era,
-Progression, Anniversary) und ist für WoW Forever vorbereitet. Version 0.33.1.
+Progression, Anniversary) und ist für WoW Forever vorbereitet. Version 0.33.2.
 
-Fünf Dashboard-Karten liefert die Integration selbst mit: „WoW Arsenal“
+Sechs Dashboard-Karten liefert die Integration selbst mit: „WoW Arsenal“
 (`custom:wow-arsenal-card`), „WoW Berufe“ (`custom:wow-professions-card`),
 „WoW Charaktere“ (`custom:wow-characters-card`), „WoW Mythic+“
-(`custom:wow-mythic-card`, Retail) und „WoW Talentbaum“
+(`custom:wow-mythic-card`, Retail), „WoW PvP“ (`custom:wow-pvp-card`) und
+„WoW Talentbaum“
 (`custom:wow-talent-tree-card`, Retail), ohne zusätzliche HACS-Karten oder
 Dashboard-Ressourcen. Im Karten-Editor wählt man nur den Charakter.
 
@@ -122,7 +123,8 @@ Client ohne Redirect-URL lässt sich unter **Manage Client** ergänzen.
   [„WoW Arsenal“](#karte-wow-arsenal-seit-0150),
   [„WoW Berufe“](#karte-wow-berufe-seit-0330),
   [„WoW Charaktere“](#karte-wow-charaktere-seit-0320),
-  [„WoW Mythic+“](#karte-wow-mythic-seit-0331) und
+  [„WoW Mythic+“](#karte-wow-mythic-seit-0331),
+  [„WoW PvP“](#karte-wow-pvp-seit-0332) und
   [„WoW Talentbaum“](#karte-wow-talentbaum-seit-0140); weitere Karten als YAML
   siehe [Dashboard-Karten](#dashboard-karten).
 
@@ -153,6 +155,11 @@ neu starten. Wer von Hand aktualisiert, ersetzt den ganzen Ordner
 `custom_components/wow_character` samt `translations/`; sonst fehlen neue Texte,
 z. B. die Einträge im Menü „Charakter hinzufügen“. Was sich je Version ändert, steht in den
 [Release-Notes](https://github.com/philf90/HA-WOW/releases).
+
+**Update auf 0.33.2:** keine Migration. Neue mitgelieferte Karte „WoW PvP“
+(`custom:wow-pvp-card`, siehe [Karte „WoW PvP“](#karte-wow-pvp-seit-0332)).
+Nach dem Update einmal die Seite im Browser neu laden, in der Companion App
+den Frontend-Cache zurücksetzen.
 
 **Update auf 0.33.1:** keine Migration. Neue mitgelieferte Karte „WoW
 Mythic+“ (`custom:wow-mythic-card`, siehe [Karte „WoW
@@ -960,7 +967,7 @@ response_variable: charakter
 
 ## Dashboard-Karten
 
-Fünf Karten liefert die Integration selbst mit; Home Assistant lädt sie mit dem
+Sechs Karten liefert die Integration selbst mit; Home Assistant lädt sie mit dem
 Frontend, ohne zusätzliche HACS-Karten oder Dashboard-Ressourcen:
 
 - [„WoW Arsenal“](#karte-wow-arsenal-seit-0150) (`custom:wow-arsenal-card`,
@@ -974,6 +981,8 @@ Frontend, ohne zusätzliche HACS-Karten oder Dashboard-Ressourcen:
 - [„WoW Mythic+“](#karte-wow-mythic-seit-0331) (`custom:wow-mythic-card`,
   seit 0.33.1): Wertung, höchster Schlüssel und beste Läufe der Season
   (Retail).
+- [„WoW PvP“](#karte-wow-pvp-seit-0332) (`custom:wow-pvp-card`, seit
+  0.33.2): Ehrenstufe, ehrenhafte Siege und Wertungen je Bracket.
 - [„WoW Talentbaum“](#karte-wow-talentbaum-seit-0140)
   (`custom:wow-talent-tree-card`, seit 0.14.0): Talentbäume mit vergebenen
   Punkten (Retail).
@@ -989,11 +998,13 @@ als Hinweis genannt.
 Alle brauchen `custom:button-card`; weitere Voraussetzungen (z. B. browser_mod
 für das Arsenal-Popup) stehen im Kopf jeder Datei. Die Arsenal-Karte liefert
 die Integration seit 0.15.0 auch selbst mit, die Charaktere-Karte seit 0.32.0,
-die Berufe-Karte seit 0.33.0 und die Mythic+-Karte seit 0.33.1, alle ohne diese
-Voraussetzungen (siehe [Karte „WoW Arsenal“](#karte-wow-arsenal-seit-0150),
+die Berufe-Karte seit 0.33.0, die Mythic+-Karte seit 0.33.1 und die PvP-Karte
+seit 0.33.2, alle ohne diese Voraussetzungen (siehe
+[Karte „WoW Arsenal“](#karte-wow-arsenal-seit-0150),
 [Karte „WoW Charaktere“](#karte-wow-charaktere-seit-0320),
-[Karte „WoW Berufe“](#karte-wow-berufe-seit-0330) und
-[Karte „WoW Mythic+“](#karte-wow-mythic-seit-0331)).
+[Karte „WoW Berufe“](#karte-wow-berufe-seit-0330),
+[Karte „WoW Mythic+“](#karte-wow-mythic-seit-0331) und
+[Karte „WoW PvP“](#karte-wow-pvp-seit-0332)).
 
 ### Charakter auswählen (seit 0.33.0)
 
@@ -1107,6 +1118,31 @@ entity: sensor.mein_charakter_level   # eine beliebige Entität des Charakters
 - Farben: Mit dem Nachtblau-Theme nutzt sie dessen Variablen (heller und
   dunkler Modus), sonst ist sie in beiden Modi dunkel. Die Wertungsfarbe der
   API zeigt sie nicht, sie ist auf heller Hülle nicht sicher lesbar.
+
+### Karte „WoW PvP“ (seit 0.33.2)
+
+Die PvP-Karte aus `wow-pvp-karte.yaml` als eigene Karte der Integration, im
+selben Aufbau und Nachtblau-Stil, aber ohne `custom:button-card`.
+
+```yaml
+type: custom:wow-pvp-card
+entity: sensor.mein_charakter_level   # eine beliebige Entität des Charakters
+```
+
+- Kopf „PvP“, darunter Spielversion und Name des Charakters.
+- Kacheln für Ehrenstufe und ehrenhafte Siege, nur für vorhandene Sensoren
+  (Classic Era: nur die Siege).
+- Wertungen je Bracket in der Reihenfolge des Spiels (3v3, 2v2, gewertete
+  Schlachtfelder): Wertung, Siegquote der Saison als Balken, Siege und
+  Niederlagen der Saison und der Woche. Brackets ohne Sensor fallen weg; ohne
+  jedes Bracket ein Hinweis, bei Classic Era, dass es dort keine Arenen gibt.
+- Die Karte findet die Sensoren über das Gerät des Charakters und die
+  Übersetzungsschlüssel `honor_level`, `honorable_kills` und `pvp_bracket`.
+  Das Bracket steht am Ende des Namens („PvP-Wertung 3V3“, in jeder Sprache
+  gleich), hilfsweise am Ende der Entity-ID. Sie braucht kein Präfix.
+- Farben: Mit dem Nachtblau-Theme nutzt sie dessen Variablen (heller und
+  dunkler Modus), sonst ist sie in beiden Modi dunkel. Siege und Niederlagen
+  stehen als Text, nicht als Grün und Rot.
 
 ### Karte „WoW Charaktere“ (seit 0.32.0)
 
@@ -1222,7 +1258,7 @@ weiterhin.
 - **Karte fehlt nach einem Update:** Zeigt das Dashboard statt einer Karte
   „Custom element doesn't exist: wow-talent-tree-card“ (oder
   `wow-arsenal-card`, `wow-characters-card`, `wow-professions-card`,
-  `wow-mythic-card`), hat die App oder der Browser die Datei der Karte nicht
+  `wow-mythic-card`, `wow-pvp-card`), hat die App oder der Browser die Datei der Karte nicht
   geladen. Ein Fehler beim Laden steht nur in der Konsole des Browsers („Failed
   to load extra module …“), nicht im Log von Home Assistant. Abhilfe: in der
   Companion App den Frontend-Cache zurücksetzen (Einstellungen der App,
@@ -1401,7 +1437,20 @@ Automatische Tests laufen gegen Home Assistant 2026.2.3; live geprüft wurde unt
 Home Assistant 2026.10.4 mit Retail-Charakteren der Region EU, seit 0.11.2 auch
 mit einem Classic-Era-Charakter (siehe [WoW Classic](#wow-classic)).
 
-- **0.33.x:** 390 automatische Tests. 0.33.1: 2 Tests (Auslieferung der
+- **0.33.x:** 392 automatische Tests. 0.33.2: 2 Tests (Auslieferung der
+  Karte „WoW PvP“, Editor zur Charakterauswahl). Gegenprobe: Karte nicht
+  registriert, Editor ohne Version im Pfad – jedes Mal schlug ein Test fehl.
+  In Chromium mit erfundenen Daten, 344 und 386 Pixel, Deutsch und Englisch,
+  ohne Fehler und ohne waagrechten Überlauf: drei Brackets (deutscher und
+  englischer Name, eines nur über die Entity-ID erkannt, Saison ohne Spiele,
+  Woche ohne Angabe) in der Reihenfolge 3v3, 2v2, gewertete Schlachtfelder
+  mit Siegquote (71 von 120 = 59 %); Retail ohne Bracket wie live; Classic
+  Era nur mit Siegen und Hinweis. **Nicht live geprüft.** 0.33.1 **live
+  geprüft** (31.10.2026, iOS-App): Der Editor bietet die 7 Retail-Charaktere
+  an, nicht den Classic-Era-Charakter; Titel „Season 18“, Wertung 170 „laut
+  Arsenal“, „–“ für Schlüssel und „In Zeit“ und „Noch kein Lauf“ stimmen mit
+  den Sensoren überein. Nicht live geprüft: die Liste der Läufe (kein Lauf in
+  der Season). 0.33.1: 2 Tests (Auslieferung der
   Karte „WoW Mythic+“, Editor zur Charakterauswahl). Gegenprobe: Karte nicht
   registriert, Editor ohne Version im Pfad – jedes Mal schlug ein Test fehl.
   In Chromium mit
