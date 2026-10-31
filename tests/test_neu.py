@@ -102,6 +102,7 @@ async def test_class_spec_and_raid_images(hass: HomeAssistant, aioclient_mock) -
 
     level = hass.states.get("sensor.testchar_die_aldor_level").attributes
     assert level["class_icon"] == "https://render.example/magier.jpg"
+    assert level["class_id"] == 8
     assert level["spec_icon"] == "https://render.example/frost.jpg"
     heroic = hass.states.get(_entity(hass, "sensor", "raid_heroic")).attributes
     # Bild je Raid des Journals; der zweite hat keins (404), Weltbosse fehlen.

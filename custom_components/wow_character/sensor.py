@@ -84,6 +84,8 @@ def _level_attrs(data: dict[str, Any]) -> dict[str, Any]:
     media = data.get("media_urls") or {}
     return {
         "class": p.name_of(prof.get("character_class")),
+        # Klassen-ID der API, fuer Klassenfarben in jeder Sprache
+        "class_id": (prof.get("character_class") or {}).get("id"),
         "spec": p.name_of(prof.get("active_spec")),
         "race": p.name_of(prof.get("race")),
         "faction": p.name_of(prof.get("faction")),
