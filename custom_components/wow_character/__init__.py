@@ -68,9 +68,9 @@ _LOGGER = logging.getLogger(__name__)
 
 PLATFORMS = [Platform.BINARY_SENSOR, Platform.EVENT, Platform.IMAGE, Platform.SENSOR]
 CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
-# Karten "WoW Talentbaum", "WoW Arsenal", "WoW Charaktere" und "WoW Berufe",
-# von der Integration selbst ausgeliefert; alle Dateien unter frontend/ sind
-# unter CARD_PATH erreichbar. Den Editor zur Charakterauswahl laden die Karten
+# Karten "WoW Talentbaum", "WoW Arsenal", "WoW Charaktere", "WoW Berufe" und
+# "WoW Mythic+", von der Integration selbst ausgeliefert; alle Dateien unter
+# frontend/ sind unter CARD_PATH erreichbar. Den Editor zur Charakterauswahl laden die Karten
 # selbst nach (mit ihrer Version im Pfad), er ist deshalb kein eigenes Modul.
 CARD_PATH = f"/{DOMAIN}"
 CARD_DIR = Path(__file__).parent / "frontend"
@@ -79,6 +79,7 @@ CARDS = (
     "wow-arsenal-card.js",
     "wow-characters-card.js",
     "wow-professions-card.js",
+    "wow-mythic-card.js",
 )
 CARD_EDITOR = "wow-card-editor.js"
 # Eintrag -> Stand, fuer den gerade neu geladen wird (siehe _async_reload).

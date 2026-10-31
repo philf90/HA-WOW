@@ -11,11 +11,12 @@ Home-Assistant-Integration für World-of-Warcraft-Charaktere: Level, Itemlevel,
 Ausrüstung, Raid- und Mythic+-Fortschritt, Berufe, Ruf, Erfolge und mehr als
 Sensoren, dazu WoW-Marke, wöchentlicher Reset und Serverstatus. Die Daten kommen
 aus der offiziellen Battle.net API. Unterstützt Retail, WoW Classic (Era,
-Progression, Anniversary) und ist für WoW Forever vorbereitet. Version 0.33.0.
+Progression, Anniversary) und ist für WoW Forever vorbereitet. Version 0.33.1.
 
-Vier Dashboard-Karten liefert die Integration selbst mit: „WoW Arsenal“
+Fünf Dashboard-Karten liefert die Integration selbst mit: „WoW Arsenal“
 (`custom:wow-arsenal-card`), „WoW Berufe“ (`custom:wow-professions-card`),
-„WoW Charaktere“ (`custom:wow-characters-card`) und „WoW Talentbaum“
+„WoW Charaktere“ (`custom:wow-characters-card`), „WoW Mythic+“
+(`custom:wow-mythic-card`, Retail) und „WoW Talentbaum“
 (`custom:wow-talent-tree-card`, Retail), ohne zusätzliche HACS-Karten oder
 Dashboard-Ressourcen. Im Karten-Editor wählt man nur den Charakter.
 
@@ -120,7 +121,8 @@ Client ohne Redirect-URL lässt sich unter **Manage Client** ergänzen.
 - Dashboard-Karten: mitgeliefert sind
   [„WoW Arsenal“](#karte-wow-arsenal-seit-0150),
   [„WoW Berufe“](#karte-wow-berufe-seit-0330),
-  [„WoW Charaktere“](#karte-wow-charaktere-seit-0320) und
+  [„WoW Charaktere“](#karte-wow-charaktere-seit-0320),
+  [„WoW Mythic+“](#karte-wow-mythic-seit-0331) und
   [„WoW Talentbaum“](#karte-wow-talentbaum-seit-0140); weitere Karten als YAML
   siehe [Dashboard-Karten](#dashboard-karten).
 
@@ -151,6 +153,11 @@ neu starten. Wer von Hand aktualisiert, ersetzt den ganzen Ordner
 `custom_components/wow_character` samt `translations/`; sonst fehlen neue Texte,
 z. B. die Einträge im Menü „Charakter hinzufügen“. Was sich je Version ändert, steht in den
 [Release-Notes](https://github.com/philf90/HA-WOW/releases).
+
+**Update auf 0.33.1:** keine Migration. Neue mitgelieferte Karte „WoW
+Mythic+“ (`custom:wow-mythic-card`, siehe [Karte „WoW
+Mythic+“](#karte-wow-mythic-seit-0331)). Nach dem Update einmal die Seite im
+Browser neu laden, in der Companion App den Frontend-Cache zurücksetzen.
 
 **Update auf 0.33.0:** keine Migration. Neue mitgelieferte Karte „WoW
 Berufe“ (`custom:wow-professions-card`, siehe [Karte „WoW
@@ -953,7 +960,7 @@ response_variable: charakter
 
 ## Dashboard-Karten
 
-Vier Karten liefert die Integration selbst mit; Home Assistant lädt sie mit dem
+Fünf Karten liefert die Integration selbst mit; Home Assistant lädt sie mit dem
 Frontend, ohne zusätzliche HACS-Karten oder Dashboard-Ressourcen:
 
 - [„WoW Arsenal“](#karte-wow-arsenal-seit-0150) (`custom:wow-arsenal-card`,
@@ -964,6 +971,9 @@ Frontend, ohne zusätzliche HACS-Karten oder Dashboard-Ressourcen:
 - [„WoW Charaktere“](#karte-wow-charaktere-seit-0320)
   (`custom:wow-characters-card`, seit 0.32.0): alle Charaktere nach
   Spielversion mit Stufe, Itemlevel, Mythic+ und letztem Login.
+- [„WoW Mythic+“](#karte-wow-mythic-seit-0331) (`custom:wow-mythic-card`,
+  seit 0.33.1): Wertung, höchster Schlüssel und beste Läufe der Season
+  (Retail).
 - [„WoW Talentbaum“](#karte-wow-talentbaum-seit-0140)
   (`custom:wow-talent-tree-card`, seit 0.14.0): Talentbäume mit vergebenen
   Punkten (Retail).
@@ -978,11 +988,12 @@ liefert (bei Classic z. B. Raids, Mythic+ und Sammlungen), fällt weg oder wird
 als Hinweis genannt.
 Alle brauchen `custom:button-card`; weitere Voraussetzungen (z. B. browser_mod
 für das Arsenal-Popup) stehen im Kopf jeder Datei. Die Arsenal-Karte liefert
-die Integration seit 0.15.0 auch selbst mit, die Charaktere-Karte seit 0.32.0
-und die Berufe-Karte seit 0.33.0, alle ohne diese Voraussetzungen (siehe
-[Karte „WoW Arsenal“](#karte-wow-arsenal-seit-0150),
-[Karte „WoW Charaktere“](#karte-wow-charaktere-seit-0320) und
-[Karte „WoW Berufe“](#karte-wow-berufe-seit-0330)).
+die Integration seit 0.15.0 auch selbst mit, die Charaktere-Karte seit 0.32.0,
+die Berufe-Karte seit 0.33.0 und die Mythic+-Karte seit 0.33.1, alle ohne diese
+Voraussetzungen (siehe [Karte „WoW Arsenal“](#karte-wow-arsenal-seit-0150),
+[Karte „WoW Charaktere“](#karte-wow-charaktere-seit-0320),
+[Karte „WoW Berufe“](#karte-wow-berufe-seit-0330) und
+[Karte „WoW Mythic+“](#karte-wow-mythic-seit-0331)).
 
 ### Charakter auswählen (seit 0.33.0)
 
@@ -994,8 +1005,8 @@ für alle). Die Karten finden die übrigen Entitäten über das Gerät des
 Charakters. Steht in einem bestehenden Dashboard eine andere Entität des
 Charakters, zeigt der Editor trotzdem den passenden Charakter; eine Entität,
 die zu keinem Charakter gehört, steht mit „nicht gefunden“ in der Liste. Die
-Karte „WoW Talentbaum“ bietet nur Charaktere mit Sensor „Talentbaum“ an
-(Retail). Bis 0.32.x bot der Editor alle Sensoren der Integration an.
+Karten „WoW Talentbaum“ und „WoW Mythic+“ bieten nur Charaktere mit Sensor
+„Talentbaum“ bzw. „Mythic+-Wertung“ an (Retail). Bis 0.32.x bot der Editor alle Sensoren der Integration an.
 
 <p align="center">
   <img src="https://raw.githubusercontent.com/philf90/HA-WOW/main/assets/vorschau-galerie.png" alt="Mythic+-, Sammlungen-, Werte- und Ruhmstufen-Karte im Nachtblau-Stil mit Beispieldaten" width="100%">
@@ -1070,6 +1081,32 @@ entity: sensor.mein_charakter_level   # eine beliebige Entität des Charakters
   dunkler Modus), sonst ist sie in beiden Modi dunkel.
 - Breite: In der Abschnittsansicht die ganze Breite des Abschnitts (12 von 12
   Spalten, mindestens 6).
+
+### Karte „WoW Mythic+“ (seit 0.33.1)
+
+Die Mythic+-Karte aus `wow-mythic-karte.yaml` als eigene Karte der Integration,
+im selben Aufbau und Nachtblau-Stil, aber ohne `custom:button-card`.
+
+```yaml
+type: custom:wow-mythic-card
+entity: sensor.mein_charakter_level   # eine beliebige Entität des Charakters
+```
+
+- Kopf „Mythic+ · Season 18“, darunter Spielversion, Name des Charakters und
+  Zahl der gelaufenen Dungeons (bis zu zwei Zeilen).
+- Drei Kacheln: Wertung der Season (ohne Lauf in der Season `api_rating` mit
+  „laut Arsenal“), höchster Schlüssel und Läufe in Zeit.
+- Darunter der beste Lauf je Dungeon, nach Stufe sortiert: Stufe, Dungeon, „in
+  Zeit“ (grün) oder „über Zeit“, Dauer, Wertung des Laufs und Affixe (Attribut
+  `runs` des Sensors „Höchster Mythic+-Schlüssel“).
+- Die Karte findet die Sensoren über das Gerät des Charakters und die
+  Übersetzungsschlüssel `mythic_rating`, `mythic_best_key` und
+  `mythic_runs_timed`; sie braucht kein Präfix und funktioniert mit jeder
+  Sprache der Oberfläche. Für Classic und Forever nennt sie, dass es Mythic+
+  nur in Retail gibt; der Editor bietet nur Charaktere mit Mythic+ an.
+- Farben: Mit dem Nachtblau-Theme nutzt sie dessen Variablen (heller und
+  dunkler Modus), sonst ist sie in beiden Modi dunkel. Die Wertungsfarbe der
+  API zeigt sie nicht, sie ist auf heller Hülle nicht sicher lesbar.
 
 ### Karte „WoW Charaktere“ (seit 0.32.0)
 
@@ -1184,7 +1221,8 @@ weiterhin.
   Geräte lassen sich auf ihrer Geräteseite löschen.
 - **Karte fehlt nach einem Update:** Zeigt das Dashboard statt einer Karte
   „Custom element doesn't exist: wow-talent-tree-card“ (oder
-  `wow-arsenal-card`, `wow-characters-card`, `wow-professions-card`), hat die App oder der Browser die Datei der Karte nicht
+  `wow-arsenal-card`, `wow-characters-card`, `wow-professions-card`,
+  `wow-mythic-card`), hat die App oder der Browser die Datei der Karte nicht
   geladen. Ein Fehler beim Laden steht nur in der Konsole des Browsers („Failed
   to load extra module …“), nicht im Log von Home Assistant. Abhilfe: in der
   Companion App den Frontend-Cache zurücksetzen (Einstellungen der App,
@@ -1363,7 +1401,21 @@ Automatische Tests laufen gegen Home Assistant 2026.2.3; live geprüft wurde unt
 Home Assistant 2026.10.4 mit Retail-Charakteren der Region EU, seit 0.11.2 auch
 mit einem Classic-Era-Charakter (siehe [WoW Classic](#wow-classic)).
 
-- **0.33.x:** 388 automatische Tests. 0.33.0: 6 Tests (Auslieferung der
+- **0.33.x:** 390 automatische Tests. 0.33.1: 2 Tests (Auslieferung der
+  Karte „WoW Mythic+“, Editor zur Charakterauswahl). Gegenprobe: Karte nicht
+  registriert, Editor ohne Version im Pfad – jedes Mal schlug ein Test fehl.
+  In Chromium mit
+  erfundenen Daten, 344 und 386 Pixel, Deutsch und Englisch, ohne Fehler und
+  ohne waagrechten Überlauf: drei Läufe (in Zeit, über Zeit, ohne Dauer und
+  Wertung, langer Dungeon-Name) nach Stufe sortiert; ohne Lauf mit
+  `api_rating` „laut Arsenal“ wie live bei einem Charakter; Classic Era mit
+  Hinweis; Editor nur mit Retail-Charakteren. **Nicht live geprüft.** 0.33.0
+  **live geprüft** (31.10.2026, Home Assistant 2026.10.4, iOS-App): Der Editor
+  der Berufe-Karte zeigt die 8 Charaktere als „Name – Realm · Spielversion“
+  ohne Spielwelt-Geräte, ein Wechsel aktualisiert die Vorschau; Berufe,
+  Skill, Maximum, Stufe, Symbol und Sortierung eines Charakters stimmen mit
+  den Sensoren überein. Nicht live geprüft: das gespeicherte `entity` und die
+  Vorauswahl in bestehenden Arsenal- und Talentbaum-Karten. 0.33.0: 6 Tests (Auslieferung der
   Karte „WoW Berufe“ und des Editors; je mitgelieferte Karte der Editor zur
   Charakterauswahl statt des Formulars mit allen Sensoren). Gegenprobe:
   Editor-Datei nicht ausgeliefert und Berufe-Karte aus `CARDS` entfernt,
