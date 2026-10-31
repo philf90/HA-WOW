@@ -128,15 +128,10 @@ class WowCharactersCard extends HTMLElement {
     return {};
   }
 
-  static getConfigForm() {
-    return {
-      schema: [
-        {
-          name: "entities",
-          selector: { entity: { multiple: true, domain: "sensor", integration: "wow_character" } },
-        },
-      ],
-    };
+  static async getConfigElement() {
+    // Auswahl nur der Charaktere (wow-card-editor.js), mit Version im Pfad
+    const { editor } = await import(new URL(`wow-card-editor.js${new URL(import.meta.url).search}`, import.meta.url));
+    return editor({ name: "entities", multiple: true });
   }
 
   setConfig(config) {
