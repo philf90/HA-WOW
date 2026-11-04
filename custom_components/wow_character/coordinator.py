@@ -1061,7 +1061,13 @@ class WowWorldCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         token_every = rare if self.token_sensor is False else 60
         if self._due("token", token_every, now):
             parts.append(("token", self._token))
-        if self.mythic_plus and self._due("period", 60, now):
+        # Liegt der gemerkte Reset in der Vergangenheit, sofort neu fragen statt
+        # bis zu 60 Minuten zu warten; bleibt die API noch beim alten Zeitraum,
+        # fragt jeder weitere Lauf (15 Minuten) erneut (seit 0.33.10). Live am
+        # 04.11.2026: Reset 04:00 UTC, Sensor erst 04:26 UTC umgeschaltet.
+        reset = data.get("reset")
+        reset_vorbei = isinstance(reset, datetime) and reset <= datetime.now(UTC)
+        if self.mythic_plus and (self._due("period", 60, now) or reset_vorbei):
             parts.append(("period", self._weekly_reset))
         if self.mythic_plus and self._due("season", 360, now):
             parts.append(("season", self._season))
