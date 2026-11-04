@@ -11,7 +11,8 @@ Home-Assistant-Integration für World-of-Warcraft-Charaktere: Level, Itemlevel,
 Ausrüstung, Raid- und Mythic+-Fortschritt, Berufe, Ruf, Erfolge und mehr als
 Sensoren, dazu WoW-Marke, wöchentlicher Reset und Serverstatus. Die Daten kommen
 aus der offiziellen Battle.net API. Unterstützt Retail, WoW Classic (Era,
-Progression, Anniversary) und ist für WoW Forever vorbereitet. Version 0.33.10.
+Progression, Anniversary); WoW Forever ist angelegt, aber ungetestet (siehe
+[WoW Forever](#wow-forever)). Version 0.33.10.
 
 Dreizehn Dashboard-Karten liefert die Integration selbst mit: „WoW Arsenal“
 (`custom:wow-arsenal-card`), „WoW Berufe“ (`custom:wow-professions-card`),
@@ -1733,6 +1734,22 @@ Für Forever-Charaktere legt die Integration nur Entitäten an, deren Endpunkt
 Daten liefert, und (seit 0.9.0) nur Sensoren, die einen Wert haben, wie bei
 [Classic](#wow-classic); seit 0.18.0 auch später ohne Neuladen.
 
+**Stand 04.11.2026 (Start von Forever):** Laut Drittquellen hat Forever keine
+Realms im bisherigen Sinn, sondern je Region große Server nach Regelsatz
+(Normal, PvP, RP, RP-PvP), und jeder Charakter trägt Vor- und Nachnamen; nur
+das Paar ist je Region eindeutig ([Method](https://www.method.gg/wow-forever/choosing-your-character-name-and-ruleset-in-wow-forever),
+[Warcraft Tavern](https://www.warcrafttavern.com/forever/guides/names/)).
+Eine Aussage von Blizzard dazu und zur API gibt es nicht. Die Integration ist
+dafür nicht gebaut: Hinzufügen von Hand und die Aktion `get_character` verlangen
+einen Realm aus der Realm-Liste und schicken den Namen klein geschrieben und
+URL-kodiert in den Pfad `/profile/wow/character/{realm}/{name}`, ob die API einen
+zweiteiligen Namen so annimmt, ist offen; unique_id und Titel („Name – Realm“)
+bauen ebenfalls auf Realm und Namen auf. Live (04.11.2026) lieferte ein
+Forever-Kandidat bereits eine Realm-Liste (die Aktion meldete „Realm nicht
+gefunden“ statt „keine Realm-Liste“), welcher der beiden Kandidaten und was die
+Liste enthält, ist offen; „PvE“ und „Normal“ standen nicht darin. Anpassungen
+folgen erst mit echten Antworten der API.
+
 ## Grenzen
 
 - Profildaten aktualisiert Blizzard erst, wenn sich der Charakter ausloggt.
@@ -1745,7 +1762,8 @@ Daten liefert, und (seit 0.9.0) nur Sensoren, die einen Wert haben, wie bei
 - Große Schatzkammer und Affixe der aktuellen Woche liefert die API nicht: Sie
   kennt je Season nur den besten Lauf je Dungeon, und die Woche hat nur Start und
   Ende.
-- WoW Forever ist ungetestet.
+- WoW Forever ist ungetestet und nicht auf Vor- und Nachnamen und Regelsätze
+  statt Realms ausgelegt (siehe [WoW Forever](#wow-forever)).
 - WoW Classic ist nur mit einem Classic-Era-Charakter live geprüft, Progression
   und Anniversary nur automatisch (siehe [WoW Classic](#wow-classic)). Raids, Mythic+, Berufe, Ruf, Titel, Quests und
   Sammlungen gibt es für Classic nicht, weil die Classic-API sie nicht anbietet.
