@@ -6,10 +6,13 @@
  * Raenge, Wahl, Pfeile und Schwellen kommen aus der Battle.net API; die Karte
  * rechnet nichts dazu.
  *
- * Konfiguration:
+ * Konfiguration (im Editor nur den Charakter waehlen):
  *   type: custom:wow-talent-tree-card
- *   entity: sensor.<charakter>_talentbaum
- *   trees: [class, spec, hero]   # optional, Reihenfolge und Auswahl
+ *   entity: sensor.<charakter>_level   # eine beliebige Entitaet des Charakters,
+ *                                      # z. B. auch der Sensor Talentbaum
+ *   trees: [class, spec, hero]         # optional, Reihenfolge und Auswahl
+ * Den Sensor "Talentbaum" sucht die Karte ueber das Geraet des Charakters
+ * und den Uebersetzungsschluessel talent_tree.
  */
 
 const CELL = 56; // Abstand der Knoten in SVG-Einheiten
@@ -76,22 +79,19 @@ function initials(name) {
 
 class WowTalentTreeCard extends HTMLElement {
   static getStubConfig(hass) {
-    const entity = Object.keys(hass.states).find(
-      (id) => id.startsWith("sensor.") && hass.states[id].attributes.class_nodes
+    // Level-Sensor des ersten Charakters mit Talentbaum (Retail)
+    const entries = Object.values(hass.entities || {});
+    const baum = entries.find((e) => e.platform === "wow_character" && e.translation_key === "talent_tree");
+    const level = entries.find(
+      (e) => e.platform === "wow_character" && e.translation_key === "level" && e.device_id === baum?.device_id
     );
-    return { entity: entity || "" };
+    return { entity: level?.entity_id || baum?.entity_id || "" };
   }
 
-  static getConfigForm() {
-    return {
-      schema: [
-        {
-          name: "entity",
-          required: true,
-          selector: { entity: { domain: "sensor", integration: "wow_character" } },
-        },
-      ],
-    };
+  static async getConfigElement() {
+    // Auswahl nur der Charaktere mit Talentbaum (wow-card-editor.js)
+    const { editor } = await import(new URL(`wow-card-editor.js${new URL(import.meta.url).search}`, import.meta.url));
+    return editor({ name: "entity", require: "talent_tree" });
   }
 
   setConfig(config) {
@@ -104,6 +104,9 @@ class WowTalentTreeCard extends HTMLElement {
     }
     this._config = { ...config, trees };
     this._stateObj = undefined;
+    // Andere Entitaet: Sensor Talentbaum neu suchen
+    this._quelle = undefined;
+    this._talentbaum = undefined;
     this._selected = undefined;
     if (!this.shadowRoot) {
       this.attachShadow({ mode: "open" });
@@ -113,7 +116,12 @@ class WowTalentTreeCard extends HTMLElement {
 
   set hass(hass) {
     this._hass = hass;
-    const stateObj = hass.states[this._config.entity];
+    // Nur neu suchen, wenn sich die Entitaetsliste geaendert hat
+    if (this._talentbaum === undefined || this._quelle !== hass.entities) {
+      this._talentbaum = this._finden(hass);
+      this._quelle = hass.entities;
+    }
+    const stateObj = hass.states[this._talentbaum];
     // Nur neu zeichnen, wenn sich der Sensor geaendert hat.
     if (stateObj === this._stateObj) {
       return;
@@ -124,6 +132,21 @@ class WowTalentTreeCard extends HTMLElement {
 
   getCardSize() {
     return 12;
+  }
+
+  _finden(hass) {
+    // Sensor Talentbaum am Geraet der konfigurierten Entitaet; ohne Geraet
+    // oder Treffer die konfigurierte Entitaet selbst (wie bis 0.32.x)
+    const entries = hass.entities || {};
+    const eintrag = entries[this._config.entity];
+    if (!eintrag?.device_id || eintrag.translation_key === "talent_tree") {
+      return this._config.entity;
+    }
+    const baum = Object.values(entries).find(
+      (e) =>
+        e.device_id === eintrag.device_id && e.platform === "wow_character" && e.translation_key === "talent_tree"
+    );
+    return baum?.entity_id || this._config.entity;
   }
 
   getGridOptions() {

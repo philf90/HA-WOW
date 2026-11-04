@@ -84,6 +84,8 @@ def _level_attrs(data: dict[str, Any]) -> dict[str, Any]:
     media = data.get("media_urls") or {}
     return {
         "class": p.name_of(prof.get("character_class")),
+        # Klassen-ID der API, fuer Klassenfarben in jeder Sprache
+        "class_id": (prof.get("character_class") or {}).get("id"),
         "spec": p.name_of(prof.get("active_spec")),
         "race": p.name_of(prof.get("race")),
         "faction": p.name_of(prof.get("faction")),
@@ -952,3 +954,8 @@ class WowRealmPopulationSensor(WowWorldEntity, SensorEntity):
         realm = (self.coordinator.data or {}).get("realms", {}).get(self._slug)
         value = str((realm or {}).get("population_type") or "").lower()
         return value if value in REALM_POPULATIONS else None
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        # Name des Realms wie an Server und Warteschlange (seit 0.33.9)
+        return {"realm": self._attr_translation_placeholders["realm"]}

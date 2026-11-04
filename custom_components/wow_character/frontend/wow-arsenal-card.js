@@ -11,7 +11,7 @@
  * Uebersetzungsschluessel der Integration, nicht ueber Entity-IDs; sie
  * funktioniert deshalb mit jeder Sprache und ohne Praefix.
  *
- * Konfiguration:
+ * Konfiguration (im Editor nur den Charakter waehlen):
  *   type: custom:wow-arsenal-card
  *   entity: sensor.<charakter>_level   # eine beliebige Entitaet des Charakters
  *
@@ -115,6 +115,19 @@ function zahl(stateObj) {
   return Number.isNaN(n) ? null : n;
 }
 
+// Spielversion aus dem Geraetemodell: seit 0.22.0 "World of Warcraft" (Retail)
+// bzw. "World of Warcraft Classic Era", bis 0.21.x "World of Warcraft (retail)"
+function spielversion(model) {
+  const m = /^World of Warcraft(?: \((.+)\)| (.+))?$/.exec(model || "");
+  if (!m) {
+    return null;
+  }
+  if (m[1]) {
+    return VERSIONEN[m[1]] || m[1];
+  }
+  return m[2] || VERSIONEN.retail;
+}
+
 function leereSockel(sockets) {
   return (Array.isArray(sockets) ? sockets : []).filter((s) => !s?.gem).length;
 }
@@ -127,16 +140,10 @@ class WowArsenalCard extends HTMLElement {
     return { entity: entry?.entity_id || "" };
   }
 
-  static getConfigForm() {
-    return {
-      schema: [
-        {
-          name: "entity",
-          required: true,
-          selector: { entity: { domain: "sensor", integration: "wow_character" } },
-        },
-      ],
-    };
+  static async getConfigElement() {
+    // Auswahl nur der Charaktere (wow-card-editor.js), mit Version im Pfad
+    const { editor } = await import(new URL(`wow-card-editor.js${new URL(import.meta.url).search}`, import.meta.url));
+    return editor({ name: "entity" });
   }
 
   setConfig(config) {
@@ -256,8 +263,7 @@ class WowArsenalCard extends HTMLElement {
     if (titel && name && titel.includes(name)) {
       titel = titel.replace(name, "").replace(/^[\s,]+|[\s,]+$/g, "");
     }
-    const m = /^World of Warcraft \((.+)\)$/.exec(geraet?.model || "");
-    const spiel = m ? VERSIONEN[m[1]] || m[1] : null;
+    const spiel = spielversion(geraet?.model);
     const zeile = [
       spiel,
       leer(lvl) ? null : `${this._t("level")} ${lvl.state}`,

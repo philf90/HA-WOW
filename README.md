@@ -11,11 +11,20 @@ Home-Assistant-Integration für World-of-Warcraft-Charaktere: Level, Itemlevel,
 Ausrüstung, Raid- und Mythic+-Fortschritt, Berufe, Ruf, Erfolge und mehr als
 Sensoren, dazu WoW-Marke, wöchentlicher Reset und Serverstatus. Die Daten kommen
 aus der offiziellen Battle.net API. Unterstützt Retail, WoW Classic (Era,
-Progression, Anniversary) und ist für WoW Forever vorbereitet. Version 0.31.0.
+Progression, Anniversary) und ist für WoW Forever vorbereitet. Version 0.33.9.
 
-Zwei Dashboard-Karten liefert die Integration selbst mit: „WoW Arsenal“
-(`custom:wow-arsenal-card`) und „WoW Talentbaum“ (`custom:wow-talent-tree-card`,
-Retail), ohne zusätzliche HACS-Karten oder Dashboard-Ressourcen.
+Dreizehn Dashboard-Karten liefert die Integration selbst mit: „WoW Arsenal“
+(`custom:wow-arsenal-card`), „WoW Berufe“ (`custom:wow-professions-card`),
+„WoW Charaktere“ (`custom:wow-characters-card`), „WoW Garderobe“
+(`custom:wow-wardrobe-card`, Retail), „WoW Mythic+“
+(`custom:wow-mythic-card`, Retail), „WoW PvP“ (`custom:wow-pvp-card`), „WoW
+Raids“ (`custom:wow-raid-card`, Retail), „WoW Ruf“ (`custom:wow-reputation-card`,
+Retail), „WoW Sammlungen“ (`custom:wow-collections-card`), „WoW Gilde“
+(`custom:wow-guild-card`), „WoW Werte“ (`custom:wow-stats-card`), „WoW
+Spielwelt“ (`custom:wow-world-card`) und „WoW Talentbaum“
+(`custom:wow-talent-tree-card`, Retail), ohne zusätzliche HACS-Karten oder
+Dashboard-Ressourcen. Im Karten-Editor wählt man nur den Charakter, bei der
+Spielwelt-Karte die Spielwelt.
 
 <p align="center">
   <img src="https://raw.githubusercontent.com/philf90/HA-WOW/main/assets/vorschau-karten.png" alt="Arsenal-, Charaktere-, Berufe- und Raid-Karte im Nachtblau-Stil mit Beispieldaten" width="100%">
@@ -116,7 +125,18 @@ Client ohne Redirect-URL lässt sich unter **Manage Client** ergänzen.
   Einschalten unter Einstellungen → Geräte & Dienste → WoW Charakter → Charakter
   → Entitäten.
 - Dashboard-Karten: mitgeliefert sind
-  [„WoW Arsenal“](#karte-wow-arsenal-seit-0150) und
+  [„WoW Arsenal“](#karte-wow-arsenal-seit-0150),
+  [„WoW Berufe“](#karte-wow-berufe-seit-0330),
+  [„WoW Charaktere“](#karte-wow-charaktere-seit-0320),
+  [„WoW Garderobe“](#karte-wow-garderobe-seit-0333),
+  [„WoW Mythic+“](#karte-wow-mythic-seit-0331),
+  [„WoW PvP“](#karte-wow-pvp-seit-0332),
+  [„WoW Raids“](#karte-wow-raids-seit-0334),
+  [„WoW Ruf“](#karte-wow-ruf-seit-0335),
+  [„WoW Sammlungen“](#karte-wow-sammlungen-seit-0336),
+  [„WoW Gilde“](#karte-wow-gilde-seit-0337),
+  [„WoW Werte“](#karte-wow-werte-seit-0338),
+  [„WoW Spielwelt“](#karte-wow-spielwelt-seit-0339) und
   [„WoW Talentbaum“](#karte-wow-talentbaum-seit-0140); weitere Karten als YAML
   siehe [Dashboard-Karten](#dashboard-karten).
 
@@ -147,6 +167,75 @@ neu starten. Wer von Hand aktualisiert, ersetzt den ganzen Ordner
 `custom_components/wow_character` samt `translations/`; sonst fehlen neue Texte,
 z. B. die Einträge im Menü „Charakter hinzufügen“. Was sich je Version ändert, steht in den
 [Release-Notes](https://github.com/philf90/HA-WOW/releases).
+
+**Update auf 0.33.9:** keine Migration. Neue mitgelieferte Karte „WoW
+Spielwelt“ (`custom:wow-world-card`, siehe [Karte „WoW
+Spielwelt“](#karte-wow-spielwelt-seit-0339)). Server, Warteschlange und
+Bevölkerung je Realm haben das neue Attribut `realm` (Name des Realms). Nach
+dem Update einmal die Seite im Browser neu laden, in der Companion App den
+Frontend-Cache zurücksetzen.
+
+**Update auf 0.33.8:** keine Migration. Neue mitgelieferte Karte „WoW Werte“
+(`custom:wow-stats-card`, siehe [Karte „WoW Werte“](#karte-wow-werte-seit-0338)).
+Der Level-Sensor hat das neue Attribut `class_id` (Klassen-ID der API). Nach
+dem Update einmal die Seite im Browser neu laden, in der Companion App den
+Frontend-Cache zurücksetzen.
+
+**Update auf 0.33.7:** keine Migration. Neue mitgelieferte Karte „WoW Gilde“
+(`custom:wow-guild-card`, siehe [Karte „WoW Gilde“](#karte-wow-gilde-seit-0337)).
+Nach dem Update einmal die Seite im Browser neu laden, in der Companion App
+den Frontend-Cache zurücksetzen.
+
+**Update auf 0.33.6:** keine Migration. Neue mitgelieferte Karte „WoW
+Sammlungen“ (`custom:wow-collections-card`, siehe [Karte „WoW
+Sammlungen“](#karte-wow-sammlungen-seit-0336)). Im Editor der Ruf-Karte heißt
+das Zahlenfeld jetzt „Anzahl neueste Ruhmstufen (leer: 6; nur ohne
+Fraktionsauswahl)“. Nach dem Update einmal die Seite im Browser neu laden, in
+der Companion App den Frontend-Cache zurücksetzen.
+
+**Update auf 0.33.5:** keine Migration. Neue mitgelieferte Karte „WoW Ruf“
+(`custom:wow-reputation-card`, siehe [Karte „WoW Ruf“](#karte-wow-ruf-seit-0335)).
+Nach dem Update einmal die Seite im Browser neu laden, in der Companion App
+den Frontend-Cache zurücksetzen.
+
+**Update auf 0.33.4:** keine Migration. Neue mitgelieferte Karte „WoW
+Raids“ (`custom:wow-raid-card`, siehe [Karte „WoW
+Raids“](#karte-wow-raids-seit-0334)). Nach dem Update einmal die Seite im
+Browser neu laden, in der Companion App den Frontend-Cache zurücksetzen.
+
+**Update auf 0.33.3:** keine Migration. Neue mitgelieferte Karte „WoW
+Garderobe“ (`custom:wow-wardrobe-card`, siehe [Karte „WoW
+Garderobe“](#karte-wow-garderobe-seit-0333)). Nach dem Update einmal die Seite
+im Browser neu laden, in der Companion App den Frontend-Cache zurücksetzen.
+
+**Update auf 0.33.2:** keine Migration. Neue mitgelieferte Karte „WoW PvP“
+(`custom:wow-pvp-card`, siehe [Karte „WoW PvP“](#karte-wow-pvp-seit-0332)).
+Nach dem Update einmal die Seite im Browser neu laden, in der Companion App
+den Frontend-Cache zurücksetzen.
+
+**Update auf 0.33.1:** keine Migration. Neue mitgelieferte Karte „WoW
+Mythic+“ (`custom:wow-mythic-card`, siehe [Karte „WoW
+Mythic+“](#karte-wow-mythic-seit-0331)). Nach dem Update einmal die Seite im
+Browser neu laden, in der Companion App den Frontend-Cache zurücksetzen.
+
+**Update auf 0.33.0:** keine Migration. Neue mitgelieferte Karte „WoW
+Berufe“ (`custom:wow-professions-card`, siehe [Karte „WoW
+Berufe“](#karte-wow-berufe-seit-0330)). Im Karten-Editor aller mitgelieferten
+Karten wählt man jetzt nur den Charakter statt eines Sensors aus allen
+Sensoren der Integration (siehe [Charakter auswählen](#charakter-auswählen-seit-0330));
+bestehende Dashboards bleiben unverändert. Nach dem Update einmal die Seite im
+Browser neu laden, in der Companion App den Frontend-Cache zurücksetzen.
+
+**Update auf 0.32.0:** keine Migration. Neue mitgelieferte Karte „WoW
+Charaktere“ (`custom:wow-characters-card`, siehe [Karte „WoW
+Charaktere“](#karte-wow-charaktere-seit-0320)); nach dem Update einmal die Seite
+im Browser neu laden. Sensoren und Abfragen bleiben gleich.
+
+**Update auf 0.31.1:** keine Migration. Die Arsenal-Karte zeigt die
+Spielversion in der Kopfzeile wieder (Retail, Classic Era usw.); seit 0.22.0
+fehlte sie dort, weil die Karte nur das alte Gerätemodell „World of Warcraft
+(retail)“ erkannte. Zeigt die Karte sie nach dem Neustart noch nicht, die Seite
+im Browser neu laden.
 
 **Update auf 0.31.0:** keine Migration. Zwei neue Sensoren je
 Retail-Charakter in der Gruppe Sammlungen: „Erbstücke“ und „Transmog-Vorlagen“
@@ -387,7 +476,7 @@ Die Takte in den Tabellen sind die Vorgaben; seit 0.20.0 lassen sie sich
 | Wert | Typ | Takt | Quelle (Endpunkt, Feld) |
 |---|---|---|---|
 | **Profil** | | | |
-| Level (Klasse, Spezialisierung, Volk, Fraktion, Gilde, Realm, Titel als Attribute) | Sensor | 15 min | Profil, `level` |
+| Level (Klasse mit Klassen-ID `class_id`, Spezialisierung, Volk, Fraktion, Gilde, Realm, Titel als Attribute) | Sensor | 15 min | Profil, `level` |
 | Geschlecht und Transmog (Attribute am Level-Sensor) | Attribute | 6 h | `appearance` |
 | Itemlevel (angelegt, Durchschnitt) | Sensoren | 15 min | Profil, `equipped_item_level`, `average_item_level` |
 | Erfahrungspunkte | Sensor | 15 min | Profil, `experience` |
@@ -440,6 +529,10 @@ Je Region ein Gerät „WoW-Spielwelt EU“ (bzw. US, KR, TW):
 | Server je Realm | Ein/Aus | 15 min | `connected-realm/{id}`, `status.type` |
 | Warteschlange je Realm | Ein/Aus | 15 min | `connected-realm/{id}`, `has_queue` |
 | Bevölkerung je Realm | Sensor | 15 min | `connected-realm/{id}`, `population.type` (seit 0.22.0; vorher `population.name`) |
+
+Server, Warteschlange und Bevölkerung tragen seit 0.33.9 das Attribut `realm`
+(Name des Realms), damit Karten die drei Entitäten eines Realms unabhängig von
+Sprache und Entity-ID zusammenfinden.
 
 ## Attribute im Detail
 
@@ -683,7 +776,8 @@ die Classic-Doku nennt den Endpunkt ebenfalls.
 
 Aus den statischen Spieldaten, je Objekt einmal nachgeschlagen:
 
-- Level-Sensor: `class_icon` und `spec_icon`.
+- Level-Sensor: `class_icon` und `spec_icon`; dazu `class_id` (Klassen-ID der
+  API, seit 0.33.8), z. B. für Klassenfarben in jeder Sprache.
 - Beruf: Symbol des Berufs als Bild der Entität.
 - Raid-Fortschritt: `images` mit einem Bild je Raid.
 - Ereignis „Neuer Erfolg“: `icon`.
@@ -930,11 +1024,39 @@ response_variable: charakter
 
 ## Dashboard-Karten
 
-Zwei Karten liefert die Integration selbst mit; Home Assistant lädt sie mit dem
-Frontend, ohne zusätzliche HACS-Karten oder Dashboard-Ressourcen:
+Dreizehn Karten liefert die Integration selbst mit; Home Assistant lädt sie mit
+dem Frontend, ohne zusätzliche HACS-Karten oder Dashboard-Ressourcen:
 
 - [„WoW Arsenal“](#karte-wow-arsenal-seit-0150) (`custom:wow-arsenal-card`,
   seit 0.15.0): Charakterseite mit Ausrüstung und Kennzahlen.
+- [„WoW Berufe“](#karte-wow-berufe-seit-0330)
+  (`custom:wow-professions-card`, seit 0.33.0): Berufe eines Charakters mit
+  Skill, Stufe und Fortschritt.
+- [„WoW Charaktere“](#karte-wow-charaktere-seit-0320)
+  (`custom:wow-characters-card`, seit 0.32.0): alle Charaktere nach
+  Spielversion mit Stufe, Itemlevel, Mythic+ und letztem Login.
+- [„WoW Garderobe“](#karte-wow-garderobe-seit-0333)
+  (`custom:wow-wardrobe-card`, seit 0.33.3): Transmog-Vorlagen, Sets und
+  Erbstücke (Retail).
+- [„WoW Mythic+“](#karte-wow-mythic-seit-0331) (`custom:wow-mythic-card`,
+  seit 0.33.1): Wertung, höchster Schlüssel und beste Läufe der Season
+  (Retail).
+- [„WoW PvP“](#karte-wow-pvp-seit-0332) (`custom:wow-pvp-card`, seit
+  0.33.2): Ehrenstufe, ehrenhafte Siege und Wertungen je Bracket.
+- [„WoW Raids“](#karte-wow-raids-seit-0334) (`custom:wow-raid-card`, seit
+  0.33.4): Raid-Fortschritt je Schwierigkeit und letzter Boss (Retail).
+- [„WoW Ruf“](#karte-wow-ruf-seit-0335) (`custom:wow-reputation-card`, seit
+  0.33.5): Ruf und Ruhmstufen mit Fortschritt und Paragon (Retail).
+- [„WoW Sammlungen“](#karte-wow-sammlungen-seit-0336)
+  (`custom:wow-collections-card`, seit 0.33.6): Reittiere, Haustiere,
+  Spielzeuge, Titel, Erfolge je Kategorie und Statistik.
+- [„WoW Gilde“](#karte-wow-gilde-seit-0337) (`custom:wow-guild-card`, seit
+  0.33.7): Gilde mit Mitgliedern, Klassen, Rängen und Aktivität.
+- [„WoW Werte“](#karte-wow-werte-seit-0338) (`custom:wow-stats-card`, seit
+  0.33.8): Charakterwerte wie im Spiel, Set, leere Sockel und Verzauberungen.
+- [„WoW Spielwelt“](#karte-wow-spielwelt-seit-0339) (`custom:wow-world-card`,
+  seit 0.33.9): Reset, Mythic+-Season, WoW-Marke mit Verlauf und Server je
+  Realm.
 - [„WoW Talentbaum“](#karte-wow-talentbaum-seit-0140)
   (`custom:wow-talent-tree-card`, seit 0.14.0): Talentbäume mit vergebenen
   Punkten (Retail).
@@ -942,15 +1064,56 @@ Frontend, ohne zusätzliche HACS-Karten oder Dashboard-Ressourcen:
 Weitere Karten im Nachtblau-Stil als YAML liegen im Repository
 [philf90/home-assistant](https://github.com/philf90/home-assistant) unter
 `dashboard/sonstiges/`: die Arsenal-Karte (`wow-arsenal-karte.yaml` mit
-`wow-templates.yaml`) und zehn einzeln nutzbare Karten (`wow-*-karte.yaml`) für
-Charaktere, Spielwelt, Raids, Mythic+, Berufe, Ruf, Sammlungen, Werte, PvP und
-Gilde. Sie zeigen die Spielversion und passen sich an: Was eine Version nicht
+`wow-templates.yaml`) und elf einzeln nutzbare Karten (`wow-*-karte.yaml`) für
+Charaktere, Spielwelt, Raids, Mythic+, Berufe, Ruf, Sammlungen, Garderobe,
+Werte, PvP und Gilde. Sie zeigen die Spielversion und passen sich an: Was eine Version nicht
 liefert (bei Classic z. B. Raids, Mythic+ und Sammlungen), fällt weg oder wird
 als Hinweis genannt.
 Alle brauchen `custom:button-card`; weitere Voraussetzungen (z. B. browser_mod
 für das Arsenal-Popup) stehen im Kopf jeder Datei. Die Arsenal-Karte liefert
-die Integration seit 0.15.0 auch selbst mit, ohne diese Voraussetzungen (siehe
-[Karte „WoW Arsenal“](#karte-wow-arsenal-seit-0150)).
+die Integration seit 0.15.0 auch selbst mit, die Charaktere-Karte seit 0.32.0,
+die Berufe-Karte seit 0.33.0, die Mythic+-Karte seit 0.33.1, die PvP-Karte seit
+0.33.2, die Garderobe-Karte seit 0.33.3, die Raid-Karte seit 0.33.4, die
+Ruf-Karte seit 0.33.5, die Sammlung-Karte seit 0.33.6, die Gilde-Karte seit
+0.33.7, die Werte-Karte seit 0.33.8 und die Spielwelt-Karte seit 0.33.9, alle
+ohne diese Voraussetzungen (siehe
+[Karte „WoW Spielwelt“](#karte-wow-spielwelt-seit-0339),
+[Karte „WoW Werte“](#karte-wow-werte-seit-0338),
+[Karte „WoW Gilde“](#karte-wow-gilde-seit-0337),
+[Karte „WoW Sammlungen“](#karte-wow-sammlungen-seit-0336),
+[Karte „WoW Ruf“](#karte-wow-ruf-seit-0335),
+[Karte „WoW Raids“](#karte-wow-raids-seit-0334),
+[Karte „WoW Garderobe“](#karte-wow-garderobe-seit-0333),
+[Karte „WoW Arsenal“](#karte-wow-arsenal-seit-0150),
+[Karte „WoW Charaktere“](#karte-wow-charaktere-seit-0320),
+[Karte „WoW Berufe“](#karte-wow-berufe-seit-0330),
+[Karte „WoW Mythic+“](#karte-wow-mythic-seit-0331) und
+[Karte „WoW PvP“](#karte-wow-pvp-seit-0332)).
+
+### Charakter auswählen (seit 0.33.0)
+
+Im Karten-Editor (Karte hinzufügen → „WoW …“) aller mitgelieferten Karten außer
+„WoW Spielwelt“ wählt man nur den Charakter aus einer Liste „Name – Realm · Spielversion“; die
+Spielwelt-Geräte stehen nicht darin. Die Spielwelt-Karte bietet stattdessen
+die Spielwelt-Geräte an („WoW-Spielwelt EU“, „WoW-Spielwelt EU Classic Era“);
+gespeichert wird die WoW-Marke, ohne sie der wöchentliche Reset oder ein
+Server-Sensor. Gespeichert wird wie bisher `entity:`
+mit dem Level-Sensor des Charakters (bei „WoW Charaktere“ `entities:`, leer
+für alle). Die Karten finden die übrigen Entitäten über das Gerät des
+Charakters. Steht in einem bestehenden Dashboard eine andere Entität des
+Charakters, zeigt der Editor trotzdem den passenden Charakter; eine Entität,
+die zu keinem Charakter gehört, steht mit „nicht gefunden“ in der Liste. Die
+Karten „WoW Talentbaum“, „WoW Mythic+“, „WoW Garderobe“, „WoW Raids“ und „WoW
+Ruf“ bieten nur Charaktere mit Sensor „Talentbaum“, „Mythic+-Wertung“,
+„Transmog-Vorlagen“, „Raid-Fortschritt LFR“ bzw. „Ruf“ an (Retail). Weitere
+Einstellungen einer Karte (z. B. die Schwierigkeitsgrade der Raid-Karte oder
+die Fraktionen der Ruf-Karte und die Statistiken der Sammlung-Karte, aus den
+Daten des gewählten Charakters) sind optional und stehen darunter. Bis 0.32.x bot der Editor alle Sensoren der Integration an.
+
+<p align="center">
+  <img src="https://raw.githubusercontent.com/philf90/HA-WOW/main/assets/vorschau-spielwelt-arsenal-raids.png" alt="Spielwelt-, Arsenal- und Raid-Karte im Nachtblau-Stil mit Beispieldaten" width="100%">
+</p>
+<p align="center"><sub>Spielwelt, Arsenal und Raids, gezeichnet mit den mitgelieferten Karten (0.33.9) · Beispieldaten</sub></p>
 
 <p align="center">
   <img src="https://raw.githubusercontent.com/philf90/HA-WOW/main/assets/vorschau-galerie.png" alt="Mythic+-, Sammlungen-, Werte- und Ruhmstufen-Karte im Nachtblau-Stil mit Beispieldaten" width="100%">
@@ -974,9 +1137,10 @@ type: custom:wow-arsenal-card
 entity: sensor.mein_charakter_level   # eine beliebige Entität des Charakters
 ```
 
-- Kopf mit Avatar, Symbol der Spezialisierung, Name, Titel, Spielversion,
-  Stufe, Volk, Spezialisierung und Klasse; Pillen für Itemlevel, Mythic+-Wertung
-  (sonst `api_rating`), Fraktion, Realm und Gilde.
+- Kopf mit Avatar, Symbol der Spezialisierung, Name, Titel, Spielversion
+  (von 0.22.0 bis 0.31.0 fehlte sie, seit 0.31.1 wieder da), Stufe, Volk,
+  Spezialisierung und Klasse; Pillen für Itemlevel, Mythic+-Wertung (sonst
+  `api_rating`), Fraktion, Realm und Gilde.
 - Ganzkörperbild mit den 18 Plätzen in der Reihenfolge des Arsenals: Symbol mit
   Rand in der Qualitätsfarbe, Itemlevel daneben (ohne Itemlevel leer), ein
   Amber-Punkt bei leerem Sockel, leere Plätze gestrichelt.
@@ -1000,6 +1164,340 @@ entity: sensor.mein_charakter_level   # eine beliebige Entität des Charakters
   Abschnitts ein (12 von 12 Spalten, seit 0.15.1; in 0.15.0 nur 6). Schmaler als
   300 Pixel stehen die Kennzahlen in zwei Spalten statt in einer Reihe.
 
+### Karte „WoW Berufe“ (seit 0.33.0)
+
+Die Berufe-Karte aus `wow-berufe-karte.yaml` als eigene Karte der Integration,
+im selben Aufbau und Nachtblau-Stil, aber ohne `custom:button-card`.
+
+```yaml
+type: custom:wow-professions-card
+entity: sensor.mein_charakter_level   # eine beliebige Entität des Charakters
+```
+
+- Kopf mit Symbol und Titel „Berufe“, darunter Spielversion, Name des
+  Charakters und Anzahl der Berufe (bis zu zwei Zeilen).
+- Je Beruf Symbol (falls vorhanden), Name, Stufe (Erweiterung) und Skill mit
+  Maximum der neuesten Stufe, dazu ein Balken; ein ausgelernter Beruf (Skill =
+  Maximum) wird grün. Sortiert nach Fortschritt, dann Name.
+- Die Karte findet die Sensoren „Beruf {Name}“ über das Gerät des Charakters
+  und den Übersetzungsschlüssel `profession`; den Namen des Berufs nimmt sie
+  aus dem Entitätsnamen. Sie braucht kein Präfix und funktioniert mit jeder
+  Sprache der Oberfläche; ihre eigenen Texte gibt es auf Deutsch und Englisch.
+- WoW Classic: Die Classic-API liefert keine Berufe; die Karte nennt das.
+- Farben: Mit dem Nachtblau-Theme nutzt sie dessen Variablen (heller und
+  dunkler Modus), sonst ist sie in beiden Modi dunkel.
+- Breite: In der Abschnittsansicht die ganze Breite des Abschnitts (12 von 12
+  Spalten, mindestens 6).
+
+### Karte „WoW Mythic+“ (seit 0.33.1)
+
+Die Mythic+-Karte aus `wow-mythic-karte.yaml` als eigene Karte der Integration,
+im selben Aufbau und Nachtblau-Stil, aber ohne `custom:button-card`.
+
+```yaml
+type: custom:wow-mythic-card
+entity: sensor.mein_charakter_level   # eine beliebige Entität des Charakters
+```
+
+- Kopf „Mythic+ · Season 18“, darunter Spielversion, Name des Charakters und
+  Zahl der gelaufenen Dungeons (bis zu zwei Zeilen).
+- Drei Kacheln: Wertung der Season (ohne Lauf in der Season `api_rating` mit
+  „laut Arsenal“), höchster Schlüssel und Läufe in Zeit.
+- Darunter der beste Lauf je Dungeon, nach Stufe sortiert: Stufe, Dungeon, „in
+  Zeit“ (grün) oder „über Zeit“, Dauer, Wertung des Laufs und Affixe (Attribut
+  `runs` des Sensors „Höchster Mythic+-Schlüssel“).
+- Die Karte findet die Sensoren über das Gerät des Charakters und die
+  Übersetzungsschlüssel `mythic_rating`, `mythic_best_key` und
+  `mythic_runs_timed`; sie braucht kein Präfix und funktioniert mit jeder
+  Sprache der Oberfläche. Für Classic und Forever nennt sie, dass es Mythic+
+  nur in Retail gibt; der Editor bietet nur Charaktere mit Mythic+ an.
+- Farben: Mit dem Nachtblau-Theme nutzt sie dessen Variablen (heller und
+  dunkler Modus), sonst ist sie in beiden Modi dunkel. Die Wertungsfarbe der
+  API zeigt sie nicht, sie ist auf heller Hülle nicht sicher lesbar.
+
+### Karte „WoW Spielwelt“ (seit 0.33.9)
+
+Die Spielwelt-Karte aus `wow-spielwelt-karte.yaml` als eigene Karte der
+Integration, im selben Aufbau und Nachtblau-Stil, aber ohne
+`custom:button-card`, `custom:apexcharts-card` und card-mod.
+
+```yaml
+type: custom:wow-world-card
+entity: sensor.wow_spielwelt_eu_wow_marke   # eine Entität der Spielwelt
+```
+
+- Kopf mit dem Namen der Spielwelt, darunter der Countdown bis zum
+  wöchentlichen Reset und dessen Zeitpunkt.
+- Mythic+-Season über die ganze Breite: Kurzname, Season-Woche, Fortschritt
+  der laufenden Woche als Balken, Beginn (und Ende, wenn die API es nennt).
+- WoW-Marke in Gold und je Realm Server online/offline, Bevölkerung und
+  Warteschlange; der Zustand steht immer auch als Wort in der Pille.
+- Verlauf der WoW-Marke der letzten 7 Tage als Stundenmittel, aus dem
+  Verlauf von Home Assistant (die Standard-Aufbewahrung von 10 Tagen reicht);
+  Stunden ohne neuen Preis behalten den letzten Wert. Mit der Maus oder per
+  Tippen Wert und Zeitpunkt. Die Karte lädt den Verlauf beim Öffnen, bei
+  neuem Preis höchstens alle 5 Minuten und sonst alle 30 Minuten neu.
+- Im Editor die Spielwelt statt eines Charakters. WoW Classic: Die Spielwelt
+  einer Classic-Version hat keinen Reset und die WoW-Marke nur, wenn die API
+  einen Preis liefert; was fehlt, fällt weg.
+- Server, Warteschlange und Bevölkerung eines Realms findet die Karte über
+  das Attribut `realm` (seit 0.33.9), nicht über Entity-IDs; sie braucht kein
+  Präfix und funktioniert in jeder Sprache. Die YAML-Karte las sie aus
+  deutschen Entity-IDs.
+- Farben: Mit dem Nachtblau-Theme nutzt sie dessen Variablen (heller und
+  dunkler Modus, auch der Verlauf), sonst ist sie in beiden Modi dunkel.
+
+### Karte „WoW Werte“ (seit 0.33.8)
+
+Die Werte-Karte aus `wow-werte-karte.yaml` als eigene Karte der Integration,
+im selben Aufbau und Nachtblau-Stil, aber ohne `custom:button-card`,
+browser_mod und die Templates aus `wow-templates.yaml`.
+
+```yaml
+type: custom:wow-stats-card
+entity: sensor.mein_charakter_level   # eine beliebige Entität des Charakters
+```
+
+- Kopf mit Charakterbild und Symbol der Spezialisierung, Spezialisierung und
+  Klasse, darunter Spielversion, Name und Heldentalente.
+- Leben und Primärwert (Stärke, Beweglichkeit oder Intelligenz) als gefüllte
+  Kacheln: Leben im Grün des Lebensbalkens, Primärwert in der Klassenfarbe.
+- Zweitwerte (Krit, Tempo, Meisterschaft, Vielseitigkeit) in Prozent, die
+  Balken im Verhältnis zum höchsten der vier Werte; Werte ohne Sensor fallen
+  weg (Classic hat z. B. keine Vielseitigkeit).
+- Ausrüstung: Set mit Teilen und Boni wie im Item-Tooltip, die Zahl der Teile
+  als Pille (grün: alle Boni aktiv, Amber: ein Teil der Boni, grau: keiner);
+  leere Sockel (Amber, ohne leere Sockel „keine“ in Grün) und verzauberte
+  Plätze, je mit den Item-Symbolen wie im Arsenal: Tooltip mit der Maus,
+  Antippen öffnet ihn. Fehlende Verzauberungen bewertet die Karte nicht,
+  welche Plätze verzauberbar sind, liefert die API nicht.
+- Die sechs Werte-Sensoren legt die Integration deaktiviert an; sind sie aus,
+  nennt die Karte den Weg zum Einschalten. Im Editor werden deshalb alle
+  Charaktere angeboten.
+- Die Klassenfarbe hängt an der Klassen-ID (`class_id` am Level-Sensor, seit
+  0.33.8), nicht am Namen; sie stimmt deshalb in jeder Sprache. Die YAML-Karte
+  las sie aus deutschen Klassennamen.
+- Die Karte findet alle Entitäten über das Gerät des Charakters und die
+  Übersetzungsschlüssel; sie braucht kein Präfix. Plätze ohne eigenen
+  Ausrüstungs-Sensor (Classic-Zusatzplätze wie Distanz) stehen als Text da.
+- Farben: Mit dem Nachtblau-Theme nutzt sie dessen Variablen (heller und
+  dunkler Modus), sonst ist sie in beiden Modi dunkel. Leben und Primärwert in
+  den Sonderfarben des Spiels mit fester Schrift; Item-Symbole, Tooltip und
+  Fenster wie im Arsenal in beiden Modi dunkel.
+
+### Karte „WoW Gilde“ (seit 0.33.7)
+
+Die Gilde-Karte aus `wow-gilde-karte.yaml` als eigene Karte der Integration,
+im selben Aufbau und Nachtblau-Stil, aber ohne `custom:button-card`.
+
+```yaml
+type: custom:wow-guild-card
+entity: sensor.mein_charakter_level   # eine beliebige Entität des Charakters
+# optional, 0 blendet den Abschnitt aus:
+members: 5
+activities: 3
+```
+
+- Kopf mit dem Gildennamen, darunter Spielversion, Realm, Fraktion und
+  Gründungsjahr.
+- Kacheln für Mitglieder, Anzahl auf der höchsten Stufe der Liste und
+  Erfolgspunkte der Gilde (nur, wenn die API sie liefert).
+- Klassen mit Anzahl und Klassenpunkt, die häufigsten zuerst.
+- Die ersten Mitglieder nach Rang („Gildenmeister“ für Rang 0, sonst „Rang
+  N“), mit „dein Charakter“ bei Charakteren, die in Home Assistant
+  eingerichtet sind (Name und Realm wie ein Charakter der Integration).
+- Die neuesten Bosskills und Erfolge der Gilde.
+- Im Editor die Zahl der Mitglieder in der Liste (leer: 5) und der
+  Aktivitäten (leer: 3); 0 blendet den Abschnitt aus. Angeboten werden alle
+  Charaktere; ohne Gilde nennt die Karte das.
+- Die Klassenfarben hängen an der Klassen-ID (`class_id` der Mitglieder),
+  nicht am Namen; sie stimmen deshalb in jeder Sprache. Die YAML-Karte las sie
+  aus deutschen Klassennamen.
+- Die Karte findet den Sensor „Gilde“ über das Gerät des Charakters und den
+  Übersetzungsschlüssel `guild`; sie braucht kein Präfix.
+- Farben: Mit dem Nachtblau-Theme nutzt sie dessen Variablen (heller und
+  dunkler Modus), sonst ist sie in beiden Modi dunkel; Klassenpunkte in den
+  Klassenfarben des Spiels.
+
+### Karte „WoW Sammlungen“ (seit 0.33.6)
+
+Die Sammlung-Karte aus `wow-sammlung-karte.yaml` als eigene Karte der
+Integration, im selben Aufbau und Nachtblau-Stil, aber ohne
+`custom:button-card`.
+
+```yaml
+type: custom:wow-collections-card
+entity: sensor.mein_charakter_level   # eine beliebige Entität des Charakters
+# optional, Zahl der Erfolgskategorien (Vorgabe 5, 0 blendet aus):
+categories: 5
+# optional, IDs aus dem Sensor „Spielstatistik“ (Vorgabe 107, 60, 349):
+statistics: [107, 60, 349]
+```
+
+- Kacheln für Reittiere, Haustiere, Spielzeuge und Titel, darunter
+  Erfolgspunkte, Erfolge und Quests; der aktive Titel darunter.
+- Erfolgspunkte je Kategorie als Balken, die punktstärksten zuerst.
+- Statistik mit den gewählten Werten des Statistik-Fensters, nur wenn der
+  Sensor „Spielstatistik“ eingeschaltet ist (standardmäßig aus).
+- Unten der neueste Erfolg (mit Symbol) und das zuletzt gesammelte Reittier,
+  Haustier, Spielzeug oder der Titel, je seit dem Start von Home Assistant.
+- Im Editor die Zahl der Kategorien und die Statistiken des gewählten
+  Charakters mit Name und Kategorie zur Auswahl; leer gilt die Vorgabe.
+- Kacheln und Abschnitte ohne Sensor fallen weg. Für WoW Classic heißt die
+  Karte „Erfolge“ und zeigt, was die Classic-API liefert, sonst einen Hinweis.
+- Die Karte findet die Entitäten über das Gerät des Charakters und die
+  Übersetzungsschlüssel (`mounts`, `pets`, `toys`, `titles`,
+  `achievement_points`, `achievements`, `quests_completed`,
+  `game_statistics`, `new_achievement`, `new_collectible`); sie braucht kein
+  Präfix.
+- Farben: Mit dem Nachtblau-Theme nutzt sie dessen Variablen (heller und
+  dunkler Modus), sonst ist sie in beiden Modi dunkel.
+
+### Karte „WoW Ruf“ (seit 0.33.5)
+
+Die Ruf-Karte aus `wow-ruf-karte.yaml` als eigene Karte der Integration, im
+selben Aufbau und Nachtblau-Stil, aber ohne `custom:button-card`.
+
+```yaml
+type: custom:wow-reputation-card
+entity: sensor.mein_charakter_level   # eine beliebige Entität des Charakters
+# optional, Fraktions-IDs in dieser Reihenfolge:
+factions: [2710, 2696]
+# optional, ohne factions: so viele Fraktionen mit Ruhmstufe (Vorgabe 6)
+count: 6
+```
+
+- Je Fraktion Name, Stufe („Ruhmstufe 15“, „Freundlich“) und Fortschritt
+  innerhalb der Stufe als Balken, bei Paragon zusätzlich dessen Fortschritt
+  in Violett. Eine Stufe ohne Fortschritt (z. B. „Ehrfürchtig“ 0/0) hat einen
+  vollen Balken.
+- Ohne `factions` (Titel „Ruhmstufen“) die Fraktionen mit Ruhmstufe, neueste
+  zuerst, höchstens `count`; „neueste“ heißt höchste Fraktions-ID, weil die
+  API Fraktionen keiner Erweiterung zuordnet. Mit `factions` (Titel „Ruf“)
+  genau diese, in dieser Reihenfolge; unbekannte IDs fallen weg.
+- Im Editor stehen die Fraktionen des gewählten Charakters mit Name und ID
+  zur Auswahl, darunter „Anzahl neueste Ruhmstufen (leer: 6; nur ohne
+  Fraktionsauswahl)“ (bis 0.33.5 „Anzahl ohne Auswahl“).
+- Die Karte findet den Sensor „Ruf“ über das Gerät des Charakters und den
+  Übersetzungsschlüssel `reputation`; sie braucht kein Präfix. Für WoW Classic
+  nennt sie, dass die Classic-API keinen Ruf liefert.
+- Farben: Mit dem Nachtblau-Theme nutzt sie dessen Variablen (heller und
+  dunkler Modus), sonst ist sie in beiden Modi dunkel.
+
+### Karte „WoW Raids“ (seit 0.33.4)
+
+Die Raid-Karte aus `wow-raid-karte.yaml` als eigene Karte der Integration, im
+selben Aufbau und Nachtblau-Stil, aber ohne `custom:button-card`.
+
+```yaml
+type: custom:wow-raid-card
+entity: sensor.mein_charakter_level   # eine beliebige Entität des Charakters
+# optional, Auswahl und Reihenfolge, sonst alle:
+difficulties: [lfr, normal, heroic, mythic]
+```
+
+- Kopf „Raids · Midnight“ (Erweiterung), darunter Spielversion, Name und
+  höchste Schwierigkeit mit Kills.
+- Je Schwierigkeit eine Unterkachel mit besiegten Bossen gesamt und je Raid
+  als Balken, mit dem Bild des Raids davor; ein voll besiegter Raid wird
+  grün. Schwierigkeiten ohne Bosse (0 von 0) fallen weg.
+- Unten der letzte besiegte Boss seit dem Start von Home Assistant (Ereignis
+  „Boss besiegt“).
+- `difficulties` (im Editor „Schwierigkeitsgrade“) wählt Schwierigkeiten und
+  ihre Reihenfolge; leer zeigt alle.
+- Die Karte findet die Sensoren über das Gerät des Charakters und die
+  Übersetzungsschlüssel `raid_lfr`, `raid_normal`, `raid_heroic`,
+  `raid_mythic` und `boss_killed`; sie braucht kein Präfix. Für WoW Classic
+  nennt sie, dass die Classic-API keinen Raid-Fortschritt liefert.
+- Farben: Mit dem Nachtblau-Theme nutzt sie dessen Variablen (heller und
+  dunkler Modus), sonst ist sie in beiden Modi dunkel.
+
+### Karte „WoW Garderobe“ (seit 0.33.3)
+
+Die Garderobe-Karte aus `wow-garderobe-karte.yaml` als eigene Karte der
+Integration, im selben Aufbau und Nachtblau-Stil, aber ohne
+`custom:button-card`.
+
+```yaml
+type: custom:wow-wardrobe-card
+entity: sensor.mein_charakter_level   # eine beliebige Entität des Charakters
+```
+
+- Kopf „Garderobe“, darunter Spielversion und Name des Charakters.
+- Oben die Zahl verschiedener Transmog-Vorlagen und gesammelter Sets.
+- Erbstücke mit Anzahl im Titel; aufgewertete als Balken (Stufe 1 voll,
+  höhere Stufen halb deckend), darunter die Zahl je Stufe.
+- Vorlagen je Platz, zweispaltig, die meisten zuerst; gleichnamige Plätze
+  stehen zusammen (siehe [Erbstücke und
+  Transmog-Vorlagen](#erbstücke-und-transmog-vorlagen)).
+- Abschnitte ohne Sensor fallen weg; für WoW Classic nennt die Karte, dass es
+  dort keine Sammlungen gibt. Der Editor bietet nur Charaktere mit Sensor
+  „Transmog-Vorlagen“ an.
+- Die Karte findet die Sensoren über das Gerät des Charakters und die
+  Übersetzungsschlüssel `transmogs` und `heirlooms`; sie braucht kein Präfix.
+- Farben: Mit dem Nachtblau-Theme nutzt sie dessen Variablen (heller und
+  dunkler Modus), sonst ist sie in beiden Modi dunkel.
+
+### Karte „WoW PvP“ (seit 0.33.2)
+
+Die PvP-Karte aus `wow-pvp-karte.yaml` als eigene Karte der Integration, im
+selben Aufbau und Nachtblau-Stil, aber ohne `custom:button-card`.
+
+```yaml
+type: custom:wow-pvp-card
+entity: sensor.mein_charakter_level   # eine beliebige Entität des Charakters
+```
+
+- Kopf „PvP“, darunter Spielversion und Name des Charakters.
+- Kacheln für Ehrenstufe und ehrenhafte Siege, nur für vorhandene Sensoren
+  (Classic Era: nur die Siege).
+- Wertungen je Bracket in der Reihenfolge des Spiels (3v3, 2v2, gewertete
+  Schlachtfelder): Wertung, Siegquote der Saison als Balken, Siege und
+  Niederlagen der Saison und der Woche. Brackets ohne Sensor fallen weg; ohne
+  jedes Bracket ein Hinweis, bei Classic Era, dass es dort keine Arenen gibt.
+- Die Karte findet die Sensoren über das Gerät des Charakters und die
+  Übersetzungsschlüssel `honor_level`, `honorable_kills` und `pvp_bracket`.
+  Das Bracket steht am Ende des Namens („PvP-Wertung 3V3“, in jeder Sprache
+  gleich), hilfsweise am Ende der Entity-ID. Sie braucht kein Präfix.
+- Farben: Mit dem Nachtblau-Theme nutzt sie dessen Variablen (heller und
+  dunkler Modus), sonst ist sie in beiden Modi dunkel. Siege und Niederlagen
+  stehen als Text, nicht als Grün und Rot.
+
+### Karte „WoW Charaktere“ (seit 0.32.0)
+
+Die Charaktere-Karte aus `wow-charaktere-karte.yaml` als eigene Karte der
+Integration, im selben Aufbau und Nachtblau-Stil, aber ohne `custom:button-card`.
+Wie die anderen mitgelieferten Karten lädt Home Assistant sie mit dem Frontend.
+
+```yaml
+type: custom:wow-characters-card
+# optional, sonst alle Charaktere; je Charakter eine beliebige Entität:
+entities:
+  - sensor.mein_charakter_level
+```
+
+- Kopf mit Symbol, Titel „Charaktere“ und Anzahl.
+- Je Spielversion eine Unterkachel mit Name und Anzahl, in dieser Reihenfolge:
+  Retail, Classic Era, Classic Progression, Classic Anniversary, Forever, dann
+  unbekannte Versionen, zuletzt „Spielversion unbekannt“. Innerhalb der
+  Gruppe sortiert nach Stufe, dann Itemlevel.
+- Je Charakter eine Zeile: Avatar mit Symbol der Spezialisierung, Name,
+  Itemlevel; Stufe, Spezialisierung, Klasse und Realm; Mythic+-Wertung der
+  aktuellen Season (sonst `api_rating`), nur für Retail und unbekannte
+  Versionen; letzter Login als „vor 3 Tagen“ und ein Level-Aufstieg der
+  letzten 7 Tage (Ereignis „Level gestiegen“). Die Zeitangaben zählen jede
+  Minute weiter, auch ohne Zustandsänderung.
+- Die Karte findet die Charaktere über die Level-Sensoren der Integration und
+  ihre Geräte, die Spielversion über das Gerätemodell. Anders als die YAML-Karte
+  braucht sie kein Präfix und funktioniert mit jeder Sprache der Oberfläche;
+  ihre eigenen Texte gibt es auf Deutsch und Englisch. Unter `entities`
+  genannte Entitäten, die zu keinem Charakter gehören, nennt sie unten als
+  „Nicht gefunden“.
+- Farben: Mit dem Nachtblau-Theme nutzt sie dessen Variablen (heller und
+  dunkler Modus), sonst ist sie in beiden Modi dunkel.
+- Breite: In der Abschnittsansicht nimmt die Karte die ganze Breite des
+  Abschnitts ein (12 von 12 Spalten, mindestens 6).
+
 ### Karte „WoW Talentbaum“ (seit 0.14.0)
 
 Die Integration liefert eine eigene Karte mit, ohne zusätzliches HACS-Paket und
@@ -1011,10 +1509,14 @@ zeichnet Klassen-, Spezialisierungs- und aktiven Heldenbaum aus dem Sensor
 
 ```yaml
 type: custom:wow-talent-tree-card
-entity: sensor.mein_charakter_talentbaum
+entity: sensor.mein_charakter_level   # eine beliebige Entität des Charakters
 # optional, Auswahl und Reihenfolge der Bäume:
 trees: [class, spec, hero]
 ```
+
+Den Sensor „Talentbaum“ sucht die Karte seit 0.33.0 über das Gerät des
+Charakters; `entity: sensor.mein_charakter_talentbaum` wie bis 0.32.x geht
+weiterhin.
 
 - Form der Knoten wie im Spiel: Quadrat aktiv, Kreis passiv, Achteck Wahl.
 - Vergebene Talente in Farbe mit goldenem Rahmen (Höchstrang) oder grünem
@@ -1028,8 +1530,8 @@ trees: [class, spec, hero]
 - Antippen zeigt Name, Rang und Beschreibung unter dem Baum, bei Wahlknoten
   beide Talente mit Haken am gewählten, beim Apex-Talent alle Stufen mit Rang.
 - Fehlt ein Symbol, steht ein Platzhalter mit den Anfangsbuchstaben.
-- In der Kartenauswahl heißt sie „WoW Talentbaum“; der Editor bietet die
-  Sensoren der Integration an.
+- In der Kartenauswahl heißt sie „WoW Talentbaum“; im Editor wählt man den
+  Charakter (seit 0.33.0, siehe [Charakter auswählen](#charakter-auswählen-seit-0330)).
 
 ## Ändern, Hinweise und Diagnose
 
@@ -1074,14 +1576,19 @@ trees: [class, spec, hero]
   Geräte lassen sich auf ihrer Geräteseite löschen.
 - **Karte fehlt nach einem Update:** Zeigt das Dashboard statt einer Karte
   „Custom element doesn't exist: wow-talent-tree-card“ (oder
-  `wow-arsenal-card`), hat die App oder der Browser die Datei der Karte nicht
+  `wow-arsenal-card`, `wow-characters-card`, `wow-professions-card`,
+  `wow-mythic-card`, `wow-pvp-card`, `wow-wardrobe-card`, `wow-raid-card`,
+  `wow-reputation-card`, `wow-collections-card`, `wow-guild-card`), hat die App oder der Browser die Datei der Karte nicht
   geladen. Ein Fehler beim Laden steht nur in der Konsole des Browsers („Failed
   to load extra module …“), nicht im Log von Home Assistant. Abhilfe: in der
   Companion App den Frontend-Cache zurücksetzen (Einstellungen der App,
   englisch „Reset frontend cache“), im Browser die Seite ohne Cache neu laden
   (Strg+Umschalt+R). Live so aufgetreten nach dem Update auf 0.15.2 in der
   iOS-App; die Datei der Karte war unverändert, nach dem Zurücksetzen des
-  Caches erschien die Karte wieder.
+  Caches erschien die Karte wieder. Gleiche Ursache, wenn eine neue Karte nach
+  dem Update in der Kartenauswahl fehlt: nach dem Update auf 0.32.0 fehlte
+  „WoW Charaktere“ dort, obwohl Home Assistant neu gestartet war; nach dem
+  Zurücksetzen des Frontend-Caches stand sie in der Auswahl.
 - **Diagnose:** Einstellungen → Geräte & Dienste → WoW Charakter → ⋮ →
   **Diagnose herunterladen** liefert die API-Antworten ohne Client-ID und Secret.
   Seit 0.22.0 fehlen darin auch Name, ID und Verweis anderer Spieler (unter
@@ -1250,7 +1757,180 @@ Automatische Tests laufen gegen Home Assistant 2026.2.3; live geprüft wurde unt
 Home Assistant 2026.10.4 mit Retail-Charakteren der Region EU, seit 0.11.2 auch
 mit einem Classic-Era-Charakter (siehe [WoW Classic](#wow-classic)).
 
-- **0.31.x:** 376 automatische Tests. 0.31.0: 8 Tests für die Sensoren
+- **0.33.x:** 406 automatische Tests. 0.33.9: 2 Tests (Auslieferung der
+  Karte „WoW Spielwelt“, Editor) und drei Prüfungen im bestehenden Test der
+  Spielwelt (`realm` an Server, Warteschlange und Bevölkerung). Gegenprobe:
+  Karte nicht registriert, Editor ohne Version im Pfad, `realm` an den
+  Binärsensoren entfernt, `realm` an der Bevölkerung entfernt – jedes Mal
+  schlug ein Test fehl. In Chromium mit Daten nach dem Muster einer
+  Live-Instanz (WoW-Marke 401.720 g, Season „Dungeons auf Mythisch+ (Midnight
+  Saison 2)“ seit 12.08.2026, zwei Realms, Classic-Spielwelt mit einem Realm)
+  und einem erfundenen Verlauf über 7 Tage mit einer Lücke von 5 Stunden, 344
+  und 386 Pixel, Deutsch und Englisch, ohne Fehler und ohne waagrechten
+  Überlauf; dazu Realm offline, mit Warteschlange und ohne Daten, Spielwelt
+  ohne Verlauf (Fehler der Abfrage), Wert und Zeitpunkt mit der Maus
+  innerhalb der Karte, nur eine Verlaufsabfrage bei unveränderten Daten.
+  0.33.9 **live geprüft** (31.10.2026, iOS-App): Der Editor bietet die beiden
+  Spielwelten (Retail und Classic Era) an; WoW-Marke 400.493 g, Reset Mi
+  05:00 (04:00 UTC), Season, Woche 12 und beide Realms mit Status und
+  Bevölkerung stimmen mit den Sensoren überein. Der Verlauf kommt aus dem
+  Recorder: höchster Wert 449.398 (Do 29.10., 06:10), niedrigster 393.195,
+  wie im Verlauf des Sensors; er beginnt am 26.10. um 11:06, weil Home
+  Assistant davor keinen Wert liefert, und ein „nicht verfügbar“ von 15
+  Minuten fällt ohne Einbruch weg. Nicht live geprüft: Wert und Zeitpunkt
+  beim Tippen und die Classic-Spielwelt. 0.33.8 **live geprüft** (31.10.2026, iOS-App):
+  Werte, Set 3/5, Klassenfarbe (`class_id` 8 und 7) und ein Classic-Charakter
+  mit ausgeschalteten Werte-Sensoren stimmen mit den Sensoren überein; nicht
+  live geprüft: Sockel- und Verzauberungssymbole des Retail-Charakters und
+  das Fenster. 0.33.8: 2 Tests (Auslieferung der
+  Karte „WoW Werte“, Editor zur Charakterauswahl) und eine Prüfung im
+  bestehenden Test der Symbole (`class_id` am Level-Sensor). Gegenprobe: Karte
+  nicht registriert, Editor ohne Version im Pfad, `class_id` entfernt – jedes
+  Mal schlug ein Test fehl. In Chromium mit Daten nach dem Muster eines
+  Live-Charakters (Werte 316.200/1.960 Intelligenz, 16,78/19,03/35,65/3,78 %,
+  Set 3/5 mit einem von zwei Boni, drei leere Sockel, zwei Verzauberungen;
+  Namen erfunden), 344 und 386 Pixel, Deutsch und Englisch, ohne Fehler und
+  ohne waagrechten Überlauf; dazu Werte-Sensoren aus, Todesritter (helle
+  Schrift), Classic ohne Vielseitigkeit mit Zusatzplatz, Tooltip mit der Maus
+  innerhalb der Karte, Fenster öffnen und schließen. **Nicht live geprüft:**
+  die Karte in Home Assistant. 0.33.7 **live geprüft** (31.10.2026, iOS-App):
+  Der Editor bietet alle 8 Charaktere und beide Zahlenfelder an; ohne Gilde
+  erscheint der Hinweis (keine der 447 Entitäten der Integration ist ein
+  Gilden-Sensor). 0.33.7: 2 Tests (Auslieferung der
+  Karte „WoW Gilde“, Editor zur Charakterauswahl). Gegenprobe: Karte nicht
+  registriert, Editor ohne Version im Pfad – jedes Mal schlug ein Test fehl.
+  Klassen-IDs der Farben: 1, 2, 5, 7, 8, 9 und 11 aus der Diagnose einer
+  Live-Instanz (`character_class`), 3 aus den Testdaten, alle 13 laut
+  warcraft.wiki.gg/wiki/ClassId übereinstimmend. In Chromium mit erfundenen
+  Gildendaten (16 Mitglieder mit allen 13 Klassen und einer unbekannten,
+  eigener Charakter, Bosskill und Erfolg), 344 und 386 Pixel, Deutsch und
+  Englisch (englische Klassennamen, gleiche Farben), ohne Fehler und ohne
+  waagrechten Überlauf; `members` 3 und `activities` 0, Charakter ohne
+  Gilde, Classic-Gilde ohne Erfolgspunkte. **Nicht live geprüft:** keiner der
+  Live-Charaktere ist in einer Gilde. 0.33.6 **live geprüft** (31.10.2026,
+  iOS-App): Der Editor bietet alle 8 Charaktere und beide Zusatzfelder an;
+  166/166/107/55, 16.045/1.753/2.479, aktiver Titel und die ersten zwei
+  Kategorien stimmen mit den Sensoren überein. Nicht live geprüft: Statistik,
+  Fußzeilen und die Statistik-Auswahl. 0.33.6: 2 Tests (Auslieferung der
+  Karte „WoW Sammlungen“, Editor zur Charakterauswahl). Gegenprobe: Karte
+  nicht registriert, Editor ohne Version im Pfad – jedes Mal schlug ein Test
+  fehl. In Chromium mit den Werten eines Live-Charakters (166/166/107/55,
+  16.045 Punkte, 1.753 Erfolge, 2.479 Quests, Kategorien, Statistik, zuletzt
+  gesammeltes Spielzeug) und einem erfundenen Erfolg mit Symbol, 344 und 386
+  Pixel, Deutsch und Englisch, ohne Fehler und ohne waagrechten Überlauf;
+  Balken 1.845/7.420 nachgerechnet; `categories` 0 und 2, eigene
+  `statistics`, Charakter ohne Statistik-Sensor, Classic Era; Editor mit den
+  Statistiken des gewählten Charakters. Editor-Prüfungen der früheren Karten
+  wiederholt. **Nicht live geprüft.** 0.33.5 **live geprüft** (31.10.2026,
+  iOS-App): Der Editor bietet die 7 Retail-Charaktere, die Fraktionen des
+  Charakters mit ID und Suche sowie das Zahlenfeld an; „6 von 75
+  Fraktionen“ und die ersten vier Fraktionen mit Ruhmstufe und Fortschritt
+  stimmen mit dem Sensor überein. Nicht live geprüft: eine gespeicherte
+  Fraktionsauswahl und ihre Reihenfolge. 0.33.5: 2 Tests (Auslieferung der
+  Karte „WoW Ruf“, Editor zur Charakterauswahl). Gegenprobe: Karte nicht
+  registriert, Editor ohne Version im Pfad – jedes Mal schlug ein Test fehl.
+  In Chromium mit den Ruf-Werten eines Live-Charakters (die sechs neuesten
+  Fraktionen mit Ruhmstufe, Balken 350/2500 = 14 % usw. nachgerechnet) und
+  erfundenen Ergänzungen (Paragon 4200/10000, Fraktion ohne Ruhmstufe), 344
+  und 386 Pixel, Deutsch und Englisch, ohne Fehler und ohne waagrechten
+  Überlauf; `factions` mit IDs als Zahl und Text samt unbekannter ID,
+  `count` 3, ungültiges `factions`, Charakter ohne Ruhmstufe, Classic Era;
+  Editor mit den Fraktionen des gewählten Charakters, nach Wechsel des
+  Charakters neu. Editor-Prüfungen der früheren Karten wiederholt, ohne
+  Befund. **Nicht live geprüft.** 0.33.4 **live geprüft** (31.10.2026,
+  iOS-App): Der Editor bietet die 7 Retail-Charaktere und das Zusatzfeld
+  „Schwierigkeitsgrade“ mit vier Kästchen an; Titel „Raids · Midnight“,
+  „höchste Stufe: LFR“, LFR 6/20 und die Raids samt Reihenfolge, grünem 1/1
+  und Raid ohne Bild stimmen mit den Sensoren überein. Nicht live geprüft:
+  Normal, Heroisch, „Letzter Boss“ und das Speichern einer Auswahl.
+  0.33.4: 2 Tests (Auslieferung der
+  Karte „WoW Raids“, Editor zur Charakterauswahl). Gegenprobe: Karte nicht
+  registriert, Editor ohne Version im Pfad – jedes Mal schlug ein Test fehl.
+  In Chromium mit den Raid-Attributen eines Live-Charakters (LFR 6/20, ein
+  Raid 1/1 grün, Raid ohne Bild, Mythisch 0/0 ausgeblendet) und einem
+  erfundenen Ereignis „Boss besiegt“, 344 und 386 Pixel, Deutsch und
+  Englisch, ohne Fehler und ohne waagrechten Überlauf; `difficulties` mit
+  eigener Reihenfolge und ungültigem Wert, Zusatzfeld im Editor mit
+  übersetzten Auswahltexten, leere Auswahl entfällt; Classic Era mit Hinweis.
+  Die Editor-Prüfungen der früheren Karten nach der Erweiterung des Editors
+  wiederholt, ohne Befund. **Nicht live geprüft.** 0.33.3 **live geprüft**
+  (31.10.2026, iOS-App): Der Editor bietet die 7 Retail-Charaktere an;
+  Vorlagen 4.328, Sets 317, Erbstücke 35 (12 aufgewertet, Stufen 23/11/1) und
+  die 19 Plätze samt Reihenfolge stimmen mit den Sensoren überein. 0.33.3: 2 Tests (Auslieferung der
+  Karte „WoW Garderobe“, Editor zur Charakterauswahl). Gegenprobe: Karte nicht
+  registriert, Editor ohne Version im Pfad – jedes Mal schlug ein Test fehl.
+  In Chromium mit den Attributwerten eines Live-Charakters (4.328 Vorlagen,
+  317 Sets, 19 Plätze, 35 Erbstücke mit Stufen 23/11/1), 344 und 386 Pixel,
+  Deutsch und Englisch, ohne Fehler und ohne waagrechten Überlauf;
+  Balkenanteile 11/35 und 1/35 nachgerechnet; nur Erbstücke, Classic Era mit
+  Hinweis, fehlende Entität; Editor nur mit Retail. **Nicht live geprüft.**
+  0.33.2 **live geprüft** (31.10.2026, iOS-App): Der Editor bietet alle 8
+  Charaktere an; Ehrenstufe 1, ehrenhafte Siege 86 und der Hinweis ohne
+  Bracket-Sensor stimmen mit den Sensoren überein. Nicht live geprüft: die
+  Wertungen je Bracket (kein Charakter mit Bracket-Sensor). 0.33.2: 2 Tests (Auslieferung der
+  Karte „WoW PvP“, Editor zur Charakterauswahl). Gegenprobe: Karte nicht
+  registriert, Editor ohne Version im Pfad – jedes Mal schlug ein Test fehl.
+  In Chromium mit erfundenen Daten, 344 und 386 Pixel, Deutsch und Englisch,
+  ohne Fehler und ohne waagrechten Überlauf: drei Brackets (deutscher und
+  englischer Name, eines nur über die Entity-ID erkannt, Saison ohne Spiele,
+  Woche ohne Angabe) in der Reihenfolge 3v3, 2v2, gewertete Schlachtfelder
+  mit Siegquote (71 von 120 = 59 %); Retail ohne Bracket wie live; Classic
+  Era nur mit Siegen und Hinweis. **Nicht live geprüft.** 0.33.1 **live
+  geprüft** (31.10.2026, iOS-App): Der Editor bietet die 7 Retail-Charaktere
+  an, nicht den Classic-Era-Charakter; Titel „Season 18“, Wertung 170 „laut
+  Arsenal“, „–“ für Schlüssel und „In Zeit“ und „Noch kein Lauf“ stimmen mit
+  den Sensoren überein. Nicht live geprüft: die Liste der Läufe (kein Lauf in
+  der Season). 0.33.1: 2 Tests (Auslieferung der
+  Karte „WoW Mythic+“, Editor zur Charakterauswahl). Gegenprobe: Karte nicht
+  registriert, Editor ohne Version im Pfad – jedes Mal schlug ein Test fehl.
+  In Chromium mit
+  erfundenen Daten, 344 und 386 Pixel, Deutsch und Englisch, ohne Fehler und
+  ohne waagrechten Überlauf: drei Läufe (in Zeit, über Zeit, ohne Dauer und
+  Wertung, langer Dungeon-Name) nach Stufe sortiert; ohne Lauf mit
+  `api_rating` „laut Arsenal“ wie live bei einem Charakter; Classic Era mit
+  Hinweis; Editor nur mit Retail-Charakteren. **Nicht live geprüft.** 0.33.0
+  **live geprüft** (31.10.2026, Home Assistant 2026.10.4, iOS-App): Der Editor
+  der Berufe-Karte zeigt die 8 Charaktere als „Name – Realm · Spielversion“
+  ohne Spielwelt-Geräte, ein Wechsel aktualisiert die Vorschau; Berufe,
+  Skill, Maximum, Stufe, Symbol und Sortierung eines Charakters stimmen mit
+  den Sensoren überein. Nicht live geprüft: das gespeicherte `entity` und die
+  Vorauswahl in bestehenden Arsenal- und Talentbaum-Karten. 0.33.0: 6 Tests (Auslieferung der
+  Karte „WoW Berufe“ und des Editors; je mitgelieferte Karte der Editor zur
+  Charakterauswahl statt des Formulars mit allen Sensoren). Gegenprobe:
+  Editor-Datei nicht ausgeliefert und Berufe-Karte aus `CARDS` entfernt,
+  jeweils schlug ein Test fehl; ein altes `getConfigForm` in einer Karte
+  ebenso. In Chromium mit erfundenen Daten über einen HTTP-Server wie in Home
+  Assistant geladen, 344 und 386 Pixel breit, Deutsch und Englisch, ohne
+  Fehler und ohne waagrechten Überlauf: Berufe-Karte für Retail (ausgelernt,
+  teilweise, ohne Wert und Symbol, englischer Entitätsname), Classic Era
+  (Hinweis), fehlende Entität; Editor mit nur den Charakteren (ohne
+  Spielwelt-Gerät), alte Entität auf den Charakter abgebildet, unbekannte
+  Entität sichtbar, Änderung als `config-changed`; Talentbaum nur mit
+  Retail-Charakter, Karte mit Level- und mit Talentbaum-Sensor; Charaktere mit
+  mehreren und ohne Auswahl. Das Formular `ha-form` war dabei nachgebildet;
+  fehlt es, lädt der Editor es über `loadCardHelpers` nach (mit Nachbildung
+  geprüft, ohne `loadCardHelpers` kein Fehler). **Nicht live geprüft.**
+- **0.32.x:** 382 automatische Tests. 0.32.0: 1 Test für die Auslieferung der
+  Karte „WoW Charaktere“; dass sie mit Version im Pfad im Frontend geladen
+  wird, prüft der bestehende Test für alle Karten. Die Karte ist in Chromium
+  mit erfundenen Daten in 344 und 386 Pixel Breite gezeichnet worden (Retail,
+  Classic Era, Classic Progression, ohne Gerät; Deutsch und Englisch; Auswahl
+  über `entities` mit nicht vorhandener Entität), ohne Fehler und ohne
+  waagrechten Überlauf. **Live geprüft** (30.10.2026, Home Assistant
+  2026.10.4, 8 Charaktere in EU: 7 Retail, 1 Classic Era): Gruppen, Sortierung
+  nach Stufe und Itemlevel, Stufe, Itemlevel, Spezialisierung, Klasse, Realm,
+  Mythic+ (`api_rating`, ohne Wertung „–“, bei Classic Era keine Angabe) und
+  letzter Login stimmen mit den Sensoren überein. Erst nach Zurücksetzen des
+  Frontend-Caches stand die Karte in der Kartenauswahl (siehe [Ändern,
+  Hinweise und Diagnose](#ändern-hinweise-und-diagnose)). Nicht geprüft: die
+  Zeile „Level … erreicht“ (kein Aufstieg in den letzten 7 Tagen), der helle
+  Modus und die Auswahl über `entities`.
+- **0.31.x:** 381 automatische Tests. 0.31.1: 5 Tests für die Spielversion in
+  der Kopfzeile der Arsenal-Karte (je Spielversion: Gerätemodell seit 0.22.0
+  und bis 0.21.x erkannt, Anzeige wie in der Karte hinterlegt). Gegenprobe:
+  drei Teile der Erkennung einzeln ausgebaut, jedes Mal schlug ein Test fehl;
+  dass Retail ohne Zusatz „Retail“ zeigt, prüft nur eine Probe mit Node außerhalb
+  der automatischen Tests. **Nicht live geprüft.** 0.31.0: 8 Tests für die Sensoren
   „Erbstücke“ und „Transmog-Vorlagen“ (Anzahl, aufgewertete und Stufen;
   verschiedene Vorlagen, Sets, Plätze; gespeichert nur IDs; seltener Takt und
   Diagnose; Gruppe Sammlungen ausgeschaltet ohne Abfrage und Sensor; Antwort
@@ -1565,9 +2245,9 @@ mit einem Classic-Era-Charakter (siehe [WoW Classic](#wow-classic)).
   Symbole der Talente und der Items brechen nach erneutem 429 bis zum
   nächsten Takt ab). Gegenprobe: vier Fehler einzeln eingebaut, jedes Mal
   schlug mindestens ein Test fehl. Anlass: Nach jedem Neustart fehlten
-  andere Talent-Symbole (Clambo 7, dann 9), also kein dauerhaftes Fehlen bei
-  Blizzard; dass es 429 war, ist nicht belegt, weil gescheiterte Symbole nur
-  im Debug-Log stehen. 0.14.0: 3 Tests für die Karte
+  andere Talent-Symbole (bei einem Charakter 7, dann 9), also kein dauerhaftes
+  Fehlen bei Blizzard; dass es 429 war, ist nicht belegt, weil gescheiterte
+  Symbole nur im Debug-Log stehen. 0.14.0: 3 Tests für die Karte
   „WoW Talentbaum“ (Datei wird ausgeliefert; mit Frontend als Modul geladen,
   Version im Pfad; ohne Frontend nicht). Gegenprobe: drei Fehler einzeln
   eingebaut, jedes Mal schlug mindestens ein Test fehl. Die Karte selbst

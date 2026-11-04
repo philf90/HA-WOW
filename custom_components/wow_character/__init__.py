@@ -68,11 +68,31 @@ _LOGGER = logging.getLogger(__name__)
 
 PLATFORMS = [Platform.BINARY_SENSOR, Platform.EVENT, Platform.IMAGE, Platform.SENSOR]
 CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
-# Karten "WoW Talentbaum" und "WoW Arsenal", von der Integration selbst
-# ausgeliefert; alle Dateien unter frontend/ sind unter CARD_PATH erreichbar.
+# Karten "WoW Talentbaum", "WoW Arsenal", "WoW Charaktere", "WoW Berufe",
+# "WoW Mythic+", "WoW PvP", "WoW Garderobe", "WoW Raids", "WoW Ruf",
+# "WoW Sammlungen", "WoW Gilde", "WoW Werte" und "WoW Spielwelt", von der
+# Integration selbst ausgeliefert; alle Dateien unter frontend/ sind unter
+# CARD_PATH erreichbar. Den Editor zur Auswahl von Charakter bzw. Spielwelt
+# laden die Karten selbst nach (mit ihrer Version im Pfad), er ist deshalb
+# kein eigenes Modul.
 CARD_PATH = f"/{DOMAIN}"
 CARD_DIR = Path(__file__).parent / "frontend"
-CARDS = ("wow-talent-tree-card.js", "wow-arsenal-card.js")
+CARDS = (
+    "wow-talent-tree-card.js",
+    "wow-arsenal-card.js",
+    "wow-characters-card.js",
+    "wow-professions-card.js",
+    "wow-mythic-card.js",
+    "wow-pvp-card.js",
+    "wow-wardrobe-card.js",
+    "wow-raid-card.js",
+    "wow-reputation-card.js",
+    "wow-collections-card.js",
+    "wow-guild-card.js",
+    "wow-stats-card.js",
+    "wow-world-card.js",
+)
+CARD_EDITOR = "wow-card-editor.js"
 # Eintrag -> Stand, fuer den gerade neu geladen wird (siehe _async_reload).
 _RELOADING = f"{DOMAIN}_reloading"
 
@@ -95,7 +115,7 @@ async def _async_register_card(hass: HomeAssistant) -> None:
     await hass.http.async_register_static_paths(
         [
             StaticPathConfig(f"{CARD_PATH}/{card}", str(CARD_DIR / card), True)
-            for card in CARDS
+            for card in (*CARDS, CARD_EDITOR)
         ]
     )
     if "frontend" not in hass.config.components:

@@ -107,11 +107,15 @@ async def test_retail_values(hass: HomeAssistant, aioclient_mock) -> None:
     )
     assert status.state == "on"
     assert status.name.endswith("Server Die Aldor")
+    # Name des Realms als Attribut, fuer Karten (seit 0.33.9)
+    assert status.attributes["realm"] == "Die Aldor"
     queue = _eid(hass, "binary_sensor", f"{world}-realm-die-aldor-queue")
     assert hass.states.get(queue).state == "off"
+    assert hass.states.get(queue).attributes["realm"] == "Die Aldor"
     population = _eid(hass, "sensor", f"{world}-realm-die-aldor-population")
     # Zustand aus population.type, uebersetzt in strings.json (seit 0.22.0)
     assert hass.states.get(population).state == "high"
+    assert hass.states.get(population).attributes["realm"] == "Die Aldor"
     assert hass.states.get(population).attributes["options"] == [
         "full",
         "high",
