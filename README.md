@@ -1770,6 +1770,20 @@ gefunden“ statt „keine Realm-Liste“), welcher der beiden Kandidaten und wa
 Liste enthält, ist offen; „PvE“ und „Normal“ standen nicht darin. Anpassungen
 folgen erst mit echten Antworten der API.
 
+**Stand 05.11.2026 (nach dem ersten Login eines Forever-Charakters):** Über die
+öffentliche API kommt Forever nicht. Die Aktion `get_character` meldet für beide
+Kandidaten „keine Realm-Liste“ (die Liste vom 04.11. ist verschwunden), und in
+der Battle.net-Anmeldung (`/profile/user/wow`) fehlt der Forever-Charakter. Die
+Armory-Seite des Charakters zeigt ihn dagegen, ohne Realm in der Adresse
+(`/forever/eu/armory/character/<vorname>-<nachname>`). Ihre eingebetteten Daten
+nennen den Vornamen unter `name`, den Nachnamen unter `surname`, die Kennung
+unter `slug` (`vorname-nachname`) und statt eines Realms `ruleset` (z. B.
+`{"name": "Normal", "slug": "normal"}`); ein Realm-Feld fehlt. Ihre
+Spieldaten-Links nutzen den Namespace `static-forever-eu`, laufen aber über
+Blizzards Partner-Schnittstelle (`partner-eu.api.blizzard.net`), nicht über die
+öffentliche API. Ob die öffentliche API einen anderen Namespace nutzen wird
+oder Forever nur noch nicht freigeschaltet hat, ist offen.
+
 ## Grenzen
 
 - Profildaten aktualisiert Blizzard erst, wenn sich der Charakter ausloggt.
