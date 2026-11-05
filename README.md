@@ -23,7 +23,8 @@ Raids“ (`custom:wow-raid-card`, Retail), „WoW Ruf“ (`custom:wow-reputation
 Retail), „WoW Sammlungen“ (`custom:wow-collections-card`), „WoW Gilde“
 (`custom:wow-guild-card`), „WoW Werte“ (`custom:wow-stats-card`), „WoW
 Spielwelt“ (`custom:wow-world-card`) und „WoW Talentbaum“
-(`custom:wow-talent-tree-card`, Retail), ohne zusätzliche HACS-Karten oder
+(`custom:wow-talent-tree-card`, Retail), ohne zusätzliche Karten aus dem
+Marketplace (HACS) oder
 Dashboard-Ressourcen. Im Karten-Editor wählt man nur den Charakter, bei der
 Spielwelt-Karte die Spielwelt.
 
@@ -40,8 +41,11 @@ Spielwelt-Karte die Spielwelt.
 ## Voraussetzungen
 
 - **Home Assistant 2026.2.3 oder neuer** (live geprüft mit 2026.10.4)
-- **[HACS](https://hacs.xyz)** für die Installation per Klick (ohne HACS geht es
-  auch, siehe unten)
+- **Marketplace** (ab Home Assistant 2026.11 eingebaut, Einstellungen →
+  Marketplace) oder bis 2026.10 **[HACS](https://hacs.xyz)** für die
+  Installation per Klick (ohne beides geht es auch, siehe unten). Der
+  Marketplace braucht für Repositories, die nicht im Katalog stehen, eine
+  GitHub-Verbindung; er fragt beim Hinzufügen danach.
 - **Battle.net-API-Client** (kostenlos): Client-ID und Secret, angelegt mit einem
   Blizzard-Konto auf <https://develop.battle.net>. Blizzard verlangt dafür einen
   Authenticator (Zwei-Faktor-Anmeldung) am Konto. Für die Suche nach Charakteren
@@ -55,20 +59,29 @@ Spielwelt-Karte die Spielwelt.
 
 ## Installation
 
-[![In HACS öffnen](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=philf90&repository=HA-WOW&category=integration)
+[![Im Marketplace bzw. in HACS öffnen](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=philf90&repository=HA-WOW&category=integration)
 [![Integration hinzufügen](https://my.home-assistant.io/badges/config_flow_start.svg)](https://my.home-assistant.io/redirect/config_flow_start/?domain=wow_character)
 
 1. **API-Client anlegen:** auf <https://develop.battle.net> einen Client
    erstellen, mit der Redirect-URL `https://my.home-assistant.io/redirect/oauth`;
    Schritt für Schritt unter [API-Client anlegen](#api-client-anlegen).
-2. **Integration herunterladen:** Erste Schaltfläche oben → HACS fragt, ob das
-   Repository hinzugefügt werden soll → **Hinzufügen** → **Herunterladen**.
-   Von Hand: HACS → ⋮ → **Benutzerdefinierte Repositories** →
-   `https://github.com/philf90/HA-WOW`, Typ „Integration“ → „WoW Charakter“
-   herunterladen.
-   Ohne HACS: Ordner `custom_components/wow_character` nach
-   `config/custom_components/` kopieren.
-3. **Home Assistant neu starten.**
+2. **Integration herunterladen**, je nach Home-Assistant-Version:
+   - **Ab 2026.11 (Marketplace):** Einstellungen → **Marketplace** → oben
+     rechts **Add from link** →
+     `https://github.com/philf90/HA-WOW` eingeben → **Add**. Danach
+     „WoW Charakter“ in der Liste öffnen und installieren. Beim ersten
+     Hinzufügen verbindet der Marketplace GitHub: Er zeigt einen Code und
+     einen Link, dort den Code eingeben und die Verbindung bestätigen.
+   - **Bis 2026.10 (HACS):** Erste Schaltfläche oben → HACS fragt, ob das
+     Repository hinzugefügt werden soll → **Hinzufügen** → **Herunterladen**.
+     Von Hand: HACS → ⋮ → **Benutzerdefinierte Repositories** →
+     `https://github.com/philf90/HA-WOW`, Typ „Integration“ →
+     „WoW Charakter“ herunterladen.
+   - **Von Hand:** Ordner `custom_components/wow_character` nach
+     `config/custom_components/` kopieren.
+3. **Home Assistant neu starten** (mit HACS oder von Hand). Mit dem
+   Marketplace entfällt das bei der ersten Installation: Er lädt die
+   Integration sofort und öffnet ihre Einrichtung (Schritt 4).
 4. **Einrichten:** Zweite Schaltfläche oben, oder Einstellungen → Geräte & Dienste
    → Integration hinzufügen → „WoW Charakter“. Client-ID und Secret eingeben;
    die Integration prüft sie sofort bei Blizzard.
@@ -163,8 +176,13 @@ Client ohne Redirect-URL lässt sich unter **Manage Client** ergänzen.
 
 ## Aktualisieren
 
-HACS zeigt neue Versionen als Update an. Nach dem Herunterladen Home Assistant
-neu starten. Wer von Hand aktualisiert, ersetzt den ganzen Ordner
+Neue Versionen erscheinen als Update unter Einstellungen → Updates, ab
+Home Assistant 2026.11 über den Marketplace, davor über HACS. Der
+Marketplace prüft Repositories außerhalb des Katalogs nur mit
+GitHub-Verbindung, alle 48 Stunden. Nach dem Installieren eines Updates
+Home Assistant neu starten; der Marketplace erinnert unter „Reparaturen“
+daran.
+Wer von Hand aktualisiert, ersetzt den ganzen Ordner
 `custom_components/wow_character` samt `translations/`; sonst fehlen neue Texte,
 z. B. die Einträge im Menü „Charakter hinzufügen“. Was sich je Version ändert, steht in den
 [Release-Notes](https://github.com/philf90/HA-WOW/releases).
@@ -1031,7 +1049,8 @@ response_variable: charakter
 ## Dashboard-Karten
 
 Dreizehn Karten liefert die Integration selbst mit; Home Assistant lädt sie mit
-dem Frontend, ohne zusätzliche HACS-Karten oder Dashboard-Ressourcen:
+dem Frontend, ohne zusätzliche Karten aus dem Marketplace (HACS) oder
+Dashboard-Ressourcen:
 
 - [„WoW Arsenal“](#karte-wow-arsenal-seit-0150) (`custom:wow-arsenal-card`,
   seit 0.15.0): Charakterseite mit Ausrüstung und Kennzahlen.
@@ -1506,7 +1525,8 @@ entities:
 
 ### Karte „WoW Talentbaum“ (seit 0.14.0)
 
-Die Integration liefert eine eigene Karte mit, ohne zusätzliches HACS-Paket und
+Die Integration liefert eine eigene Karte mit, ohne zusätzliches Paket aus dem
+Marketplace (HACS) und
 ohne Eintrag unter den Dashboard-Ressourcen: Home Assistant lädt sie mit dem
 Frontend. Nach dem Update einmal die Seite neu laden (fehlt die Karte danach,
 siehe [Ändern, Hinweise und Diagnose](#ändern-hinweise-und-diagnose)). Sie
