@@ -1,4 +1,5 @@
-# Prueft jeden Push auf main und jeden Pull Request: Code-Stil, Tests,
+# Prueft jeden Push auf main und jeden Pull Request: Code-Stil, Tests
+# (lupa fuer den Lauf des Test-Addons unter Lua 5.1),
 # hassfest (Pruefung von Home Assistant) und die HACS-Pruefung.
 # Tests laufen gegen dieselbe Home-Assistant-Version wie lokal
 # (pytest-homeassistant-custom-component 0.13.316 = Home Assistant 2026.2.3).
@@ -25,7 +26,7 @@ jobs:
           python-version: "3.13"
 
       - name: Abhaengigkeiten installieren
-        run: pip install pytest-homeassistant-custom-component==0.13.316 ruff==0.16.9
+        run: pip install pytest-homeassistant-custom-component==0.13.316 ruff==0.16.9 lupa==2.8
 
       - name: Ruff
         run: |

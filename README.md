@@ -1784,6 +1784,104 @@ Blizzards Partner-Schnittstelle (`partner-eu.api.blizzard.net`), nicht über die
 öffentliche API. Ob die öffentliche API einen anderen Namespace nutzen wird
 oder Forever nur noch nicht freigeschaltet hat, ist offen.
 
+### Test-Addon „HA Bridge Probe“
+
+Vorarbeit für einen zweiten Weg neben der Battle.net API: ein Spiel-Addon, das
+Charakterdaten im Spiel erfasst. Ein Addon kann keine Verbindung nach außen aufbauen und keine Dateien
+schreiben (Warcraft Wiki, „Lua functions“: „operating system and file I/O
+libraries are not present“); es kann Daten nur in seine SavedVariables-Datei
+legen, die der Client beim Ausloggen, bei `/reload`, beim Trennen und beim
+Beenden schreibt. Bevor die Integration dafür etwas bekommt, klärt das
+Test-Addon im echten Forever-Client, was ein Addon dort lesen kann. Es ändert an
+der Integration nichts, sendet nichts und läuft nur auf dem Spiele-PC.
+
+**Installation**
+
+1. Den Ordner `addon/HABridgeProbe` aus diesem Repository (z. B. über
+   **Code → Download ZIP**) nach `World of Warcraft\_forever_\Interface\AddOns\`
+   kopieren, sodass dort `HABridgeProbe\HABridgeProbe.toc` liegt. Den Ordner
+   `_forever_` nennen bisher nur Fanseiten; die Battle.net-App zeigt ihn über
+   WoW Forever → Zahnrad → **Im Explorer zeigen**.
+2. In der Charakterauswahl unter **AddOns** „HA Bridge Probe“ aktivieren. Steht
+   es dort als veraltet (nach einem Patch passt die Interface-Nummer 16001 nicht
+   mehr), **Veraltete AddOns laden** anhaken.
+3. Einloggen. Nach 5 Sekunden misst das Addon, meldet sich im Chat und öffnet
+   sein Fenster (`/habp` zeigt oder verbirgt es). Es läuft auch in Retail
+   (Interface 120105), zum Vergleich.
+
+**Tests im Spiel**, in dieser Reihenfolge:
+
+1. **Einfügen:** diese Prüfzeile kopieren und mit Strg+V in das Feld unten im
+   Fenster einfügen:
+
+   ```text
+   HAB1|http://192.168.0.10:8123|0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+   ```
+
+   Erwartet: „94 Zeichen, Prüftext korrekt, größter Sprung 94“; ein Sprung von
+   94 heißt, der Text kam in einem Rutsch. Gespeichert werden nur Länge und
+   Vergleich, nicht der Text.
+2. **AddOn-Menü und Einstellungsseite:** an der Minikarte das AddOn-Menü öffnen
+   und „HA Bridge Probe“ anklicken; dann Optionen → AddOns → HA Bridge Probe
+   (oder `/habp optionen`) und den Haken einmal umschalten.
+3. **Chat-Log:** **Chat-Log-Test** klicken. Das schaltet das Chat-Log ein und
+   schreibt eine Marke `HABP-<Zahl>` in den Chat (einmal über `print`, einmal
+   über `AddMessage`). In `World of Warcraft\_forever_\Logs\WoWChatLog.txt` nach
+   der Marke suchen, einmal sofort und einmal nach dem Ausloggen, und die
+   Änderungszeit der Datei notieren. Danach `/habp chatlog aus`. Steht die Marke
+   sofort in der Datei, könnte ein Begleitprogramm Werte schon während des
+   Spielens weitergeben.
+4. **/reload:** **Speichern (/reload)** klicken. Nach dem Neuladen zeigt das
+   Fenster „/reload-Test bestätigt“.
+5. **Absturz:** die Sitzungsnummer im Fenster notieren, WoW im Task-Manager
+   beenden und neu starten. Zeigt das Fenster danach „zuletzt gespeichert:
+   #<notierte Nummer> (sauber beendet: nein)“, schreibt der Client die Datei auch
+   beim Absturz; zeigt es eine kleinere Nummer, gehen die Daten einer
+   abgestürzten Sitzung verloren.
+6. **Ausloggen.** Erst dann steht alles in der Datei.
+
+**Ergebnis:**
+`World of Warcraft\_forever_\WTF\Account\<Konto>\SavedVariables\HABridgeProbe.lua`.
+
+| Abschnitt | Inhalt |
+|---|---|
+| `runs` | die letzten 5 Messläufe mit Rohwerten (Namen, Gilde); bleibt auf dem PC |
+| `report` | der letzte Messlauf zum Teilen: Namen als Buchstabenmuster („Mara Sturmwind“ → „Aaaa Aaaaaaaaa“), GUID gekürzt (`Player-4455-xxxxxxxx`), Realm und Regelsatz lesbar |
+| `sessions` | die letzten 10 Sitzungen: Beginn, letztes Lebenszeichen (alle 30 s), sauber beendet ja/nein |
+| `tests` | Einfügen, /reload, Chat-Log, Einstellungsseite, AddOn-Menü |
+| `eventSupport` | welche Ereignisse der Client kennt |
+
+Zum Auswerten den Abschnitt `["report"]` in ein Issue kopieren und dazu
+schreiben: den Pfad der Datei (Kontoordner unkenntlich), ob und wann die Marke
+im Chat-Log stand und das Ergebnis des Absturztests.
+
+**Was gemessen wird:**
+
+- **Kennung:** `UnitFullName`, `UnitName`, `UnitPVPName`, `GetUnitName`,
+  `GetRealmName`, `GetNormalizedRealmName`, `GetRealmID`, `GetCurrentRegion`,
+  `GetCurrentRegionName`, `UnitGUID`, `GetBuildInfo`, `GetLocale` und alle
+  Konstanten `WOW_PROJECT_*`. Daran entscheidet sich, wie ein Forever-Charakter
+  mit Vor- und Nachnamen eindeutig erkannt wird.
+- **Suche:** globale Namen, `C_`-Namensräume und Blizzards API-Dokumentation im
+  Client (`Blizzard_APIDocumentationGenerated`) nach „surname“, „lastname“,
+  „familyname“, „ruleset“, „forever“, „camelot“ und „skyborne“.
+- **Werte:** Stufe, Klasse, Volk, Fraktion, Gold, Erfahrung, Ruhebonus, Zone,
+  Unterzone, Karte (Koordinaten nur „Wert vorhanden“ ja/nein, nie die Werte),
+  Instanz, Itemlevel, Gilde, Berufe, Haltbarkeit (niedrigster Wert), freie
+  Taschenplätze, Instanz-Sperren, Währungen mit ID, Questlog, Zeit bis zum
+  täglichen und wöchentlichen Reset, Spielzeit (`RequestTimePlayed`). Jede
+  Funktion mit „vorhanden“, „Fehler“ samt Text und „geheim“ (Secret Values).
+- **Bausteine der Brücke:** `C_EncodingUtil.SerializeJSON` mit Rückweg,
+  Settings API, AddOn-Menü, `LoggingChat`, `ReloadUI`, Chat- und
+  Addon-Nachrichten (nur ob vorhanden, nichts wird gesendet).
+
+Befehle: `/habp` (Fenster), `/habp messen`, `/habp reload`, `/habp chatlog`,
+`/habp chatlog aus`, `/habp optionen`, `/habp reset ja` (alles löschen und neu
+laden). Im Kampf misst das Addon nicht; die Messung folgt nach dem Kampf.
+
+**Stand:** nur automatisch geprüft (siehe [Teststand](#teststand)), im echten
+Forever-Client noch nicht.
+
 ## Grenzen
 
 - Profildaten aktualisiert Blizzard erst, wenn sich der Charakter ausloggt.
@@ -1814,7 +1912,18 @@ Automatische Tests laufen gegen Home Assistant 2026.2.3; live geprüft wurde unt
 Home Assistant 2026.10.4 mit Retail-Charakteren der Region EU, seit 0.11.2 auch
 mit einem Classic-Era-Charakter (siehe [WoW Classic](#wow-classic)).
 
-- **0.33.x:** 409 automatische Tests. 0.33.10: 3 Tests für den Reset (vorbei:
+- **0.33.x:** 420 automatische Tests. Test-Addon
+  [„HA Bridge Probe“](#test-addon-ha-bridge-probe) (ohne neue Version der
+  Integration): 11 Tests, 5 für TOC und Lua-Dateien (Forever-Interface 16001,
+  alle Dateien aufgeführt, Funktionen des AddOn-Menüs vorhanden, keine
+  Datei- und Betriebssystem-Bibliotheken, Prüfzeile im README) und 6 Läufe unter
+  Lua 5.1 gegen einen Nachbau der WoW-API (Messung und Bericht ohne Namen, Tests
+  im Fenster, /reload und Absturz über zwei bzw. drei Sitzungen, fehlende
+  Funktionen und Vorlagen, geheime Werte und Kampf, keine fremden globalen
+  Namen). Gegenprobe: Bericht ohne Unkenntlichmachung, Ereignisse ohne Schutz
+  angemeldet, kein `cleanExit` beim Logout, eingefügter Text gespeichert,
+  globale Variable, Koordinaten gespeichert, Messung im Kampf – jedes Mal schlug
+  ein Test fehl. **Im echten Forever-Client nicht geprüft.** 0.33.10: 3 Tests für den Reset (vorbei:
   der nächste Lauf fragt neu, auch wenn die API noch den alten Zeitraum meldet,
   und springt mit dem neuen um; noch nicht erreicht: höchstens stündlich;
   erneute Abfrage scheitert: alter Wert bleibt, Spielwelt läuft). Gegenprobe:
@@ -2455,7 +2564,7 @@ mit einem Classic-Era-Charakter (siehe [WoW Classic](#wow-classic)).
 ## Tests
 
 ```bash
-pip install pytest-homeassistant-custom-component==0.13.316 ruff==0.16.9
+pip install pytest-homeassistant-custom-component==0.13.316 ruff==0.16.9 lupa==2.8
 ruff check . && ruff format --check .
 pytest tests   # pytest.ini setzt asyncio_mode = auto
 ```
@@ -2467,6 +2576,10 @@ Dieselben Schritte laufen bei jedem Push und Pull Request im Workflow
 oben im Teststand), Versionshinweise, Übersetzungen und Endpunkte zusammenpassen.
 Die Testzahl im README stimmt nur, wenn jede Änderung an den Tests sie mit
 nachzieht.
+
+`tests/test_testaddon.py` lässt das Test-Addon `addon/HABridgeProbe` mit
+[lupa](https://pypi.org/project/lupa/) unter Lua 5.1 (wie im WoW-Client) gegen
+einen Nachbau der WoW-API laufen (`tests/wow_api_stub.lua`).
 
 **Pull Requests** folgen der Vorlage `.github/pull_request_template.md`. Der
 Workflow „PR-Vorlage“ prüft bei jedem neuen Stand und jeder Änderung der
