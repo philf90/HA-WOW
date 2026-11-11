@@ -15,7 +15,7 @@
 
 local ADDON, ns = ...
 
-ns.VERSION = "0.1.0"
+ns.VERSION = "0.1.1"
 ns.SCHEMA = 1
 local MAX_RUNS = 5
 local MAX_SESSIONS = 10
