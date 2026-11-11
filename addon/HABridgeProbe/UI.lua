@@ -213,7 +213,7 @@ local function buildUI()
   end
   local templated
   win, templated = make("Frame", "HABridgeProbeFrame", UIParent, "BasicFrameTemplateWithInset")
-  win:SetSize(540, 600)
+  win:SetSize(540, 660)
   win:SetPoint("CENTER")
   win:SetFrameStrata("DIALOG")
   win:SetMovable(true)
@@ -332,8 +332,8 @@ function ns.refreshUI()
     add("  fehlt: %s%s", table.concat(shown, ", "), #s.missing > 6 and " ..." or "")
   end
   local docHits = run.documentation and run.documentation.hits or {}
-  add("|cffffd100Suche Nachname/Regelsatz|r  %d Treffer global, %d in der API-Doku%s",
-    #(run.scan or {}), #docHits, run.documentation and run.documentation.error and (" (" .. run.documentation.error .. ")") or "")
+  add("|cffffd100Suche Nachname/Regelsatz|r  %d Treffer global (%s Fenster-Elemente übersprungen), %d in der API-Doku%s",
+    #(run.scan or {}), text(run.scanSkippedWidgets), #docHits, run.documentation and run.documentation.error and (" (" .. run.documentation.error .. ")") or "")
   local preview = {}
   for i = 1, math.min(#docHits, 3) do
     preview[#preview + 1] = docHits[i]
@@ -389,7 +389,24 @@ function ns.refreshUI()
   add("|cffffd100Einstellungsseite|r  %s%s", st and (st.ok and "registriert" or ("Fehler: " .. text(st.error))) or "-",
     st and st.changed and " · Haken geändert" or "")
   local m = t.compartment
-  add("|cffffd100AddOn-Menü|r  %s", m and m.clicked and "geklickt" or "noch nicht geklickt")
+  local comp = run.compartment
+  add("|cffffd100AddOn-Menü|r  %s · Objekt %s, sichtbar %s", m and m.clicked and "geklickt" or "noch nicht geklickt",
+    comp and comp.exists and "vorhanden" or "fehlt", text(comp and comp.visible))
+  local mb = t.minimap
+  add("|cffffd100Minikarten-Knopf|r  %s", not mb and "-"
+    or not mb.created and ("Fehler: " .. text(mb.error))
+    or string.format("angelegt, %s, geklickt %s, verschoben %s", mb.shown and "sichtbar" or "ausgeblendet",
+      yesno(mb.clicked), yesno(mb.dragged)))
+  add("|cffffd100Nachname anzeigen|r  %s / %s · |cffffd100Voreinstellung|r  %s",
+    text(val(run, "C_PlayerInfo.ShouldDisplaySurname")), text(val(run, "C_PlayerInfo.ShouldDisplaySurname(player)")),
+    text(val(run, "C_GameRules.GetForeverExperiencePreset")))
+  local s2 = db.session
+  add("|cffffd100Zone bekannt|r  %s", s2.zoneReadyAt and s2.enteredWorldAt
+    and string.format("%d s nach dem Betreten der Welt (%s)", s2.zoneReadyAt - s2.enteredWorldAt, text(s2.zoneAtEvent))
+    or "noch kein Zonenwechsel-Ereignis")
+  local lo = prev and prev.logout
+  add("|cffffd100Beim letzten Logout|r  %s", not lo and "-"
+    or string.format("%s / %s · Karte %s · %s", text(lo.zone), text(lo.subzone), text(lo.mapID), money(lo.money)))
   win.summary:SetText(table.concat(lines, "\n"))
 end
 
@@ -411,6 +428,135 @@ end
 -- Einstellungsseite (Settings API) und AddOn-Menue
 -- ---------------------------------------------------------------------------
 
+-- ---------------------------------------------------------------------------
+-- Eigener Knopf an der Minikarte
+-- ---------------------------------------------------------------------------
+
+-- Im Spiel gab es AddonCompartmentFrame, aber keinen sichtbaren Knopf
+-- (11.11.2026); ein anderes Addon zeigte einen eigenen Knopf ueber LibDBIcon.
+-- Dieser Knopf kommt ohne Bibliothek aus: Kreisbahn um die Minikarte, Winkel
+-- in den Optionen.
+local minimapButton
+
+local function minimapRadius()
+  local ok, width = pcall(Minimap.GetWidth, Minimap)
+  if ok and type(width) == "number" and width > 0 then
+    return width / 2 + 5
+  end
+  return 80
+end
+
+local function placeMinimapButton(angle)
+  local rad = math.rad(angle)
+  local r = minimapRadius()
+  minimapButton:ClearAllPoints()
+  minimapButton:SetPoint("CENTER", Minimap, "CENTER", math.cos(rad) * r, math.sin(rad) * r)
+end
+
+local function dragMinimapButton()
+  local mx, my = Minimap:GetCenter()
+  local px, py = GetCursorPosition()
+  local scale = Minimap:GetEffectiveScale()
+  local angle = math.deg(math.atan2(py / scale - my, px / scale - mx))
+  HABridgeProbeDB.options.minimapAngle = angle
+  placeMinimapButton(angle)
+end
+
+function ns.updateMinimapButton()
+  if not minimapButton then
+    return
+  end
+  if HABridgeProbeDB.options.showMinimapButton then
+    minimapButton:Show()
+  else
+    minimapButton:Hide()
+  end
+  local t = tests().minimap
+  if t then
+    t.shown = minimapButton:IsShown() and true or false
+  end
+end
+
+local function createMinimapButton()
+  local t = { at = now() }
+  tests().minimap = t
+  if type(Minimap) ~= "table" then
+    t.error = "Minimap fehlt"
+    return
+  end
+  local ok, err = pcall(function()
+    local b = CreateFrame("Button", "HABridgeProbeMinimapButton", Minimap)
+    minimapButton = b
+    b:SetSize(31, 31)
+    b:SetFrameStrata("MEDIUM")
+    b:SetFrameLevel(8)
+    b:RegisterForClicks("LeftButtonUp", "RightButtonUp")
+    b:RegisterForDrag("LeftButton")
+    b:SetHighlightTexture("Interface\\Minimap\\UI-Minimap-ZoomButton-Highlight")
+    local bg = b:CreateTexture(nil, "BACKGROUND")
+    bg:SetTexture("Interface\\Minimap\\UI-Minimap-Background")
+    bg:SetSize(20, 20)
+    bg:SetPoint("TOPLEFT", 7, -5)
+    local icon = b:CreateTexture(nil, "ARTWORK")
+    icon:SetTexture("Interface\\Icons\\INV_Misc_Spyglass_02")
+    icon:SetSize(17, 17)
+    icon:SetPoint("TOPLEFT", 7, -6)
+    local border = b:CreateTexture(nil, "OVERLAY")
+    border:SetTexture("Interface\\Minimap\\MiniMap-TrackingBorder")
+    border:SetSize(53, 53)
+    border:SetPoint("TOPLEFT")
+    b:SetScript("OnClick", function(_, mouse)
+      t.clicked = now()
+      t.lastButton = tostring(mouse)
+      if mouse == "RightButton" then
+        ns.openSettings()
+      else
+        ns.toggleUI()
+      end
+      if ns.refreshUI then
+        ns.refreshUI()
+      end
+    end)
+    b:SetScript("OnDragStart", function(self)
+      self:SetScript("OnUpdate", dragMinimapButton)
+    end)
+    b:SetScript("OnDragStop", function(self)
+      self:SetScript("OnUpdate", nil)
+      t.dragged = now()
+      t.angle = math.floor(HABridgeProbeDB.options.minimapAngle + 0.5)
+    end)
+    b:SetScript("OnEnter", function(self)
+      t.hovered = now()
+      if GameTooltip then
+        GameTooltip:SetOwner(self, "ANCHOR_LEFT")
+        GameTooltip:SetText("HA Bridge Probe " .. ns.VERSION)
+        GameTooltip:AddLine("Linksklick: Fenster zeigen oder verbergen", 1, 1, 1)
+        GameTooltip:AddLine("Rechtsklick: Einstellungen", 1, 1, 1)
+        GameTooltip:AddLine("Ziehen: um die Minikarte verschieben", 1, 1, 1)
+        GameTooltip:Show()
+      end
+    end)
+    b:SetScript("OnLeave", function()
+      if GameTooltip then
+        GameTooltip:Hide()
+      end
+    end)
+    placeMinimapButton(HABridgeProbeDB.options.minimapAngle or 225)
+  end)
+  t.created = ok
+  if not ok then
+    t.error = tostring(err)
+    return
+  end
+  ns.updateMinimapButton()
+end
+
+function ns.toggleMinimapButton()
+  HABridgeProbeDB.options.showMinimapButton = not HABridgeProbeDB.options.showMinimapButton
+  ns.updateMinimapButton()
+  ns.print("Knopf an der Minikarte " .. (HABridgeProbeDB.options.showMinimapButton and "an." or "aus."))
+end
+
 local function registerSettings()
   local t = { at = now() }
   local ok, err = pcall(function()
@@ -419,14 +565,22 @@ local function registerSettings()
     local setting = Settings.RegisterAddOnSetting(category, "HABridgeProbe_ShowOnLogin", "showOnLogin",
       HABridgeProbeDB.options, varType, "Fenster nach dem Einloggen zeigen", true)
     Settings.CreateCheckbox(category, setting, "Zeigt das Fenster der Probe 5 Sekunden nach dem Einloggen.")
+    local button = Settings.RegisterAddOnSetting(category, "HABridgeProbe_ShowMinimapButton",
+      "showMinimapButton", HABridgeProbeDB.options, varType, "Knopf an der Minikarte zeigen", true)
+    Settings.CreateCheckbox(category, button, "Eigener Knopf am Rand der Minikarte; mit der Maus verschiebbar.")
     Settings.RegisterAddOnCategory(category)
     ns.settingsCategory = category
-    if type(Settings.SetOnValueChangedCallback) == "function" then
+    t.callbackAvailable = type(Settings.SetOnValueChangedCallback) == "function"
+    if t.callbackAvailable then
       Settings.SetOnValueChangedCallback("HABridgeProbe_ShowOnLogin", function()
         tests().settings.changed = now()
         if ns.refreshUI then
           ns.refreshUI()
         end
+      end)
+      Settings.SetOnValueChangedCallback("HABridgeProbe_ShowMinimapButton", function()
+        tests().settings.changed = now()
+        ns.updateMinimapButton()
       end)
     end
   end)
@@ -488,6 +642,7 @@ local HELP = {
   "/habp reload - /reload-Test (speichert die Datei)",
   "/habp chatlog - Chat-Log-Test, /habp chatlog aus - Chat-Log abschalten",
   "/habp optionen - Einstellungsseite öffnen",
+  "/habp knopf - Knopf an der Minikarte ein- oder ausblenden",
   "/habp reset ja - alle Ergebnisse löschen",
 }
 
@@ -505,6 +660,8 @@ SlashCmdList.HABRIDGEPROBE = function(msg)
     ns.chatlogTest()
   elseif msg == "chatlog aus" then
     ns.chatlogOff()
+  elseif msg == "knopf" then
+    ns.toggleMinimapButton()
   elseif msg == "optionen" then
     ns.openSettings()
   elseif msg == "reset ja" then
@@ -522,4 +679,5 @@ end
 function ns.onLoaded()
   registerSettings()
   buildUI()
+  createMinimapButton()
 end

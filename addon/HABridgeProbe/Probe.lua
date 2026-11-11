@@ -15,7 +15,7 @@
 
 local ADDON, ns = ...
 
-ns.VERSION = "0.1.1"
+ns.VERSION = "0.1.2"
 ns.SCHEMA = 1
 local MAX_RUNS = 5
 local MAX_SESSIONS = 10
@@ -247,6 +247,11 @@ local function measureEnvironment(calls)
   add("IsVeteranTrialAccount", "IsVeteranTrialAccount")
   add("InCombatLockdown", "InCombatLockdown")
   add("C_AddOns.GetAddOnMetadata(Version)", "C_AddOns.GetAddOnMetadata", ADDON, "Version")
+  -- Gefunden bei der Suche im Spiel (11.11.2026); Parameter nicht dokumentiert,
+  -- daher ohne und mit "player".
+  add("C_PlayerInfo.ShouldDisplaySurname", "C_PlayerInfo.ShouldDisplaySurname")
+  add("C_PlayerInfo.ShouldDisplaySurname(player)", "C_PlayerInfo.ShouldDisplaySurname", "player")
+  add("C_GameRules.GetForeverExperiencePreset", "C_GameRules.GetForeverExperiencePreset")
   add("LoggingChat (Zustand)", "LoggingChat")
 end
 
@@ -368,6 +373,24 @@ local function measureAvailability()
   for _, name in ipairs(names) do
     out[name] = type(resolve(name))
   end
+  -- Alle Funktionen der Namensraeume, in denen die Suche im Spiel
+  -- Forever-Funktionen fand (Nachname, Voreinstellung).
+  local namespaces = {}
+  for _, name in ipairs({ "C_GameRules", "C_NameUtil", "C_PlayerInfo" }) do
+    local tbl = resolve(name)
+    if type(tbl) == "table" then
+      local list = {}
+      pcall(function()
+        for k, v in pairs(tbl) do
+          if type(k) == "string" and type(v) == "function" then
+            table.insert(list, k)
+          end
+        end
+      end)
+      table.sort(list)
+      namespaces[name] = list
+    end
+  end
   -- Spielversionen als Konstanten (WOW_PROJECT_*).
   local projects = {}
   for k, v in pairs(_G) do
@@ -375,7 +398,7 @@ local function measureAvailability()
       projects[k] = v
     end
   end
-  return out, projects
+  return out, projects, namespaces
 end
 
 -- JSON im Client (Grundlage fuer die Bruecke).
@@ -403,8 +426,20 @@ local function measureJSON()
 end
 
 -- Globale Namen und C_-Namensraeume nach Suchbegriffen durchsuchen.
+-- Fenster-Elemente haben eine Methode GetObjectType; im Spiel waren 157 von
+-- 184 Treffern solche Elemente anderer Addons (11.11.2026).
+local function isWidget(v)
+  if type(v) ~= "table" then
+    return false
+  end
+  local ok, res = pcall(function()
+    return type(v.GetObjectType) == "function"
+  end)
+  return ok and res
+end
+
 local function scanGlobals()
-  local hits, total = {}, 0
+  local hits, total, widgets = {}, 0, 0
   local function check(name, kind)
     if total >= MAX_SCAN then
       return
@@ -419,7 +454,9 @@ local function scanGlobals()
     end
   end
   for k, v in pairs(_G) do
-    if type(k) == "string" then
+    if type(k) == "string" and isWidget(v) then
+      widgets = widgets + 1
+    elseif type(k) == "string" then
       check(k, type(v))
       if k:find("^C_") and type(v) == "table" then
         pcall(function()
@@ -433,7 +470,7 @@ local function scanGlobals()
     end
   end
   table.sort(hits)
-  return hits
+  return hits, widgets
 end
 
 -- Blizzards API-Dokumentation im Client nach denselben Begriffen durchsuchen
@@ -494,6 +531,76 @@ end
 -- Messlauf, Bericht, Sitzungen
 -- ---------------------------------------------------------------------------
 
+-- Sitzungen fuer den Bericht. Wird auch beim Logout neu gebaut: In 0.1.1 hielt
+-- der Bericht den Stand der Messung fest, und eine sauber beendete Sitzung
+-- stand dort als nicht beendet.
+function ns.reportSessions()
+  local sessions = {}
+  for i, s in ipairs(HABridgeProbeDB.sessions or {}) do
+    sessions[i] = {
+      id = s.id, startedAt = s.startedAt, heartbeat = s.heartbeat,
+      cleanExit = s.cleanExit, loggedOutAt = s.loggedOutAt, reloads = s.reloads,
+      guid = ns.maskGuid(s.guid), enteredWorldAt = s.enteredWorldAt,
+      zoneReadyAt = s.zoneReadyAt, zoneAtEvent = s.zoneAtEvent, logout = s.logout,
+    }
+  end
+  return sessions
+end
+
+-- AddOn-Menue: Das Objekt gab es im Spiel, einen Knopf sah der Spieler nicht.
+function ns.measureCompartment()
+  local f = resolve("AddonCompartmentFrame")
+  local res = { exists = type(f) == "table" }
+  if not res.exists then
+    return res
+  end
+  local function try(method, ...)
+    local fn = f[method]
+    if type(fn) ~= "function" then
+      return "<fehlt>"
+    end
+    local ok, value = pcall(fn, f, ...)
+    if not ok then
+      return "Fehler: " .. tostring(value)
+    end
+    return safe(value)
+  end
+  res.shown = try("IsShown")
+  res.visible = try("IsVisible")
+  res.numPoints = try("GetNumPoints")
+  pcall(function()
+    local parent = f:GetParent()
+    res.parent = parent and parent.GetName and safe(parent:GetName()) or "<nil>"
+  end)
+  if type(f.registeredAddons) == "table" then
+    res.registered = #f.registeredAddons
+  end
+  return res
+end
+
+-- Werte direkt vor dem Schreiben der Datei: Die Bruecke wuerde hier ihren
+-- letzten Stand nehmen.
+local function logoutSnapshot()
+  local function one(path, ...)
+    local e = call(path, path, ...)
+    if not e.available then
+      return "<fehlt>"
+    elseif e.ok == false then
+      return "Fehler: " .. tostring(e.error)
+    end
+    return e.values[1]
+  end
+  return {
+    at = now(),
+    zone = one("GetRealZoneText"),
+    subzone = one("GetSubZoneText"),
+    mapID = one("C_Map.GetBestMapForUnit", "player"),
+    money = one("GetMoney"),
+    level = one("UnitLevel", "player"),
+    xp = one("UnitXP", "player"),
+  }
+end
+
 local function buildReport(run)
   local report = {
     probe = ns.VERSION,
@@ -503,6 +610,9 @@ local function buildReport(run)
     projects = run.projects,
     json = run.json,
     scan = run.scan,
+    scanSkippedWidgets = run.scanSkippedWidgets,
+    namespaces = run.namespaces,
+    compartment = run.compartment,
     documentation = run.documentation and {
       loaded = run.documentation.loaded,
       error = run.documentation.error,
@@ -530,14 +640,7 @@ local function buildReport(run)
     end
     table.insert(report.calls, copy)
   end
-  local sessions = {}
-  for i, s in ipairs(HABridgeProbeDB.sessions or {}) do
-    sessions[i] = {
-      id = s.id, startedAt = s.startedAt, heartbeat = s.heartbeat,
-      cleanExit = s.cleanExit, guid = ns.maskGuid(s.guid), reloads = s.reloads,
-    }
-  end
-  report.sessions = sessions
+  report.sessions = ns.reportSessions()
   report.tests = HABridgeProbeDB.tests
   report.events = HABridgeProbeDB.session and HABridgeProbeDB.session.events
   return report
@@ -554,17 +657,27 @@ function ns.measure(trigger)
   local okAll, err = pcall(function()
     measureEnvironment(run.calls)
     measureCharacter(run.calls)
-    run.availability, run.projects = measureAvailability()
+    run.availability, run.projects, run.namespaces = measureAvailability()
+    run.compartment = ns.measureCompartment()
     run.json = measureJSON()
     -- Suche nur einmal je Sitzung, sie ist aufwendig.
-    ns.scanCache = ns.scanCache or { scan = scanGlobals(), documentation = scanDocumentation() }
+    if not ns.scanCache then
+      local hits, widgets = scanGlobals()
+      ns.scanCache = { scan = hits, widgets = widgets, documentation = scanDocumentation() }
+    end
     run.scan = ns.scanCache.scan
+    run.scanSkippedWidgets = ns.scanCache.widgets
     run.documentation = ns.scanCache.documentation
   end)
   if not okAll then
     run.error = tostring(err)
   end
   run.played = ns.played
+  for _, e in ipairs(run.calls) do
+    if e.fn == "UnitGUID" and e.values then
+      db.session.guid = e.values[1]
+    end
+  end
   table.insert(db.runs, 1, run)
   while #db.runs > MAX_RUNS do
     table.remove(db.runs)
@@ -663,15 +776,29 @@ frame:SetScript("OnEvent", function(_, event, arg1, arg2)
     db.probe = ns.VERSION
     db.runs = db.runs or {}
     db.tests = db.tests or {}
-    db.options = db.options or { showOnLogin = true }
+    db.options = db.options or {}
+    for key, default in pairs({ showOnLogin = true, showMinimapButton = true, minimapAngle = 225 }) do
+      if db.options[key] == nil then
+        db.options[key] = default
+      end
+    end
     db.eventSupport = ns.eventSupport
     startSession()
     db.session.events[event] = 1
     if ns.onLoaded then
       ns.onLoaded()
     end
+  elseif event == "ZONE_CHANGED_NEW_AREA" then
+    if db and db.session and not db.session.zoneReadyAt then
+      db.session.zoneReadyAt = now()
+      local ok, zone = pcall(GetRealZoneText)
+      db.session.zoneAtEvent = ok and safe(zone) or "<Fehler>"
+    end
   elseif event == "PLAYER_ENTERING_WORLD" then
     local isLogin, isReload = arg1, arg2
+    if db and db.session and not db.session.enteredWorldAt then
+      db.session.enteredWorldAt = now()
+    end
     if isLogin or isReload or not ns.started then
       ns.started = true
       -- Sperren und Spielzeit anfordern; gemessen wird 5 s spaeter, wenn die
@@ -717,6 +844,11 @@ frame:SetScript("OnEvent", function(_, event, arg1, arg2)
       db.session.cleanExit = true
       db.session.heartbeat = now()
       db.session.loggedOutAt = now()
+      local ok, snap = pcall(logoutSnapshot)
+      db.session.logout = ok and snap or { error = tostring(snap) }
+      if db.report then
+        db.report.sessions = ns.reportSessions()
+      end
     end
   end
 end)

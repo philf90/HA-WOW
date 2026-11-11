@@ -1806,8 +1806,11 @@ der Integration nichts, sendet nichts und läuft nur auf dem Spiele-PC.
    es dort als veraltet (nach einem Patch passt die Interface-Nummer 16001 nicht
    mehr), **Veraltete AddOns laden** anhaken.
 3. Einloggen. Nach 5 Sekunden misst das Addon, meldet sich im Chat und öffnet
-   sein Fenster (`/habp` zeigt oder verbirgt es). Es läuft auch in Retail
-   (Interface 120105), zum Vergleich.
+   sein Fenster (`/habp` zeigt oder verbirgt es). Seit 0.1.2 hat es einen
+   eigenen Knopf am Rand der Minikarte (Fernglas): Linksklick zeigt oder
+   verbirgt das Fenster, Rechtsklick öffnet die Einstellungen, Ziehen schiebt
+   ihn um die Minikarte. Es läuft auch in Retail (Interface 120105), zum
+   Vergleich.
 
 **Tests im Spiel**, in dieser Reihenfolge:
 
@@ -1825,9 +1828,12 @@ der Integration nichts, sendet nichts und läuft nur auf dem Spiele-PC.
    der Prüftext dann stimmt, und zählt Zeilenumbrüche (CR, LF), Tabulatoren und
    Leerzeichen. Gespeichert werden nur Längen, Zähler und Vergleiche, nicht der
    Text. Für einen neuen Versuch das Feld leeren.
-2. **AddOn-Menü und Einstellungsseite:** an der Minikarte das AddOn-Menü öffnen
-   und „HA Bridge Probe“ anklicken; dann Optionen → AddOns → HA Bridge Probe
-   (oder `/habp optionen`) und den Haken einmal umschalten.
+2. **Minikarten-Knopf und Einstellungsseite:** den Knopf an der Minikarte
+   einmal anklicken und einmal verschieben. Die Einstellungsseite öffnet ein
+   Rechtsklick auf den Knopf, `/habp optionen` oder Esc → **Optionen** →
+   Reiter **Addons** → **HA Bridge Probe**; dort einen der beiden Haken einmal
+   umschalten und zurück. Das AddOn-Menü von Blizzard (in Retail ein Knopf an
+   der Minikarte) war in Forever nicht sichtbar, deshalb der eigene Knopf.
 3. **Chat-Log:** **Chat-Log-Test** klicken. Das schaltet das Chat-Log ein und
    schreibt eine Marke `HABP-<Zahl>` in den Chat (einmal über `print`, einmal
    über `AddMessage`). In `World of Warcraft\_forever_\Logs\WoWChatLog.txt` nach
@@ -1850,9 +1856,9 @@ der Integration nichts, sendet nichts und läuft nur auf dem Spiele-PC.
 | Abschnitt | Inhalt |
 |---|---|
 | `runs` | die letzten 5 Messläufe mit Rohwerten (Namen, Gilde); bleibt auf dem PC |
-| `report` | der letzte Messlauf zum Teilen: Namen als Buchstabenmuster („Mara Sturmwind“ → „Aaaa Aaaaaaaaa“), GUID gekürzt (`Player-4455-xxxxxxxx`), Realm und Regelsatz lesbar |
-| `sessions` | die letzten 10 Sitzungen: Beginn, letztes Lebenszeichen (alle 30 s), sauber beendet ja/nein |
-| `tests` | Einfügen, /reload, Chat-Log, Einstellungsseite, AddOn-Menü |
+| `report` | der letzte Messlauf zum Teilen: Namen als Buchstabenmuster („Mara Sturmwind“ → „Aaaa Aaaaaaaaa“), GUID gekürzt (`Player-4455-xxxxxxxx`), Realm und Regelsatz lesbar; seit 0.1.2 mit den Sitzungen vom Stand des Logouts |
+| `sessions` | die letzten 10 Sitzungen: Beginn, letztes Lebenszeichen (alle 30 s), sauber beendet ja/nein; seit 0.1.2 auch GUID, wann die Zone bekannt war und die Werte beim Logout (Zone, Unterzone, Karte, Gold, Stufe, Erfahrung) |
+| `tests` | Einfügen, /reload, Chat-Log, Einstellungsseite, AddOn-Menü, Minikarten-Knopf |
 | `eventSupport` | welche Ereignisse der Client kennt |
 
 Zum Auswerten den Abschnitt `["report"]` in ein Issue kopieren und dazu
@@ -1876,12 +1882,20 @@ im Chat-Log stand und das Ergebnis des Absturztests.
   täglichen und wöchentlichen Reset, Spielzeit (`RequestTimePlayed`). Jede
   Funktion mit „vorhanden“, „Fehler“ samt Text und „geheim“ (Secret Values).
 - **Bausteine der Brücke:** `C_EncodingUtil.SerializeJSON` mit Rückweg,
-  Settings API, AddOn-Menü, `LoggingChat`, `ReloadUI`, Chat- und
-  Addon-Nachrichten (nur ob vorhanden, nichts wird gesendet).
+  Settings API, AddOn-Menü (seit 0.1.2 auch, ob das Objekt sichtbar ist und
+  wie viele Addons es kennt), eigener Minikarten-Knopf, `LoggingChat`,
+  `ReloadUI`, Chat- und Addon-Nachrichten (nur ob vorhanden, nichts wird
+  gesendet).
+- **Seit 0.1.2:** die im Spiel gefundenen Funktionen
+  `C_PlayerInfo.ShouldDisplaySurname` (ohne und mit `"player"`) und
+  `C_GameRules.GetForeverExperiencePreset`, die Funktionslisten von
+  `C_GameRules`, `C_NameUtil` und `C_PlayerInfo`, der Zeitpunkt, ab dem die
+  Zone bekannt ist (erstes `ZONE_CHANGED_NEW_AREA`), und die Werte beim Logout.
+  Die Suche überspringt Fenster-Elemente (Objekte mit `GetObjectType`).
 
 Befehle: `/habp` (Fenster), `/habp messen`, `/habp reload`, `/habp chatlog`,
-`/habp chatlog aus`, `/habp optionen`, `/habp reset ja` (alles löschen und neu
-laden). Im Kampf misst das Addon nicht; die Messung folgt nach dem Kampf.
+`/habp chatlog aus`, `/habp optionen`, `/habp knopf` (Minikarten-Knopf ein oder
+aus), `/habp reset ja` (alles löschen und neu laden). Im Kampf misst das Addon nicht; die Messung folgt nach dem Kampf.
 
 **Ergebnisse im Spiel** (11.11.2026, Version 0.1.0, Forever EU, deDE; Quelle:
 Fenster des Addons, Screenshots des Spielers):
@@ -1912,11 +1926,37 @@ Fenster des Addons, Screenshots des Spielers):
   des Spielens leer. Über das Chat-Log lassen sich während einer Sitzung keine
   Daten weitergeben.
 - In 0.1.0 erschien der Pfeil „→“ als Kästchen, und das Einfügefeld meldete
-  schon vor dem ersten Einfügen „0 Zeichen“; beides behebt 0.1.1.
+  schon vor dem ersten Einfügen „0 Zeichen“; beides behebt 0.1.1, im Spiel
+  bestätigt (Pfeil als „->“, früheres Einfüge-Ergebnis blieb erhalten).
 
-Noch nicht im Spiel geprüft: AddOn-Menü, Haken auf der Einstellungsseite,
-Absturz, Pfad der Ergebnisdatei und der Abschnitt `report` (volle Suchlisten,
-Währungen, GUID über mehrere Sitzungen), Version 0.1.1.
+**Aus der Datei** (vier Sitzungen am 11.11.2026, Versionen 0.1.0 und 0.1.1;
+Datei vom Spieler):
+
+- Zone und Unterzone waren 5 Sekunden nach dem **Einloggen** leer und die Karte
+  war der Kontinent (1415, „Östliche Königreiche“), bei beiden Logins; nach
+  `/reload` waren sie gefüllt. Der Ort ist kurz nach dem Login also noch nicht
+  bekannt; die Brücke nimmt ihn beim Logout oder nach einem Zonenwechsel.
+- Die GUID war in allen vier Sitzungen gleich (über rund eine Stunde).
+- Taschen: einmal alle Plätze belegt, später 9 frei im Rucksack; die Funktion
+  liefert also echte Werte. Währungsliste und Instanz-Sperren waren leer
+  (Stufe 9 und 10). `GetProfessions` liefert Indizes.
+- `AddonCompartmentFrame` existiert, einen Knopf dafür sah der Spieler nicht.
+  Ein anderes Addon zeigte einen eigenen Minikarten-Knopf (über LibDBIcon).
+- Die Einstellungsseite steht unter Esc → Optionen → Reiter **Addons**.
+- Von 184 globalen Treffern der Suche waren 157 Fenster-Elemente anderer
+  Addons. Neu gefunden: `C_PlayerInfo.ShouldDisplaySurname`,
+  `C_NameUtil.ReplaceSurnameSeparatorWithLinkSeparator`,
+  `C_GameRules.GetForeverExperiencePreset` und
+  `C_GameRules.SetForeverExperiencePresetPreLogin`/`PostLogin`; in Blizzards
+  API-Dokumentation nur `C_ChatInfo.GetChannelRuleset` und
+  `GetChannelRulesetForChannelID` (Chat-Kanäle).
+- Fehler in 0.1.1: Der Abschnitt `report` hielt die Sitzungen vom Zeitpunkt
+  der Messung fest, eine sauber beendete Sitzung stand dort als nicht beendet.
+  0.1.2 erneuert ihn beim Logout.
+
+Noch nicht im Spiel geprüft: Version 0.1.2 (Minikarten-Knopf, neue
+Funktionen, Werte beim Logout), Haken auf der Einstellungsseite, Einfügen mit
+den Zählern aus 0.1.1, Absturz, Pfad der Ergebnisdatei.
 
 ## Grenzen
 
@@ -1948,14 +1988,25 @@ Automatische Tests laufen gegen Home Assistant 2026.2.3; live geprüft wurde unt
 Home Assistant 2026.10.4 mit Retail-Charakteren der Region EU, seit 0.11.2 auch
 mit einem Classic-Era-Charakter (siehe [WoW Classic](#wow-classic)).
 
-- **0.33.x:** 423 automatische Tests. Test-Addon 0.1.1 (ohne neue Version der
-  Integration): 3 Tests (Einfügen mit mitkopiertem Zeilenumbruch: 96 Zeichen,
+- **0.33.x:** 427 automatische Tests. Test-Addon 0.1.2 (ohne neue Version der
+  Integration): 4 Tests (eigener Minikarten-Knopf: an der Minikarte auf der
+  Kreisbahn, Linksklick, Rechtsklick öffnet die Einstellungen, Ziehen speichert
+  den Winkel, Ausblenden über `/habp knopf` und den Haken; ohne Minikarte nur
+  ein Vermerk; Werte beim Logout und Sitzungen im Bericht mit dem Stand vom
+  Logout; Suche ohne Fenster-Elemente, neue Forever-Funktionen aufgerufen,
+  Diagnose des AddOn-Menüs). Gegenprobe: Knopf nicht an der Minikarte, Winkel
+  nicht gespeichert, Rechtsklick ohne Einstellungen, kein Schutz bei fehlender
+  Minikarte, Bericht beim Logout nicht erneuert, kein Stand beim Logout,
+  Fenster-Elemente nicht ausgefiltert – jedes Mal schlug ein Test fehl. 0.1.2
+  **nicht live geprüft**; 0.1.1 **live geprüft** (11.11.2026: Pfeil als „->“,
+  früheres Einfüge-Ergebnis bleibt beim Anzeigen erhalten). Test-Addon 0.1.1:
+  3 Tests (Einfügen mit mitkopiertem Zeilenumbruch: 96 Zeichen,
   ohne Rand-Leerraum 94 und korrekt, CR und LF gezählt, neuer Versuch nach dem
   Leeren; leeres Feld beim Anzeigen ist kein Ergebnis und überschreibt keins;
   nur Sonderzeichen, die im Spiel nachweislich erscheinen). Gegenprobe: leeres
   Feld nicht ignoriert, Pfeil wieder im Text, ohne Trimmen, größter Sprung
   nicht je Versuch, LF nicht gezählt, eingefügter Text gespeichert – jedes Mal
-  schlug ein Test fehl. 0.1.1 **nicht live geprüft**; 0.1.0 **live geprüft**
+  schlug ein Test fehl. 0.1.0 **live geprüft**
   (11.11.2026, Forever EU, siehe Ergebnisse im Abschnitt
   [„HA Bridge Probe“](#test-addon-ha-bridge-probe)). Test-Addon 0.1.0: 11 Tests, 5 für TOC und Lua-Dateien (Forever-Interface 16001,
   alle Dateien aufgeführt, Funktionen des AddOn-Menüs vorhanden, keine

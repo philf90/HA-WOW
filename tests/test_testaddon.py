@@ -318,8 +318,96 @@ def test_no_stray_globals() -> None:
     assert names == {
         "HABridgeProbeDB",
         "HABridgeProbeFrame",
+        "HABridgeProbeMinimapButton",
         "HABridgeProbe_OnCompartmentClick",
         "HABridgeProbe_OnCompartmentEnter",
         "HABridgeProbe_OnCompartmentLeave",
         "SLASH_HABRIDGEPROBE1",
     }
+
+
+def test_minimap_button() -> None:
+    """Eigener Knopf (im Spiel kein Knopf fürs AddOn-Menü sichtbar):
+    Kreisbahn um die Minikarte, Klick, Rechtsklick, Ziehen, Ausblenden."""
+    s = Session("full")
+    button = s.g.HABridgeProbeMinimapButton
+    assert s.lua.eval("HABridgeProbeMinimapButton.parent == Minimap")
+    # Vorgabe 225 Grad, Radius 140 / 2 + 5 = 75: links unten.
+    point = list(button.point.values())
+    assert point[0] == "CENTER" and point[2] == "CENTER"
+    assert point[3] == pytest.approx(-53.033, abs=0.01)
+    assert point[4] == pytest.approx(-53.033, abs=0.01)
+    t = s.db.tests.minimap
+    assert t.created and t.shown
+    click = s.lua.eval("function(b, m) b.scripts.OnClick(b, m) end")
+    assert s.lua.eval("HABridgeProbeFrame:IsShown()")
+    click(button, "LeftButton")
+    assert not s.lua.eval("HABridgeProbeFrame:IsShown()")
+    assert t.clicked and t.lastButton == "LeftButton"
+    click(button, "RightButton")
+    assert s.g.OPENED
+    # Ziehen: Cursor genau über der Mitte -> 90 Grad, Knopf oben.
+    s.lua.execute(
+        "local b = HABridgeProbeMinimapButton; b.scripts.OnDragStart(b);"
+        " b.scripts.OnUpdate(b, 0.1); b.scripts.OnDragStop(b)"
+    )
+    assert s.db.options.minimapAngle == pytest.approx(90)
+    assert t.dragged and t.angle == 90 and button.scripts.OnUpdate is None
+    point = list(button.point.values())
+    assert point[3] == pytest.approx(0, abs=1e-9) and point[4] == pytest.approx(75)
+    s.slash("knopf")
+    assert not button.shown and s.db.options.showMinimapButton is False
+    s.slash("")  # Fenster wieder öffnen
+    assert "Minikarten-Knopf|r  angelegt, ausgeblendet" in s.window()
+    s.lua.execute("SETTINGCB()")  # Haken "Knopf zeigen" in den Optionen
+    assert s.db.tests.settings.changed and s.db.tests.settings.callbackAvailable
+
+
+def test_minimap_button_without_minimap() -> None:
+    """Ohne Minikarte kein Abbruch, nur ein Vermerk."""
+    s = Session("minimal")
+    assert s.db.tests.minimap.error == "Minimap fehlt"
+    assert s.db.runs[1].compartment.exists is False
+    s.saved()
+
+
+def test_logout_snapshot_and_fresh_report() -> None:
+    """Werte beim Logout (dort nimmt die Brücke ihren Stand) und Sitzungen im
+    Bericht mit dem Stand vom Logout, nicht von der Messung (Fehler in 0.1.1)."""
+    first = Session("full")
+    assert first.db.report.sessions[1].cleanExit is False
+    first.fire("ZONE_CHANGED_NEW_AREA")
+    first.fire("PLAYER_LOGOUT")
+    session = first.db.report.sessions[1]
+    assert session.cleanExit is True and session.loggedOutAt
+    assert session.logout.zone == "Steinkrallengebirge"
+    assert session.logout.money == 1834520 and session.logout.mapID == 1442
+    assert session.zoneAtEvent == "Steinkrallengebirge"
+    assert session.guid == "Player-4455-xxxxxxxx"
+    second = Session("full", first.saved())
+    second.slash("")
+    second.slash("")
+    text = second.window()
+    assert "Beim letzten Logout|r  Steinkrallengebirge / Sonnenfels" in text
+    assert "183 g 45 s 20 k" in text
+
+
+def test_scan_without_widgets_and_new_forever_functions() -> None:
+    """Fenster-Elemente zählen nicht als Treffer; die im Spiel gefundenen
+    Forever-Funktionen werden aufgerufen und ihre Namensräume aufgelistet."""
+    s = Session("full")
+    run = s.db.runs[1]
+    hits = list(run.scan.values())
+    assert "C_PlayerInfo.ShouldDisplaySurname (function)" in hits
+    assert "C_GameRules.GetForeverExperiencePreset (function)" in hits
+    assert not any(h.startswith("ForeverDungeonJournalTestFrame") for h in hits)
+    assert run.scanSkippedWidgets >= 3
+    calls = s.calls()
+    assert calls["C_PlayerInfo.ShouldDisplaySurname(player)"]["values"][1] is True
+    assert calls["C_GameRules.GetForeverExperiencePreset"]["values"][1] == 1
+    assert "GetForeverExperiencePreset" in list(run.namespaces.C_GameRules.values())
+    assert "GetPlayerSurname" in list(run.namespaces.C_PlayerInfo.values())
+    comp = run.compartment
+    assert comp.exists and comp.visible is False and comp.registered == 2
+    assert comp.parent == "Minimap"
+    assert s.db.report.compartment.visible is False
