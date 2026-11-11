@@ -15,7 +15,7 @@
 
 local ADDON, ns = ...
 
-ns.VERSION = "0.1.2"
+ns.VERSION = "0.1.3"
 ns.SCHEMA = 1
 local MAX_RUNS = 5
 local MAX_SESSIONS = 10
@@ -50,6 +50,24 @@ local function now()
     return GetServerTime()
   end
   return time()
+end
+
+-- Sitzungszeit in Sekunden mit Nachkommastellen. GetServerTime taugt kurz
+-- nach dem Login nicht fuer Abstaende: Ein Timer von 5 s erschien dort als
+-- 2 s (Spieltest 11.11.2026).
+local function clock()
+  if type(GetTime) == "function" then
+    local ok, t = pcall(GetTime)
+    if ok and type(t) == "number" then
+      return t
+    end
+  end
+  return nil
+end
+ns.clock = clock
+
+local function round1(x)
+  return math.floor(x * 10 + 0.5) / 10
 end
 
 function ns.print(msg)
@@ -252,6 +270,30 @@ local function measureEnvironment(calls)
   add("C_PlayerInfo.ShouldDisplaySurname", "C_PlayerInfo.ShouldDisplaySurname")
   add("C_PlayerInfo.ShouldDisplaySurname(player)", "C_PlayerInfo.ShouldDisplaySurname", "player")
   add("C_GameRules.GetForeverExperiencePreset", "C_GameRules.GetForeverExperiencePreset")
+  -- Spielmodus und Regelsatz (seit 0.1.3): nur lesende Funktionen ohne
+  -- Parameter aus der Funktionsliste des Spiels (11.11.2026). Set...- und
+  -- AutoConnect...-Funktionen ruft die Probe nie auf.
+  for _, name in ipairs({
+    "GetActiveGameMode", "GetCurrentGameModeRecordID", "GetCurrentGameModeDisplayInfo",
+    "GetNumDisplayedGameModes", "IsStandard", "IsHardcoreActive", "IsSelfFoundAllowed",
+    "IsCharacterlessLoginActive", "IsPlunderstorm", "IsWoWHack", "AccountHasSDEnabled",
+    "IsSDHDToggleEnabled",
+  }) do
+    add("C_GameRules." .. name, "C_GameRules." .. name)
+  end
+  local record
+  for _, e in ipairs(calls) do
+    if e.label == "C_GameRules.GetCurrentGameModeRecordID" then
+      record = e
+    end
+  end
+  local id = record and record.ok and record.values and record.values[1]
+  if type(id) == "number" then
+    add("C_GameRules.GetGameModeDisplayInfoByRecordID", "C_GameRules.GetGameModeDisplayInfoByRecordID", id)
+  end
+  add("C_PlayerInfo.IsSelfFoundActive", "C_PlayerInfo.IsSelfFoundActive")
+  add("C_PlayerInfo.IsPlayerInRPE", "C_PlayerInfo.IsPlayerInRPE")
+  add("C_PlayerInfo.GetPlayerCharacterData", "C_PlayerInfo.GetPlayerCharacterData")
   add("LoggingChat (Zustand)", "LoggingChat")
 end
 
@@ -398,7 +440,14 @@ local function measureAvailability()
       projects[k] = v
     end
   end
-  return out, projects, namespaces
+  -- Aufzaehlung der Spielmodi, um GetActiveGameMode zu deuten.
+  local enums = {}
+  pcall(function()
+    if type(Enum) == "table" and type(Enum.GameMode) == "table" then
+      enums.GameMode = safe(Enum.GameMode)
+    end
+  end)
+  return out, projects, namespaces, enums
 end
 
 -- JSON im Client (Grundlage fuer die Bruecke).
@@ -542,6 +591,7 @@ function ns.reportSessions()
       cleanExit = s.cleanExit, loggedOutAt = s.loggedOutAt, reloads = s.reloads,
       guid = ns.maskGuid(s.guid), enteredWorldAt = s.enteredWorldAt,
       zoneReadyAt = s.zoneReadyAt, zoneAtEvent = s.zoneAtEvent, logout = s.logout,
+      zoneReadySeconds = s.zoneReadySeconds, live = s.live,
     }
   end
   return sessions
@@ -575,8 +625,83 @@ function ns.measureCompartment()
   if type(f.registeredAddons) == "table" then
     res.registered = #f.registeredAddons
   end
+  -- Seit 0.1.3: wo und wie gross (im Spiel sichtbar gemeldet, aber nicht
+  -- gesehen).
+  pcall(function()
+    local point, rel, relPoint, x, y = f:GetPoint(1)
+    local relName = "<nil>"
+    if type(rel) == "table" then
+      relName = type(rel.GetName) == "function" and safe(rel:GetName()) or "<table>"
+    end
+    res.point = { safe(point), relName, safe(relPoint), safe(x), safe(y) }
+  end)
+  pcall(function()
+    local left, bottom, width, height = f:GetRect()
+    res.rect = { safe(left), safe(bottom), safe(width), safe(height) }
+  end)
+  res.alpha = try("GetEffectiveAlpha")
+  res.scale = try("GetEffectiveScale")
+  res.strata = try("GetFrameStrata")
+  pcall(function()
+    res.screen = { safe(GetScreenWidth()), safe(GetScreenHeight()) }
+  end)
   return res
 end
+
+-- Laufender Stand (seit 0.1.3): so, wie die Bruecke ihn fuehren soll. Werte
+-- kommen aus Ereignissen waehrend des Spielens; leere Zonen und fehlende
+-- Karten ueberschreiben keinen bekannten Wert. Beim Logout wird er nicht neu
+-- gelesen: Dort lieferte der Client Gold und Erfahrung als 0 (Spieltest
+-- 11.11.2026).
+local LIVE_EVENTS = {
+  PLAYER_MONEY = true, PLAYER_XP_UPDATE = true, PLAYER_LEVEL_UP = true,
+  ZONE_CHANGED = true, ZONE_CHANGED_NEW_AREA = true,
+}
+
+local function updateLive(reason)
+  local db = HABridgeProbeDB
+  if not (db and db.session) then
+    return
+  end
+  local live = db.session.live or { count = 0 }
+  db.session.live = live
+  local function read(fn, ...)
+    if type(fn) ~= "function" then
+      return nil
+    end
+    local ok, value = pcall(fn, ...)
+    if ok and not isSecret(value) then
+      return value
+    end
+    return nil
+  end
+  local money = read(GetMoney)
+  if type(money) == "number" then
+    live.money = money
+  end
+  local xp = read(UnitXP, "player")
+  if type(xp) == "number" then
+    live.xp = xp
+  end
+  local level = read(UnitLevel, "player")
+  if type(level) == "number" and level > 0 then
+    live.level = level
+  end
+  local zone = read(GetRealZoneText)
+  if type(zone) == "string" and zone ~= "" then
+    live.zone = zone
+    local sub = read(GetSubZoneText)
+    live.subzone = type(sub) == "string" and sub or live.subzone
+  end
+  local map = read(C_Map and C_Map.GetBestMapForUnit, "player")
+  if type(map) == "number" then
+    live.mapID = map
+  end
+  live.count = (live.count or 0) + 1
+  live.reason = reason
+  live.updatedAt = now()
+end
+ns.updateLive = updateLive
 
 -- Werte direkt vor dem Schreiben der Datei: Die Bruecke wuerde hier ihren
 -- letzten Stand nehmen.
@@ -657,7 +782,7 @@ function ns.measure(trigger)
   local okAll, err = pcall(function()
     measureEnvironment(run.calls)
     measureCharacter(run.calls)
-    run.availability, run.projects, run.namespaces = measureAvailability()
+    run.availability, run.projects, run.namespaces, run.enums = measureAvailability()
     run.compartment = ns.measureCompartment()
     run.json = measureJSON()
     -- Suche nur einmal je Sitzung, sie ist aufwendig.
@@ -673,6 +798,11 @@ function ns.measure(trigger)
     run.error = tostring(err)
   end
   run.played = ns.played
+  run.clock = clock()
+  local entered = db.session.enteredWorldClock
+  if run.clock and entered then
+    run.secondsAfterEnteringWorld = round1(run.clock - entered)
+  end
   for _, e in ipairs(run.calls) do
     if e.fn == "UnitGUID" and e.values then
       db.session.guid = e.values[1]
@@ -793,11 +923,17 @@ frame:SetScript("OnEvent", function(_, event, arg1, arg2)
       db.session.zoneReadyAt = now()
       local ok, zone = pcall(GetRealZoneText)
       db.session.zoneAtEvent = ok and safe(zone) or "<Fehler>"
+      local t, entered = clock(), db.session.enteredWorldClock
+      if t and entered then
+        db.session.zoneReadySeconds = round1(t - entered)
+      end
     end
+    updateLive(event)
   elseif event == "PLAYER_ENTERING_WORLD" then
     local isLogin, isReload = arg1, arg2
     if db and db.session and not db.session.enteredWorldAt then
       db.session.enteredWorldAt = now()
+      db.session.enteredWorldClock = clock()
     end
     if isLogin or isReload or not ns.started then
       ns.started = true
@@ -812,6 +948,7 @@ frame:SetScript("OnEvent", function(_, event, arg1, arg2)
       heartbeat()
       after(5, function()
         ns.measure(isReload and "reload" or "login")
+        updateLive("measure")
         local s = ns.summary()
         if s then
           ns.print(string.format(
@@ -836,6 +973,8 @@ frame:SetScript("OnEvent", function(_, event, arg1, arg2)
     local trigger = ns.pendingMeasure
     ns.pendingMeasure = nil
     ns.measure(trigger)
+  elseif LIVE_EVENTS[event] then
+    updateLive(event)
   elseif event == "PLAYER_LOGOUT" then
     -- Letztes Ereignis, bevor der Client die Datei schreibt (Logout, /reload,
     -- Beenden). Fehlt cleanExit = true in der Datei, wurde ohne Logout

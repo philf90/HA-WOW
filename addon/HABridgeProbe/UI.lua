@@ -10,6 +10,10 @@ local function now()
   return time()
 end
 
+-- Bedeutung der Voreinstellung: laut Spieler steht 1 fuer "Erweitert"
+-- (11.11.2026); andere Werte sind nicht gemessen.
+local PRESET_NAMES = { [1] = "Erweitert" }
+
 local function tests()
   return HABridgeProbeDB.tests
 end
@@ -181,6 +185,11 @@ local function pasteChanged(box, userInput)
     leadingWhitespace = #value - #(value:gsub("^%s+", "")),
     trailingWhitespace = #value - #(value:gsub("%s+$", "")),
     startsWithHAB1 = trimmed:sub(1, 5) == "HAB1|",
+    -- Seit 0.1.3: WoW maskiert einen eingefuegten Strich als doppelten Strich
+    -- (Spieltest 11.11.2026: 96 statt 94 Zeichen, erste Abweichung an Stelle
+    -- 6). Vergleich nach dem Zuruecknehmen der Maskierung.
+    doubledPipes = count(value, "||"),
+    matchesSampleUnescaped = trimmed:gsub("||", "|") == ns.PASTE_SAMPLE,
     largestJump = box.largestJump,
     userInput = userInput and true or false,
   }
@@ -213,7 +222,7 @@ local function buildUI()
   end
   local templated
   win, templated = make("Frame", "HABridgeProbeFrame", UIParent, "BasicFrameTemplateWithInset")
-  win:SetSize(540, 660)
+  win:SetSize(540, 720)
   win:SetPoint("CENTER")
   win:SetFrameStrata("DIALOG")
   win:SetMovable(true)
@@ -380,6 +389,10 @@ function ns.refreshUI()
         p.firstDiffTrimmed and (" ab Zeichen " .. p.firstDiffTrimmed) or "")
       add("  Zeilenumbrüche CR %d, LF %d · Tabulatoren %d · Leerzeichen %d (Anfang %d, Ende %d)",
         p.carriageReturns, p.lineFeeds, p.tabs, p.spaces, p.leadingWhitespace, p.trailingWhitespace)
+      if p.doubledPipes then
+        add("  doppelte Striche: %d · ohne Maskierung: Prüftext %s", p.doubledPipes,
+          p.matchesSampleUnescaped and "korrekt" or "abweichend")
+      end
     end
   end
   local c = t.chatlog
@@ -392,21 +405,44 @@ function ns.refreshUI()
   local comp = run.compartment
   add("|cffffd100AddOn-Menü|r  %s · Objekt %s, sichtbar %s", m and m.clicked and "geklickt" or "noch nicht geklickt",
     comp and comp.exists and "vorhanden" or "fehlt", text(comp and comp.visible))
+  if comp and comp.point then
+    local pt, rc = comp.point, comp.rect or {}
+    add("  Lage: %s an %s/%s, Versatz %s/%s · links %s unten %s, %s x %s · Alpha %s · Ebene %s",
+      text(pt[1]), text(pt[2]), text(pt[3]), text(pt[4]), text(pt[5]), text(rc[1]), text(rc[2]), text(rc[3]),
+      text(rc[4]), text(comp.alpha), text(comp.strata))
+  end
   local mb = t.minimap
   add("|cffffd100Minikarten-Knopf|r  %s", not mb and "-"
     or not mb.created and ("Fehler: " .. text(mb.error))
     or string.format("angelegt, %s, geklickt %s, verschoben %s", mb.shown and "sichtbar" or "ausgeblendet",
       yesno(mb.clicked), yesno(mb.dragged)))
-  add("|cffffd100Nachname anzeigen|r  %s / %s · |cffffd100Voreinstellung|r  %s",
+  local preset = val(run, "C_GameRules.GetForeverExperiencePreset")
+  add("|cffffd100Nachname anzeigen|r  %s / %s · |cffffd100Voreinstellung|r  %s%s",
     text(val(run, "C_PlayerInfo.ShouldDisplaySurname")), text(val(run, "C_PlayerInfo.ShouldDisplaySurname(player)")),
-    text(val(run, "C_GameRules.GetForeverExperiencePreset")))
+    text(preset), PRESET_NAMES[preset] and (" (" .. PRESET_NAMES[preset] .. ")") or "")
+  add("|cffffd100Spielmodus|r  aktiv %s · Record %s · Standard %s · Hardcore %s · Self-Found %s",
+    text(val(run, "C_GameRules.GetActiveGameMode")), text(val(run, "C_GameRules.GetCurrentGameModeRecordID")),
+    text(val(run, "C_GameRules.IsStandard")), text(val(run, "C_GameRules.IsHardcoreActive")),
+    text(val(run, "C_GameRules.IsSelfFoundAllowed")))
   local s2 = db.session
-  add("|cffffd100Zone bekannt|r  %s", s2.zoneReadyAt and s2.enteredWorldAt
-    and string.format("%d s nach dem Betreten der Welt (%s)", s2.zoneReadyAt - s2.enteredWorldAt, text(s2.zoneAtEvent))
-    or "noch kein Zonenwechsel-Ereignis")
+  local zoneWhen
+  if s2.zoneReadySeconds then
+    zoneWhen = string.format("%.1f s nach dem Betreten der Welt (%s)", s2.zoneReadySeconds, text(s2.zoneAtEvent))
+  elseif s2.zoneReadyAt and s2.enteredWorldAt then
+    zoneWhen = string.format("%d s nach dem Betreten der Welt (%s)", s2.zoneReadyAt - s2.enteredWorldAt, text(s2.zoneAtEvent))
+  else
+    zoneWhen = "noch kein Zonenwechsel-Ereignis"
+  end
+  add("|cffffd100Zone bekannt|r  %s · |cffffd100Messung|r %s", zoneWhen,
+    run.secondsAfterEnteringWorld and string.format("%.1f s danach", run.secondsAfterEnteringWorld) or "-")
   local lo = prev and prev.logout
   add("|cffffd100Beim letzten Logout|r  %s", not lo and "-"
-    or string.format("%s / %s · Karte %s · %s", text(lo.zone), text(lo.subzone), text(lo.mapID), money(lo.money)))
+    or string.format("%s / %s · Karte %s · %s · EP %s", text(lo.zone), text(lo.subzone), text(lo.mapID),
+      money(lo.money), text(lo.xp)))
+  local lv = prev and prev.live
+  add("|cffffd100Laufender Stand davor|r  %s", not lv and "-"
+    or string.format("%s / %s · Karte %s · %s · EP %s (%d Updates, zuletzt %s)", text(lv.zone), text(lv.subzone),
+      text(lv.mapID), money(lv.money), text(lv.xp), lv.count or 0, text(lv.reason)))
   win.summary:SetText(table.concat(lines, "\n"))
 end
 

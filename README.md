@@ -1826,8 +1826,10 @@ der Integration nichts, sendet nichts und läuft nur auf dem Spiele-PC.
    z. B. 96, vermutlich durch einen mitkopierten Zeilenumbruch), zeigt das
    Fenster seit 0.1.1 darunter die Länge ohne Leerraum am Anfang und Ende, ob
    der Prüftext dann stimmt, und zählt Zeilenumbrüche (CR, LF), Tabulatoren und
-   Leerzeichen. Gespeichert werden nur Längen, Zähler und Vergleiche, nicht der
-   Text. Für einen neuen Versuch das Feld leeren.
+   Leerzeichen. Seit 0.1.3 zählt es auch doppelte Striche und vergleicht ohne
+   diese Maskierung: WoW maskiert einen eingefügten Strich `|` (Spieltest
+   11.11.2026, siehe unten). Gespeichert werden nur Längen, Zähler und
+   Vergleiche, nicht der Text. Für einen neuen Versuch das Feld leeren.
 2. **Minikarten-Knopf und Einstellungsseite:** den Knopf an der Minikarte
    einmal anklicken und einmal verschieben. Die Einstellungsseite öffnet ein
    Rechtsklick auf den Knopf, `/habp optionen` oder Esc → **Optionen** →
@@ -1857,7 +1859,7 @@ der Integration nichts, sendet nichts und läuft nur auf dem Spiele-PC.
 |---|---|
 | `runs` | die letzten 5 Messläufe mit Rohwerten (Namen, Gilde); bleibt auf dem PC |
 | `report` | der letzte Messlauf zum Teilen: Namen als Buchstabenmuster („Mara Sturmwind“ → „Aaaa Aaaaaaaaa“), GUID gekürzt (`Player-4455-xxxxxxxx`), Realm und Regelsatz lesbar; seit 0.1.2 mit den Sitzungen vom Stand des Logouts |
-| `sessions` | die letzten 10 Sitzungen: Beginn, letztes Lebenszeichen (alle 30 s), sauber beendet ja/nein; seit 0.1.2 auch GUID, wann die Zone bekannt war und die Werte beim Logout (Zone, Unterzone, Karte, Gold, Stufe, Erfahrung) |
+| `sessions` | die letzten 10 Sitzungen: Beginn, letztes Lebenszeichen (alle 30 s), sauber beendet ja/nein; seit 0.1.2 auch GUID, wann die Zone bekannt war und die Werte beim Logout (Zone, Unterzone, Karte, Gold, Stufe, Erfahrung); seit 0.1.3 der laufende Stand aus Ereignissen und Abstände über `GetTime` |
 | `tests` | Einfügen, /reload, Chat-Log, Einstellungsseite, AddOn-Menü, Minikarten-Knopf |
 | `eventSupport` | welche Ereignisse der Client kennt |
 
@@ -1892,6 +1894,19 @@ im Chat-Log stand und das Ergebnis des Absturztests.
   `C_GameRules`, `C_NameUtil` und `C_PlayerInfo`, der Zeitpunkt, ab dem die
   Zone bekannt ist (erstes `ZONE_CHANGED_NEW_AREA`), und die Werte beim Logout.
   Die Suche überspringt Fenster-Elemente (Objekte mit `GetObjectType`).
+- **Seit 0.1.3:** Spielmodus und Regelsatz über die lesenden Funktionen von
+  `C_GameRules` ohne Parameter (`GetActiveGameMode`,
+  `GetCurrentGameModeRecordID`, `GetCurrentGameModeDisplayInfo`,
+  `GetGameModeDisplayInfoByRecordID`, `IsStandard`, `IsHardcoreActive`,
+  `IsSelfFoundAllowed` und weitere) und `Enum.GameMode`; `Set…`- und
+  `AutoConnect…`-Funktionen ruft die Probe nie auf. Dazu
+  `C_PlayerInfo.IsSelfFoundActive`, `IsPlayerInRPE` und
+  `GetPlayerCharacterData`. Abstände (Zone bekannt, Messung) über `GetTime`.
+  Ein laufender Stand (Gold, Erfahrung, Stufe, Zone, Karte) aus den Ereignissen
+  `PLAYER_MONEY`, `PLAYER_XP_UPDATE`, `PLAYER_LEVEL_UP`, `ZONE_CHANGED` und
+  `ZONE_CHANGED_NEW_AREA`, so wie die Brücke ihn führen soll; leere Zonen und
+  fehlende Karten überschreiben keinen bekannten Wert, beim Logout wird nichts
+  neu gelesen. Lage, Größe, Sichtbarkeit und Ebene des AddOn-Menü-Knopfs.
 
 Befehle: `/habp` (Fenster), `/habp messen`, `/habp reload`, `/habp chatlog`,
 `/habp chatlog aus`, `/habp optionen`, `/habp knopf` (Minikarten-Knopf ein oder
@@ -1954,9 +1969,42 @@ Datei vom Spieler):
   der Messung fest, eine sauber beendete Sitzung stand dort als nicht beendet.
   0.1.2 erneuert ihn beim Logout.
 
-Noch nicht im Spiel geprüft: Version 0.1.2 (Minikarten-Knopf, neue
-Funktionen, Werte beim Logout), Haken auf der Einstellungsseite, Einfügen mit
-den Zählern aus 0.1.1, Absturz, Pfad der Ergebnisdatei.
+**Aus der zweiten Datei** (Sitzungen 5 und 6 am 11.11.2026, Version 0.1.2,
+dazu Screenshots; Datei vom Spieler):
+
+- **Werte beim Logout:** Bei `PLAYER_LOGOUT` waren Zone und Stufe noch
+  richtig, Gold und Erfahrung aber 0, die Karte nil und die Unterzone leer;
+  beim nächsten Login stand das Gold wieder da. Die Brücke darf ihren Stand
+  deshalb nicht erst beim Logout lesen, sondern muss ihn während des Spielens
+  über Ereignisse führen.
+- **Einfügen:** 96 Zeichen, kein Zeilenumbruch, kein Tabulator, kein
+  Leerzeichen, erste Abweichung an Stelle 6. Die Prüfzeile hat genau zwei
+  Striche `|`; das Warcraft Wiki („UI escape sequences“) schreibt: „If you are
+  using the chat window or an in-game text editor, then `|` will be escaped“,
+  maskiert als `||`. Dass genau `||` entsteht, ist aus der Messung geschlossen;
+  0.1.3 prüft es direkt. Ein Kopplungstext sollte daher nicht mit `|` trennen.
+- **Minikarten-Knopf:** angelegt, sichtbar, angeklickt, auf 125 Grad
+  verschoben, Winkel gespeichert.
+- **Einstellungsseite:** `Settings.SetOnValueChangedCallback` ist vorhanden,
+  das Umschalten des Hakens wurde gemeldet.
+- **AddOn-Menü:** `AddonCompartmentFrame` ist laut Client angezeigt und
+  sichtbar, hängt an `UIParent` und kennt 9 Addons; einen Knopf sah der
+  Spieler trotzdem nicht.
+- **Ort beim Login:** Die Messung lag laut `GetServerTime` 2 s nach
+  `PLAYER_ENTERING_WORLD`, obwohl der Timer 5 s lief; das erste
+  `ZONE_CHANGED_NEW_AREA` mit Zone kam laut Serverzeit 4 s danach. Kurz nach
+  dem Login taugt die Serverzeit nicht für Abstände; 0.1.3 misst über
+  `GetTime`.
+- `C_PlayerInfo.ShouldDisplaySurname()` liefert `true`,
+  `C_GameRules.GetForeverExperiencePreset()` liefert `1`; der Spieler hat beim
+  ersten Login „Erweitert“ gewählt. Welcher Wert für „Klassisch“ steht, ist
+  nicht gemessen.
+- Der Bericht enthielt die Sitzungen mit dem Stand vom Logout; die Korrektur
+  aus 0.1.2 wirkt.
+
+Noch nicht im Spiel geprüft: Version 0.1.3 (Spielmodus, laufender Stand,
+`GetTime`, Lage des AddOn-Menü-Knopfs, doppelte Striche), Absturz, Pfad der
+Ergebnisdatei.
 
 ## Grenzen
 
@@ -1988,8 +2036,18 @@ Automatische Tests laufen gegen Home Assistant 2026.2.3; live geprüft wurde unt
 Home Assistant 2026.10.4 mit Retail-Charakteren der Region EU, seit 0.11.2 auch
 mit einem Classic-Era-Charakter (siehe [WoW Classic](#wow-classic)).
 
-- **0.33.x:** 427 automatische Tests. Test-Addon 0.1.2 (ohne neue Version der
-  Integration): 4 Tests (eigener Minikarten-Knopf: an der Minikarte auf der
+- **0.33.x:** 431 automatische Tests. Test-Addon 0.1.3 (ohne neue Version der
+  Integration): 4 Tests (Spielmodus nur über lesende Funktionen, nie über
+  `Set…` oder `AutoConnect…`, mit `Enum.GameMode` und Voreinstellung
+  „Erweitert“; Abstände über `GetTime`; laufender Stand aus Ereignissen bleibt
+  richtig, wenn der Client beim Logout Gold und Erfahrung als 0 liefert, und
+  leere Zonen überschreiben ihn nicht; Prüfzeile mit maskierten Strichen ist
+  ohne Maskierung korrekt, Lage des AddOn-Menü-Knopfs gemessen). Gegenprobe:
+  `Set…`-Funktion aufgerufen, laufender Stand beim Logout neu gelesen, leere
+  Zone überschreibt, Serverzeit statt `GetTime`, Maskierung nicht
+  zurückgenommen, Lage nicht gemessen – jedes Mal schlug ein Test fehl. 0.1.3
+  **nicht live geprüft**; 0.1.2 **live geprüft** (11.11.2026: Knopf, Haken,
+  Werte beim Logout, Bericht). Test-Addon 0.1.2: 4 Tests (eigener Minikarten-Knopf: an der Minikarte auf der
   Kreisbahn, Linksklick, Rechtsklick öffnet die Einstellungen, Ziehen speichert
   den Winkel, Ausblenden über `/habp knopf` und den Haken; ohne Minikarte nur
   ein Vermerk; Werte beim Logout und Sitzungen im Bericht mit dem Stand vom
@@ -1997,8 +2055,8 @@ mit einem Classic-Era-Charakter (siehe [WoW Classic](#wow-classic)).
   Diagnose des AddOn-Menüs). Gegenprobe: Knopf nicht an der Minikarte, Winkel
   nicht gespeichert, Rechtsklick ohne Einstellungen, kein Schutz bei fehlender
   Minikarte, Bericht beim Logout nicht erneuert, kein Stand beim Logout,
-  Fenster-Elemente nicht ausgefiltert – jedes Mal schlug ein Test fehl. 0.1.2
-  **nicht live geprüft**; 0.1.1 **live geprüft** (11.11.2026: Pfeil als „->“,
+  Fenster-Elemente nicht ausgefiltert – jedes Mal schlug ein Test fehl. 0.1.1
+  **live geprüft** (11.11.2026: Pfeil als „->“,
   früheres Einfüge-Ergebnis bleibt beim Anzeigen erhalten). Test-Addon 0.1.1:
   3 Tests (Einfügen mit mitkopiertem Zeilenumbruch: 96 Zeichen,
   ohne Rand-Leerraum 94 und korrekt, CR und LF gezählt, neuer Versuch nach dem
