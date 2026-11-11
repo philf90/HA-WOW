@@ -411,3 +411,94 @@ def test_scan_without_widgets_and_new_forever_functions() -> None:
     assert comp.exists and comp.visible is False and comp.registered == 2
     assert comp.parent == "Minimap"
     assert s.db.report.compartment.visible is False
+
+
+def test_game_mode_read_only() -> None:
+    """Spielmodus und Regelsatz: nur lesende Funktionen, nie Set...- oder
+    AutoConnect...-Funktionen; Enum.GameMode zum Deuten."""
+    s = Session("full")
+    calls = s.calls()
+    assert calls["C_GameRules.GetActiveGameMode"]["values"][1] == 3
+    assert calls["C_GameRules.GetCurrentGameModeRecordID"]["values"][1] == 42
+    by_id = calls["C_GameRules.GetGameModeDisplayInfoByRecordID"]
+    assert by_id["values"][1].recordID == 42
+    assert calls["C_GameRules.IsHardcoreActive"]["values"][1] is False
+    assert calls["C_GameRules.IsWoWHack"].available is False  # im Nachbau nicht da
+    assert calls["C_PlayerInfo.IsSelfFoundActive"]["values"][1] is False
+    assert s.db.runs[1].enums.GameMode.Forever == 3
+    assert s.g.SET_CALLED is None
+    text = s.window()
+    assert "Spielmodus|r  aktiv 3 · Record 42 · Standard false · Hardcore false" in text
+    assert "Voreinstellung|r  1 (Erweitert)" in text
+
+
+def test_timing_with_gettime() -> None:
+    """Abstände über GetTime (Sekunden mit Nachkommastellen) statt über die
+    Serverzeit, die kurz nach dem Login springt."""
+    s = Session("full")  # Betreten der Welt und Messung bei GetTime 1000
+    assert s.db.session.enteredWorldClock == 1000
+    assert s.db.runs[1].secondsAfterEnteringWorld == 0
+    s.g.TIMEF = 1004.24
+    s.fire("ZONE_CHANGED_NEW_AREA")
+    assert s.db.session.zoneReadySeconds == pytest.approx(4.2)
+    s.ns.measure("button")
+    assert s.db.runs[1].secondsAfterEnteringWorld == pytest.approx(4.2)
+    assert (
+        "Zone bekannt|r  4.2 s nach dem Betreten der Welt (Steinkrallengebirge)"
+        in s.window()
+    )
+
+
+def test_live_state_survives_logout_zeros() -> None:
+    """Laufender Stand aus Ereignissen; beim Logout liefert der Client im
+    Spiel Gold und Erfahrung als 0, der laufende Stand bleibt richtig."""
+    s = Session("full")
+    s.lua.execute("GetMoney = function() return 99999 end")
+    s.fire("PLAYER_MONEY")
+    live = s.db.session.live
+    assert live.money == 99999 and live.reason == "PLAYER_MONEY"
+    # Leere Zone und fehlende Karte überschreiben nichts.
+    s.lua.execute(
+        "GetRealZoneText = function() return '' end;"
+        " C_Map.GetBestMapForUnit = function() return nil end"
+    )
+    s.fire("ZONE_CHANGED")
+    assert live.zone == "Steinkrallengebirge" and live.mapID == 1442
+    # Logout wie im Spiel: Gold, Erfahrung und Karte weg.
+    s.lua.execute(
+        "GetMoney = function() return 0 end; UnitXP = function() return 0 end;"
+        " GetRealZoneText = function() return 'Steinkrallengebirge' end"
+    )
+    s.fire("PLAYER_LOGOUT")
+    session = s.db.report.sessions[1]
+    assert session.logout.money == 0 and session.logout.xp == 0
+    assert session.live.money == 99999 and session.live.xp == 21480
+    second = Session("full", s.saved())
+    second.slash("")
+    second.slash("")
+    text = second.window()
+    logout_line = "Steinkrallengebirge / Sonnenfels · Karte <nil> · 0 g 0 s 0 k · EP 0"
+    assert "Beim letzten Logout|r  " + logout_line in text
+    assert (
+        "Laufender Stand davor|r  Steinkrallengebirge / Sonnenfels · Karte 1442 · 9 g 99 s 99 k · EP 21480"
+        in text
+    )
+
+
+def test_paste_unescaped_and_compartment_position() -> None:
+    """Prüfzeile mit maskierten Strichen (im Spiel: 96 Zeichen): ohne
+    Maskierung korrekt. Lage des AddOn-Menü-Knopfs wird gemessen."""
+    s = Session("full")
+    _paste(s, SAMPLE.replace("|", "||"))
+    paste = s.db.tests.paste
+    assert paste.length == 96 and paste.firstDiffTrimmed == 6
+    assert paste.doubledPipes == 2 and paste.matchesSampleUnescaped is True
+    assert "doppelte Striche: 2 · ohne Maskierung: Prüftext korrekt" in s.window()
+    _paste(s, "")
+    _paste(s, SAMPLE)
+    assert s.db.tests.paste.doubledPipes == 0
+    comp = s.db.runs[1].compartment
+    assert list(comp.point.values()) == ["TOPRIGHT", "UIParent", "TOPRIGHT", -10, -5]
+    assert list(comp.rect.values()) == [1890, 1050, 20, 20]
+    assert comp.strata == "MEDIUM" and list(comp.screen.values()) == [1920, 1080]
+    assert "Lage: TOPRIGHT an UIParent/TOPRIGHT" in s.window()

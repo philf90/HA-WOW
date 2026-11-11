@@ -76,11 +76,40 @@ AddonCompartmentFrame = widget("Button", "AddonCompartmentFrame")
 AddonCompartmentFrame.shown = false
 AddonCompartmentFrame.parent = Minimap
 AddonCompartmentFrame.registeredAddons = { {}, {} }
+function AddonCompartmentFrame:GetPoint() return "TOPRIGHT", UIParent, "TOPRIGHT", -10, -5 end
+function AddonCompartmentFrame:GetRect() return 1890, 1050, 20, 20 end
+function AddonCompartmentFrame:GetEffectiveAlpha() return 1 end
+function AddonCompartmentFrame:GetFrameStrata() return "MEDIUM" end
+UIParent.name = "UIParent"
+function GetScreenWidth() return 1920 end
+function GetScreenHeight() return 1080 end
+-- Sitzungszeit (GetTime); Tests setzen TIMEF.
+TIMEF = 1000.0
+function GetTime() return TIMEF end
+-- Aufzaehlung erfunden.
+Enum = { GameMode = { Standard = 0, Plunderstorm = 1, Forever = 3 } }
 -- Fenster-Element eines anderen Addons (fuer die Suche Rauschen).
 ForeverDungeonJournalTestFrame = widget("Frame", "ForeverDungeonJournalTestFrame")
 -- Im Spiel gefundene Forever-Funktionen (Rueckgaben erfunden).
-C_PlayerInfo = { ShouldDisplaySurname = function(unit) return true end, GetPlayerSurname = function() return "x" end }
-C_GameRules = { GetForeverExperiencePreset = function() return 1 end, SetForeverExperiencePresetPreLogin = function() end }
+C_PlayerInfo = {
+  ShouldDisplaySurname = function(unit) return true end,
+  GetPlayerSurname = function() return "x" end,
+  IsSelfFoundActive = function() return false end,
+}
+C_GameRules = {
+  GetForeverExperiencePreset = function() return 1 end,
+  GetActiveGameMode = function() return 3 end,
+  GetCurrentGameModeRecordID = function() return 42 end,
+  GetCurrentGameModeDisplayInfo = function() return { name = "Forever", recordID = 42 } end,
+  GetGameModeDisplayInfoByRecordID = function(id) return { recordID = id } end,
+  IsStandard = function() return false end,
+  IsHardcoreActive = function() return false end,
+  IsSelfFoundAllowed = function() return false end,
+  -- Diese duerfen nie aufgerufen werden.
+  SetForeverExperiencePresetPreLogin = function() SET_CALLED = "PreLogin" end,
+  SetForeverExperiencePresetPostLogin = function() SET_CALLED = "PostLogin" end,
+  AutoConnectToGameModeRealm = function() SET_CALLED = "AutoConnect" end,
+}
 C_NameUtil = { ReplaceSurnameSeparatorWithLinkSeparator = function(s) return s end }
 function print(...) local t = {} for i = 1, select("#", ...) do t[i] = tostring(select(i, ...)) end table.insert(OUT, table.concat(t, " ")) end
 SlashCmdList = {}
