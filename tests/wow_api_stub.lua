@@ -20,7 +20,7 @@ Widget.__index = function(t, k)
   return nil
 end
 local function widget(kind, name)
-  local w = setmetatable({ kind = kind, scripts = {}, shown = true, text = "" }, Widget)
+  local w = setmetatable({ kind = kind, name = name, scripts = {}, shown = true, text = "" }, Widget)
   if name then _G[name] = w end
   return w
 end
@@ -41,6 +41,11 @@ function Widget:Show() self.shown = true; if self.scripts.OnShow then self.scrip
 function Widget:Hide() self.shown = false end
 function Widget:IsShown() return self.shown end
 function Widget:GetID() return 42 end
+function Widget:GetObjectType() return self.kind end
+function Widget:IsVisible() return self.shown end
+function Widget:SetPoint(...) self.point = { ... } end
+function Widget:GetParent() return self.parent end
+function Widget:GetName() return self.name end
 
 local MISSING_TEMPLATES = { BasicFrameTemplateWithInset = true, UIPanelButtonTemplate = true, InputBoxTemplate = true, UIPanelCloseButton = true }
 function CreateFrame(kind, name, parent, template)
@@ -48,6 +53,7 @@ function CreateFrame(kind, name, parent, template)
     error("Couldn't find inherited node \"" .. template .. "\"")
   end
   local w = widget(kind, name)
+  w.parent = parent
   table.insert(FRAMES, w)
   if kind == "Button" then table.insert(BUTTONS, w) end
   if kind == "EditBox" then table.insert(EDITBOXES, w) end
@@ -58,6 +64,24 @@ UISpecialFrames = {}
 DEFAULT_CHAT_FRAME = widget("Frame")
 function DEFAULT_CHAT_FRAME:AddMessage(m) table.insert(OUT, "CHAT:" .. m) end
 GameTooltip = widget("GameTooltip")
+-- Minikarte: 140 Pixel breit, Mitte bei (1000, 700), Skalierung 1.
+Minimap = widget("Minimap", "Minimap")
+function Minimap:GetWidth() return 140 end
+function Minimap:GetCenter() return 1000, 700 end
+function Minimap:GetEffectiveScale() return 1 end
+CURSOR = { 1000, 800 }
+function GetCursorPosition() return CURSOR[1], CURSOR[2] end
+-- AddOn-Menue wie im Spiel: Objekt vorhanden, nicht sichtbar.
+AddonCompartmentFrame = widget("Button", "AddonCompartmentFrame")
+AddonCompartmentFrame.shown = false
+AddonCompartmentFrame.parent = Minimap
+AddonCompartmentFrame.registeredAddons = { {}, {} }
+-- Fenster-Element eines anderen Addons (fuer die Suche Rauschen).
+ForeverDungeonJournalTestFrame = widget("Frame", "ForeverDungeonJournalTestFrame")
+-- Im Spiel gefundene Forever-Funktionen (Rueckgaben erfunden).
+C_PlayerInfo = { ShouldDisplaySurname = function(unit) return true end, GetPlayerSurname = function() return "x" end }
+C_GameRules = { GetForeverExperiencePreset = function() return 1 end, SetForeverExperiencePresetPreLogin = function() end }
+C_NameUtil = { ReplaceSurnameSeparatorWithLinkSeparator = function(s) return s end }
 function print(...) local t = {} for i = 1, select("#", ...) do t[i] = tostring(select(i, ...)) end table.insert(OUT, table.concat(t, " ")) end
 SlashCmdList = {}
 C_Timer = { After = function(s, fn) table.insert(TIMERS, fn) end }
@@ -127,7 +151,6 @@ Settings = { VarType = { Boolean = "boolean" },
   CreateCheckbox = function() end, RegisterAddOnCategory = function() end,
   OpenToCategory = function() OPENED = true end,
   SetOnValueChangedCallback = function(v, cb) SETTINGCB = cb end }
-AddonCompartmentFrame = {}
 WOW_PROJECT_ID = 19
 WOW_PROJECT_MAINLINE = 1
 WOW_PROJECT_CLASSIC = 2
@@ -139,6 +162,7 @@ if MODE == "minimal" then
   C_EncodingUtil, Settings, C_Timer, UnitPVPName, issecretvalue = nil, nil, nil, nil, nil
   C_CurrencyInfo, GetNumSavedInstances, C_DateAndTime = nil, nil, nil
   C_AddOns.LoadAddOn = nil
+  Minimap, C_GameRules, C_PlayerInfo, AddonCompartmentFrame = nil, nil, nil, nil
   function GetMoney() error("boom") end
 end
 
