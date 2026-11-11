@@ -1819,8 +1819,12 @@ der Integration nichts, sendet nichts und läuft nur auf dem Spiele-PC.
    ```
 
    Erwartet: „94 Zeichen, Prüftext korrekt, größter Sprung 94“; ein Sprung von
-   94 heißt, der Text kam in einem Rutsch. Gespeichert werden nur Länge und
-   Vergleich, nicht der Text.
+   94 heißt, der Text kam in einem Rutsch. Kommen mehr Zeichen an (im Spiel
+   z. B. 96, vermutlich durch einen mitkopierten Zeilenumbruch), zeigt das
+   Fenster seit 0.1.1 darunter die Länge ohne Leerraum am Anfang und Ende, ob
+   der Prüftext dann stimmt, und zählt Zeilenumbrüche (CR, LF), Tabulatoren und
+   Leerzeichen. Gespeichert werden nur Längen, Zähler und Vergleiche, nicht der
+   Text. Für einen neuen Versuch das Feld leeren.
 2. **AddOn-Menü und Einstellungsseite:** an der Minikarte das AddOn-Menü öffnen
    und „HA Bridge Probe“ anklicken; dann Optionen → AddOns → HA Bridge Probe
    (oder `/habp optionen`) und den Haken einmal umschalten.
@@ -1879,8 +1883,40 @@ Befehle: `/habp` (Fenster), `/habp messen`, `/habp reload`, `/habp chatlog`,
 `/habp chatlog aus`, `/habp optionen`, `/habp reset ja` (alles löschen und neu
 laden). Im Kampf misst das Addon nicht; die Messung folgt nach dem Kampf.
 
-**Stand:** nur automatisch geprüft (siehe [Teststand](#teststand)), im echten
-Forever-Client noch nicht.
+**Ergebnisse im Spiel** (11.11.2026, Version 0.1.0, Forever EU, deDE; Quelle:
+Fenster des Addons, Screenshots des Spielers):
+
+- Client 1.60.1, Build 70888, Interface 16001. `WOW_PROJECT_ID` ist 18 =
+  `WOW_PROJECT_CAMELOT`; `WOW_PROJECT_FOREVER` gibt es nicht.
+- `GetCurrentRegion()` 3, `GetCurrentRegionName()` „EU“.
+- `UnitFullName("player")` liefert Vor- und Nachnamen: Der zweite Wert, in
+  Retail der Realm, ist in Forever der Nachname. `UnitPVPName` und
+  `GetUnitName("player", true)` liefern „Vorname Nachname“. Ein Charakter ist
+  damit über Region und vollen Namen erkennbar, wie Blizzard ihn als je Region
+  eindeutig beschreibt.
+- `GetRealmName()` liefert einen internen Servernamen („CAMWOW EU5 Realm 7
+  PvE“), `GetRealmID()` 6949; die GUID beginnt mit `Player-6949-`, ist lesbar
+  und nicht geheim. Den Regelsatz als Wort („Normal“) liefert keine der
+  gemessenen Funktionen.
+- 61 von 63 Funktionen vorhanden, keine mit Fehler, keine mit geheimen Werten.
+  Es fehlen `GetNumSkillLines` und `GetNumQuestLogEntries`; `GetProfessions`
+  und `C_QuestLog` sind da. Gold, Stufe, Spielzeit, Zone, Unterzone, Karte,
+  Haltbarkeit, Taschenplätze und Instanz-Sperren kamen an.
+- `C_EncodingUtil.SerializeJSON` funktioniert, auch zurück. Fenstervorlagen,
+  Knöpfe, Eingabefeld und Einstellungsseite (Settings API) funktionieren.
+- `/reload` schreibt die Datei; `PLAYER_LOGOUT` kam in derselben Sekunde wie
+  der Klick.
+- Strg+V im Eingabefeld funktioniert: 96 Zeichen in einem Rutsch, 2 mehr als
+  die Prüfzeile (Ursache nicht gemessen, daher seit 0.1.1 die Zähler).
+- Chat-Log: eingeschaltet, Marke im Chat, `Logs\WoWChatLog.txt` blieb während
+  des Spielens leer. Über das Chat-Log lassen sich während einer Sitzung keine
+  Daten weitergeben.
+- In 0.1.0 erschien der Pfeil „→“ als Kästchen, und das Einfügefeld meldete
+  schon vor dem ersten Einfügen „0 Zeichen“; beides behebt 0.1.1.
+
+Noch nicht im Spiel geprüft: AddOn-Menü, Haken auf der Einstellungsseite,
+Absturz, Pfad der Ergebnisdatei und der Abschnitt `report` (volle Suchlisten,
+Währungen, GUID über mehrere Sitzungen), Version 0.1.1.
 
 ## Grenzen
 
@@ -1912,9 +1948,16 @@ Automatische Tests laufen gegen Home Assistant 2026.2.3; live geprüft wurde unt
 Home Assistant 2026.10.4 mit Retail-Charakteren der Region EU, seit 0.11.2 auch
 mit einem Classic-Era-Charakter (siehe [WoW Classic](#wow-classic)).
 
-- **0.33.x:** 420 automatische Tests. Test-Addon
-  [„HA Bridge Probe“](#test-addon-ha-bridge-probe) (ohne neue Version der
-  Integration): 11 Tests, 5 für TOC und Lua-Dateien (Forever-Interface 16001,
+- **0.33.x:** 423 automatische Tests. Test-Addon 0.1.1 (ohne neue Version der
+  Integration): 3 Tests (Einfügen mit mitkopiertem Zeilenumbruch: 96 Zeichen,
+  ohne Rand-Leerraum 94 und korrekt, CR und LF gezählt, neuer Versuch nach dem
+  Leeren; leeres Feld beim Anzeigen ist kein Ergebnis und überschreibt keins;
+  nur Sonderzeichen, die im Spiel nachweislich erscheinen). Gegenprobe: leeres
+  Feld nicht ignoriert, Pfeil wieder im Text, ohne Trimmen, größter Sprung
+  nicht je Versuch, LF nicht gezählt, eingefügter Text gespeichert – jedes Mal
+  schlug ein Test fehl. 0.1.1 **nicht live geprüft**; 0.1.0 **live geprüft**
+  (11.11.2026, Forever EU, siehe Ergebnisse im Abschnitt
+  [„HA Bridge Probe“](#test-addon-ha-bridge-probe)). Test-Addon 0.1.0: 11 Tests, 5 für TOC und Lua-Dateien (Forever-Interface 16001,
   alle Dateien aufgeführt, Funktionen des AddOn-Menüs vorhanden, keine
   Datei- und Betriebssystem-Bibliotheken, Prüfzeile im README) und 6 Läufe unter
   Lua 5.1 gegen einen Nachbau der WoW-API (Messung und Bericht ohne Namen, Tests
@@ -1923,7 +1966,7 @@ mit einem Classic-Era-Charakter (siehe [WoW Classic](#wow-classic)).
   Namen). Gegenprobe: Bericht ohne Unkenntlichmachung, Ereignisse ohne Schutz
   angemeldet, kein `cleanExit` beim Logout, eingefügter Text gespeichert,
   globale Variable, Koordinaten gespeichert, Messung im Kampf – jedes Mal schlug
-  ein Test fehl. **Im echten Forever-Client nicht geprüft.** 0.33.10: 3 Tests für den Reset (vorbei:
+  ein Test fehl. 0.33.10: 3 Tests für den Reset (vorbei:
   der nächste Lauf fragt neu, auch wenn die API noch den alten Zeitraum meldet,
   und springt mit dem neuen um; noch nicht erreicht: höchstens stündlich;
   erneute Abfrage scheitert: alter Wert bleibt, Spielwelt läuft). Gegenprobe:

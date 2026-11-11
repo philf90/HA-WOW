@@ -71,7 +71,7 @@ end
 
 local function text(v)
   if v == nil then
-    return "–"
+    return "-"
   end
   return tostring(v)
 end
@@ -127,20 +127,61 @@ function ns.chatlogOff()
   end
 end
 
+local function count(value, pattern)
+  local _, n = value:gsub(pattern, "")
+  return n
+end
+
+-- Leerzeichen, Tabulatoren und Zeilenumbrueche am Anfang und Ende entfernen.
+local function trim(value)
+  return (value:gsub("^%s+", ""):gsub("%s+$", ""))
+end
+ns.trim = trim
+
+-- Erste Stelle, an der zwei Texte abweichen (nil, wenn gleich).
+local function firstDiff(a, b)
+  if a == b then
+    return nil
+  end
+  for i = 1, math.max(#a, #b) do
+    if a:sub(i, i) ~= b:sub(i, i) then
+      return i
+    end
+  end
+end
+
 local function pasteChanged(box, userInput)
   local value = box:GetText() or ""
+  -- Ein leeres Feld ist kein Einfuegen: Beim Anzeigen loest der Client ein
+  -- solches Ereignis aus (im Spiel am 11.11.2026 gesehen), und ein frueheres
+  -- Ergebnis in der Datei bliebe sonst nicht erhalten. Nach dem Leeren beginnt
+  -- ein neuer Versuch.
+  if value == "" then
+    box.lastLen, box.largestJump = 0, 0
+    return
+  end
   local len = #value
   local jump = len - (box.lastLen or 0)
   box.lastLen = len
-  local old = tests().paste or {}
+  box.largestJump = math.max(box.largestJump or 0, jump)
+  local trimmed = trim(value)
   -- Der Text selbst wird nicht gespeichert: Ein echter Kopplungstext enthielte
-  -- die Webhook-ID.
+  -- die Webhook-ID. Gespeichert werden nur Laengen, Zaehler und Vergleiche.
   tests().paste = {
     at = now(),
     length = len,
     matchesSample = value == ns.PASTE_SAMPLE,
-    startsWithHAB1 = value:sub(1, 5) == "HAB1|",
-    largestJump = math.max(old.largestJump or 0, jump),
+    trimmedLength = #trimmed,
+    matchesSampleTrimmed = trimmed == ns.PASTE_SAMPLE,
+    firstDiffTrimmed = firstDiff(trimmed, ns.PASTE_SAMPLE),
+    carriageReturns = count(value, "\r"),
+    lineFeeds = count(value, "\n"),
+    tabs = count(value, "\t"),
+    spaces = count(value, " "),
+    leadingWhitespace = #value - #(value:gsub("^%s+", "")),
+    trailingWhitespace = #value - #(value:gsub("%s+$", "")),
+    startsWithHAB1 = trimmed:sub(1, 5) == "HAB1|",
+    largestJump = box.largestJump,
     userInput = userInput and true or false,
   }
   if ns.refreshUI then
@@ -272,7 +313,7 @@ function ns.refreshUI()
 
   -- Name und Realm: die zentrale Frage fuer den Charakterschluessel.
   local name, realm = val(run, "UnitFullName", 1), val(run, "UnitFullName", 2)
-  add("|cffffd100UnitFullName|r  \"%s\" + \"%s\"  →  Form \"%s\"", text(name), text(realm), text(ns.shape(name)))
+  add("|cffffd100UnitFullName|r  \"%s\" + \"%s\"  ->  Form \"%s\"", text(name), text(realm), text(ns.shape(name)))
   add("|cffffd100UnitPVPName|r  \"%s\" · |cffffd100GetUnitName|r  \"%s\"",
     text(val(run, "UnitPVPName")), text(val(run, "GetUnitName")))
   add("|cffffd100Realm|r  \"%s\" · normalisiert \"%s\" · ID %s",
@@ -315,7 +356,7 @@ function ns.refreshUI()
     text(val(run, "C_Map.GetBestMapForUnit")))
   local dura = find(run, "GetInventoryItemDurability (1-19)")
   add("|cffffd100Haltbarkeit|r  %s · |cffffd100Freie Plätze Rucksack|r %s · |cffffd100Sperren|r %s",
-    dura and dura.min and string.format("%d %%", math.floor(dura.min * 100 + 0.5)) or "–",
+    dura and dura.min and string.format("%d %%", math.floor(dura.min * 100 + 0.5)) or "-",
     text(val(run, "C_Container.GetContainerNumFreeSlots(0)")), text(val(run, "GetNumSavedInstances")))
 
   add(" ")
@@ -328,13 +369,24 @@ function ns.refreshUI()
     or (r.ok and string.format("bestätigt (Logout %d s nach Klick)", r.secondsUntilLogout))
     or (r.confirmedAt and "nicht bestätigt") or "läuft")
   local p = t.paste
-  add("|cffffd100Einfügen|r  %s", not p and "nicht ausgeführt"
-    or string.format("%d Zeichen, Prüftext %s, größter Sprung %d", p.length, p.matchesSample and "korrekt" or "abweichend", p.largestJump))
+  if not p then
+    add("|cffffd100Einfügen|r  nicht ausgeführt")
+  else
+    add("|cffffd100Einfügen|r  %d Zeichen, Prüftext %s, größter Sprung %d", p.length,
+      p.matchesSample and "korrekt" or "abweichend", p.largestJump or 0)
+    if p.trimmedLength and not p.matchesSample then
+      add("  ohne Rand-Leerraum: %d Zeichen, Prüftext %s%s", p.trimmedLength,
+        p.matchesSampleTrimmed and "korrekt" or "abweichend",
+        p.firstDiffTrimmed and (" ab Zeichen " .. p.firstDiffTrimmed) or "")
+      add("  Zeilenumbrüche CR %d, LF %d · Tabulatoren %d · Leerzeichen %d (Anfang %d, Ende %d)",
+        p.carriageReturns, p.lineFeeds, p.tabs, p.spaces, p.leadingWhitespace, p.trailingWhitespace)
+    end
+  end
   local c = t.chatlog
   add("|cffffd100Chat-Log|r  %s", not c and "nicht ausgeführt"
     or string.format("Marke %s, Logging vorher %s, jetzt %s", c.token, text(c.priorState), text(c.stateAfter)))
   local st = t.settings
-  add("|cffffd100Einstellungsseite|r  %s%s", st and (st.ok and "registriert" or ("Fehler: " .. text(st.error))) or "–",
+  add("|cffffd100Einstellungsseite|r  %s%s", st and (st.ok and "registriert" or ("Fehler: " .. text(st.error))) or "-",
     st and st.changed and " · Haken geändert" or "")
   local m = t.compartment
   add("|cffffd100AddOn-Menü|r  %s", m and m.clicked and "geklickt" or "noch nicht geklickt")
@@ -431,12 +483,12 @@ end
 -- ---------------------------------------------------------------------------
 
 local HELP = {
-  "/habp – Fenster zeigen oder verbergen",
-  "/habp messen – Messung wiederholen",
-  "/habp reload – /reload-Test (speichert die Datei)",
-  "/habp chatlog – Chat-Log-Test, /habp chatlog aus – Chat-Log abschalten",
-  "/habp optionen – Einstellungsseite öffnen",
-  "/habp reset ja – alle Ergebnisse löschen",
+  "/habp - Fenster zeigen oder verbergen",
+  "/habp messen - Messung wiederholen",
+  "/habp reload - /reload-Test (speichert die Datei)",
+  "/habp chatlog - Chat-Log-Test, /habp chatlog aus - Chat-Log abschalten",
+  "/habp optionen - Einstellungsseite öffnen",
+  "/habp reset ja - alle Ergebnisse löschen",
 }
 
 SLASH_HABRIDGEPROBE1 = "/habp"

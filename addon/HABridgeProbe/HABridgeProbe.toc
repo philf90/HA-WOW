@@ -2,7 +2,7 @@
 ## Title: HA Bridge Probe
 ## Notes: Test-Addon: prueft, welche Spieldaten WoW Forever einem Addon liefert (Home-Assistant-Integration WoW Charakter).
 ## Author: philf90
-## Version: 0.1.0
+## Version: 0.1.1
 ## SavedVariables: HABridgeProbeDB
 ## IconTexture: Interface\Icons\INV_Misc_Spyglass_02
 ## AddonCompartmentFunc: HABridgeProbe_OnCompartmentClick

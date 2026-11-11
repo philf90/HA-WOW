@@ -69,6 +69,19 @@ def test_no_libraries_missing_in_wow() -> None:
             assert not re.search(forbidden, code), f"{name}: {forbidden}"
 
 
+def test_only_glyphs_the_game_font_shows() -> None:
+    """Nur Sonderzeichen, die im Spiel nachweislich dargestellt wurden.
+
+    Screenshot vom 11.11.2026 (Forever, deDE): ä, ö, ü, ß und · erscheinen,
+    der Pfeil → erschien als Kästchen. Kommentare zählen nicht.
+    """
+    allowed = set("äöüß·")
+    for name in LUA_FILES:
+        code = re.sub(r"--[^\n]*", "", (ADDON / name).read_text(encoding="utf-8"))
+        unknown = {c for c in code if ord(c) > 127} - allowed
+        assert not unknown, f"{name}: {sorted(unknown)}"
+
+
 def test_paste_sample_in_readme() -> None:
     """Die Pruefzeile im README ist die, die das Addon erwartet."""
     readme = (ROOT / "README.md").read_text(encoding="utf-8")
@@ -198,6 +211,53 @@ def test_tests_in_the_window() -> None:
     assert '"Mara Sturmwind" + "Normal"' in text
     assert "94 Zeichen, Prüftext korrekt" in text
     assert "183 g 45 s 20 k" in text
+
+
+def _paste(s: Session, text: str, user_input: bool = True) -> None:
+    s.lua.eval(
+        "function(text, user) local b = EDITBOXES[1]; b.text = text;"
+        " b.scripts.OnTextChanged(b, user) end"
+    )(text, user_input)
+
+
+def test_paste_with_line_break() -> None:
+    """Zeilenumbruch mitkopiert (im Spiel: 96 statt 94 Zeichen): Das Fenster
+    zeigt Länge ohne Rand-Leerraum und zählt CR und LF, ohne den Text zu
+    speichern."""
+    s = Session("full")
+    assert s.lua.eval("HABridgeProbeFrame:IsShown()")  # nach dem Login offen
+    _paste(s, SAMPLE + "\r\n")
+    paste = s.db.tests.paste
+    assert paste.length == 96 and paste.largestJump == 96
+    assert paste.matchesSample is False
+    assert paste.trimmedLength == 94 and paste.matchesSampleTrimmed is True
+    assert paste.firstDiffTrimmed is None
+    assert (paste.carriageReturns, paste.lineFeeds) == (1, 1)
+    assert (paste.leadingWhitespace, paste.trailingWhitespace) == (0, 2)
+    text = s.window()
+    assert "96 Zeichen, Prüftext abweichend, größter Sprung 96" in text
+    assert "ohne Rand-Leerraum: 94 Zeichen, Prüftext korrekt" in text
+    assert "Zeilenumbrüche CR 1, LF 1" in text
+    _paste(s, "")
+    _paste(s, " HAB1|falsch")
+    paste = s.db.tests.paste
+    assert paste.largestJump == 12  # neuer Versuch nach dem Leeren
+    assert paste.leadingWhitespace == 1 and paste.firstDiffTrimmed == 6
+    assert SAMPLE not in s.saved() and "falsch" not in s.saved()
+
+
+def test_empty_field_is_not_a_paste() -> None:
+    """Beim Anzeigen meldet der Client ein leeres Feld (im Spiel gesehen):
+    kein Ergebnis und kein Überschreiben eines früheren."""
+    s = Session("full")
+    assert s.lua.eval("HABridgeProbeFrame:IsShown()")  # nach dem Login offen
+    _paste(s, "", user_input=False)
+    assert s.db.tests.paste is None
+    assert "Einfügen|r  nicht ausgeführt" in s.window()
+    _paste(s, SAMPLE)
+    _paste(s, "", user_input=False)
+    assert s.db.tests.paste.length == 94
+    assert s.db.tests.paste.matchesSample is True
 
 
 def test_reload_and_crash_detection() -> None:
