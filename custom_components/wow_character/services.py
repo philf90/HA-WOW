@@ -3,7 +3,8 @@
 refresh fragt Charaktere (und auf Wunsch Spielwelten) sofort ab, ohne die
 Takte abzuwarten, z. B. per Automation nach dem Ausloggen. get_character
 liefert das Profil eines beliebigen Charakters als Antwort, ohne ihn
-einzurichten (Freunde, Gildenmitglieder).
+einzurichten (Freunde, Gildenmitglieder). probe_namespaces prueft die
+Namespace-Kandidaten fuer WoW Forever (siehe probe.py).
 """
 
 from __future__ import annotations
@@ -23,6 +24,7 @@ from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers import device_registry as dr
 
 from . import parsers as p
+from . import probe
 from .api import (
     BattleNetAuthError,
     BattleNetError,
@@ -47,8 +49,11 @@ from .coordinator import (
 
 SERVICE_REFRESH = "refresh"
 SERVICE_GET_CHARACTER = "get_character"
+SERVICE_PROBE_NAMESPACES = "probe_namespaces"
 ATTR_DEVICE_ID = "device_id"
 ATTR_CONFIG_ENTRY_ID = "config_entry_id"
+ATTR_REGIONS = "regions"
+ATTR_RULESET = "ruleset"
 
 REFRESH_SCHEMA = vol.Schema(
     {vol.Optional(ATTR_DEVICE_ID): vol.All(cv.ensure_list, [cv.string])}
@@ -62,6 +67,19 @@ GET_CHARACTER_SCHEMA = vol.Schema(
         vol.Required(CONF_CHARACTER): vol.All(cv.string, vol.Strip, vol.Length(min=1)),
     }
 )
+# Kennung wie in der Armory-Adresse, z. B. "vorname-nachname"; Regelsatz als
+# Slug, z. B. "normal". Ohne Schraegstrich, damit der Pfad nicht wandert.
+_SLUG = vol.All(cv.string, vol.Strip, vol.Length(min=1), vol.Match(r"^[^/]+$"))
+PROBE_NAMESPACES_SCHEMA = vol.Schema(
+    {
+        vol.Optional(ATTR_CONFIG_ENTRY_ID): cv.string,
+        vol.Optional(ATTR_REGIONS, default=list(REGIONS)): vol.All(
+            cv.ensure_list, [vol.In(list(REGIONS))]
+        ),
+        vol.Optional(CONF_CHARACTER): _SLUG,
+        vol.Optional(ATTR_RULESET): _SLUG,
+    }
+)
 
 
 def async_setup_services(hass: HomeAssistant) -> None:
@@ -73,12 +91,29 @@ def async_setup_services(hass: HomeAssistant) -> None:
     async def get_character(call: ServiceCall) -> ServiceResponse:
         return await _async_get_character(hass, call)
 
+    async def probe_namespaces(call: ServiceCall) -> ServiceResponse:
+        entry = _entry(hass, call.data.get(ATTR_CONFIG_ENTRY_ID))
+        return await probe.probe_namespaces(
+            entry.runtime_data.client,
+            # Leere Liste wie ohne Angabe: alle Regionen; doppelte nur einmal.
+            list(dict.fromkeys(call.data[ATTR_REGIONS])) or list(REGIONS),
+            call.data.get(CONF_CHARACTER),
+            call.data.get(ATTR_RULESET),
+        )
+
     hass.services.async_register(DOMAIN, SERVICE_REFRESH, refresh, REFRESH_SCHEMA)
     hass.services.async_register(
         DOMAIN,
         SERVICE_GET_CHARACTER,
         get_character,
         GET_CHARACTER_SCHEMA,
+        supports_response=SupportsResponse.ONLY,
+    )
+    hass.services.async_register(
+        DOMAIN,
+        SERVICE_PROBE_NAMESPACES,
+        probe_namespaces,
+        PROBE_NAMESPACES_SCHEMA,
         supports_response=SupportsResponse.ONLY,
     )
 

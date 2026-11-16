@@ -44,3 +44,33 @@ get_character:
       example: Testchar
       selector:
         text:
+
+probe_namespaces:
+  fields:
+    config_entry_id:
+      selector:
+        config_entry:
+          integration: wow_character
+    regions:
+      default:
+        - eu
+        - us
+        - kr
+        - tw
+      selector:
+        select:
+          translation_key: region
+          multiple: true
+          options:
+            - eu
+            - us
+            - kr
+            - tw
+    character:
+      example: vorname-nachname
+      selector:
+        text:
+    ruleset:
+      example: normal
+      selector:
+        text:

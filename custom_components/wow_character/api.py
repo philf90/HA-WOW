@@ -231,6 +231,45 @@ class BattleNetClient:
             raise BattleNetError(f"{path}: Antwort ist kein JSON-Objekt")
         return data
 
+    async def probe(
+        self, region: str, path: str, namespace: str, retry: bool = True
+    ) -> tuple[int | None, Any, str | None]:
+        """Eine Abfrage ohne Ausnahme bei HTTP-Fehlern, fuer die Diagnose.
+
+        Liefert (Status, Antwort, Fehlertext). Status None heisst: keine
+        Antwort (Zeitueberschreitung, Verbindung). Antwort ist das JSON bei
+        Erfolg, sonst der Anfang des Antworttexts (Blizzard schickt bei 404
+        teils einen leeren Text, teils JSON mit "detail"). 401 holt wie _get
+        einmal ein neues Token, 429 wartet einmal eine Sekunde.
+        """
+        token = await self._get_token()
+        try:
+            async with self._session.get(
+                f"{REGIONS[region]['api']}{path}",
+                params={
+                    "namespace": namespace,
+                    "locale": region_locale(region, self.language),
+                },
+                headers={"Authorization": f"Bearer {token}"},
+                timeout=aiohttp.ClientTimeout(total=REQUEST_TIMEOUT),
+            ) as resp:
+                if resp.status in (401, 429) and retry:
+                    if resp.status == 401:
+                        self._token = None
+                    else:
+                        await asyncio.sleep(1)
+                    return await self.probe(region, path, namespace, retry=False)
+                if resp.status != 200:
+                    return resp.status, (await resp.text())[:300], None
+                try:
+                    return resp.status, await resp.json(), None
+                except ValueError:
+                    return resp.status, None, "Antwort ist kein JSON"
+        except TimeoutError:
+            return None, None, f"keine Antwort nach {REQUEST_TIMEOUT} s"
+        except aiohttp.ClientError as err:
+            return None, None, f"{type(err).__name__} {err}".strip()
+
     async def image_available(self, url: str) -> bool:
         """Liefert der Bildserver unter url ein Bild? Ohne Token (oeffentlich).
 

@@ -12,7 +12,7 @@ Ausrüstung, Raid- und Mythic+-Fortschritt, Berufe, Ruf, Erfolge und mehr als
 Sensoren, dazu WoW-Marke, wöchentlicher Reset und Serverstatus. Die Daten kommen
 aus der offiziellen Battle.net API. Unterstützt Retail, WoW Classic (Era,
 Progression, Anniversary); WoW Forever ist angelegt, aber ungetestet (siehe
-[WoW Forever](#wow-forever)). Version 0.33.10.
+[WoW Forever](#wow-forever)). Version 0.34.0.
 
 Dreizehn Dashboard-Karten liefert die Integration selbst mit: „WoW Arsenal“
 (`custom:wow-arsenal-card`), „WoW Berufe“ (`custom:wow-professions-card`),
@@ -186,6 +186,12 @@ Wer von Hand aktualisiert, ersetzt den ganzen Ordner
 `custom_components/wow_character` samt `translations/`; sonst fehlen neue Texte,
 z. B. die Einträge im Menü „Charakter hinzufügen“. Was sich je Version ändert, steht in den
 [Release-Notes](https://github.com/philf90/HA-WOW/releases).
+
+**Update auf 0.34.0:** keine Migration. Neue Aktion
+`wow_character.probe_namespaces` (siehe [Forever-Namespaces
+prüfen](#forever-namespaces-prüfen-wow_characterprobe_namespaces-seit-0340)):
+Sie fragt die Namespace-Kandidaten für WoW Forever ab und meldet je Abfrage den
+HTTP-Status. Entitäten ändern sich nicht.
 
 **Update auf 0.33.10:** keine Migration. Nach dem wöchentlichen Reset springt
 der Sensor „Wöchentlicher Reset“ schneller auf den nächsten Termin: Liegt der
@@ -1046,6 +1052,48 @@ data:
 response_variable: charakter
 ```
 
+### Forever-Namespaces prüfen (`wow_character.probe_namespaces`, seit 0.34.0)
+
+Diagnose für [WoW Forever](#wow-forever): Fragt je Region und
+Namespace-Kandidat (`GAME_VERSIONS["forever"]["namespaces"]`, derzeit `-forever`
+und `-camelot`) die Klassenliste im static-Namespace
+(`/data/wow/playable-class/index`) und die Realm-Liste im dynamic-Namespace
+(`/data/wow/realm/index`) ab. Mit Charakter prüft sie zusätzlich im
+profile-Namespace die Pfade `/profile/wow/character/{regelsatz}/{charakter}`
+(nur mit Regelsatz), `/profile/wow/character/{charakter}` und, wenn eine
+Realm-Liste kam, `/profile/wow/character/{realm}/{charakter}` für die ersten 10
+Realms daraus. Die Aktion liest nur; Geräte und Entitäten ändern sich nicht.
+
+| Feld | Pflicht | Bedeutung |
+|---|---|---|
+| `config_entry_id` | nur bei mehreren Einträgen | Eintrag „Battle.net API“, dessen Zugang benutzt wird |
+| `regions` | nein | Liste aus `eu`, `us`, `kr`, `tw`; leer oder ohne Angabe: alle vier |
+| `character` | nein | Kennung wie in der Armory-Adresse, z. B. `vorname-nachname`; ohne Schrägstrich |
+| `ruleset` | nein | Regelsatz als Slug wie in der Armory, z. B. `normal`; nur mit `character` wirksam |
+
+Die Antwort enthält `candidates` (geprüfte Kandidaten), `requests` (Zahl der
+Abfragen), `status_counts` (Abfragen je HTTP-Status), `found` (Namespace und
+Pfad jeder Abfrage mit HTTP 200) und `results` mit einem Eintrag je Abfrage:
+`region`, `namespace`, `path`, `status` (`null` ohne Antwort), `keys`
+(Schlüssel der Antwort ohne `_links`), `sample` (bis zu 12 Schlüssel; Listen als
+Anzahl und die ersten drei Einträge mit `id`, `name`, `slug`; Texte auf 80
+Zeichen gekürzt), `body` (Anfang des Antworttexts bei HTTP-Fehlern, bis 300
+Zeichen) und `error` (Zeitüberschreitung oder Verbindungsfehler).
+
+Abfragen: ohne Charakter 4 je Region (2 Kandidaten × static und dynamic), also
+16 für alle Regionen; mit Charakter je Kandidat 1 bis 2 Profilpfade mehr, dazu
+bis zu 10 je gelieferter Realm-Liste. HTTP 401 holt einmal ein neues Token,
+HTTP 429 wartet einmal eine Sekunde.
+
+```yaml
+action: wow_character.probe_namespaces
+data:
+  regions: [eu]
+  character: vorname-nachname
+  ruleset: normal
+response_variable: namespaces
+```
+
 ## Dashboard-Karten
 
 Dreizehn Karten liefert die Integration selbst mit; Home Assistant lädt sie mit
@@ -1784,6 +1832,13 @@ Blizzards Partner-Schnittstelle (`partner-eu.api.blizzard.net`), nicht über die
 öffentliche API. Ob die öffentliche API einen anderen Namespace nutzen wird
 oder Forever nur noch nicht freigeschaltet hat, ist offen.
 
+Seit 0.34.0 prüft die Aktion `wow_character.probe_namespaces` (siehe
+[Forever-Namespaces
+prüfen](#forever-namespaces-prüfen-wow_characterprobe_namespaces-seit-0340))
+static-, dynamic- und profile-Namespace der Kandidaten in allen Regionen und
+meldet je Abfrage den HTTP-Status, ohne dass ein Forever-Charakter eingerichtet
+sein muss.
+
 ### Test-Addon „HA Bridge Probe“
 
 Vorarbeit für einen zweiten Weg neben der Battle.net API: ein Spiel-Addon, das
@@ -2036,6 +2091,21 @@ Automatische Tests laufen gegen Home Assistant 2026.2.3; live geprüft wurde unt
 Home Assistant 2026.10.4 mit Retail-Charakteren der Region EU, seit 0.11.2 auch
 mit einem Classic-Era-Charakter (siehe [WoW Classic](#wow-classic)).
 
+- **0.34.x:** 442 automatische Tests. 0.34.0: 11 neue Tests für
+  `probe_namespaces` (16 Abfragen ohne Angaben, je Region und Kandidat static und
+  dynamic genau einmal; mit Charakter und Regelsatz Regelsatz-Pfad, Pfad ohne
+  Realm und Realms aus der Liste in fester Reihenfolge, höchstens 10 Realms;
+  leere und doppelte Regionen; 401 mit genau einem zweiten Versuch,
+  Zeitüberschreitung als Status `null`; Schrägstrich, leerer Name und
+  unbekannte Region abgelehnt; Entitäten unverändert; Kürzen der
+  Beispielwerte; Regionsauswahl in `services.yaml` passt zum Schema), dazu die
+  neue Aktion im bestehenden Abgleich von `services.yaml`, Schemas und
+  Übersetzungen. Gegenprobe mit 13 eingebauten Fehlern (Realm-Grenze,
+  Regelsatz-Pfad, Pfad ohne Realm, `_links` in den Schlüsseln, ungekürzte Texte,
+  Profilpfade ohne Charakter, falscher Namespace-Typ, kein zweiter Versuch,
+  Fehlertext verworfen, Zeitüberschreitung wirft, doppelte Regionen, leere
+  Liste, Schrägstrich erlaubt) – jedes Mal schlug ein Test fehl. **Nicht live
+  geprüft.**
 - **0.33.x:** 431 automatische Tests. Test-Addon 0.1.3 (ohne neue Version der
   Integration): 4 Tests (Spielmodus nur über lesende Funktionen, nie über
   `Set…` oder `AutoConnect…`, mit `Enum.GameMode` und Voreinstellung
