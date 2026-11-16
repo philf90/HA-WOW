@@ -66,7 +66,7 @@ def test_translation_files_match() -> None:
 
 
 def test_game_versions_complete() -> None:
-    fields = {"namespaces", "mythic_plus", "label", "endpoints", "static"}
+    fields = {"namespaces", "mythic_plus", "label", "endpoints", "static", "realms"}
     suffixes = []
     for name, version in const.GAME_VERSIONS.items():
         assert set(version) == fields, name

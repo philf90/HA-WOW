@@ -167,9 +167,14 @@ async def async_setup_entry(hass: HomeAssistant, entry: WowConfigEntry) -> bool:
     # Jeder Suffix gehoert zu genau einer Spielversion.
     versions: dict[tuple[str, str], str] = {}
     for subentry in characters.values():
+        version = subentry.data[CONF_GAME_VERSION]
+        if not GAME_VERSIONS[version]["realms"]:
+            # Forever (seit 0.35.0): keine Realm-Liste, also keine Spielwelt;
+            # die Charaktere laufen ohne Season und Raid-Journal.
+            continue
         key = (subentry.data[CONF_REGION], subentry.data[CONF_NAMESPACE_SUFFIX])
         realms.setdefault(key, set()).add(subentry.data[CONF_REALM])
-        versions[key] = subentry.data[CONF_GAME_VERSION]
+        versions[key] = version
     # Zuerst die Spielwelten: Die Charaktere brauchen Season und Raid-Journal.
     runtime.worlds.update(
         {
@@ -269,8 +274,13 @@ async def _async_reload(hass: HomeAssistant, entry: WowConfigEntry) -> None:
 # Spielwelt-Entitaeten: "<unique_id des Eintrags>-world-<region><suffix>-<key>",
 # z. B. "...-world-eu-token" oder "...-world-eu-classic1x-realm-x-status".
 _REALM_KEY = re.compile(r"realm-(.+)-(status|queue|population)")
+# "-camelot" war bis 0.34.1 Forever-Kandidat; ohne ihn hier laesen sich
+# Entitaeten einer solchen Spielwelt als Retail ("eu" + "camelot-token") und
+# blieben stehen statt als verwaist zu verschwinden.
+_LEGACY_SUFFIXES = {"-camelot"}
 _SUFFIXES = sorted(
-    {s for version in GAME_VERSIONS.values() for s in version["namespaces"]},
+    {s for version in GAME_VERSIONS.values() for s in version["namespaces"]}
+    | _LEGACY_SUFFIXES,
     key=len,
     reverse=True,
 )

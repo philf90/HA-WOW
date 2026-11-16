@@ -91,6 +91,9 @@ def _level_attrs(data: dict[str, Any]) -> dict[str, Any]:
         "faction": p.name_of(prof.get("faction")),
         "guild": p.name_of(prof.get("guild")),
         "realm": p.name_of(prof.get("realm")),
+        # Forever (seit 0.35.0): Regelsatz statt Realm, Nachname extra
+        "ruleset": p.name_of(prof.get("ruleset")),
+        "surname": prof.get("surname"),
         "title": p.active_title(prof),
         # Symbole aus den statischen Spieldaten, fuer Karten
         "class_icon": media.get(

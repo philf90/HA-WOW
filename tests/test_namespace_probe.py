@@ -45,6 +45,22 @@ FOREVER_PROFILE = {
 }
 
 
+# Vor der Fixture gemerkt, damit test_real_candidates die echte Funktion ruft
+REAL_CANDIDATES = probe.candidates
+
+
+@pytest.fixture(autouse=True)
+def two_candidates(monkeypatch):
+    """Ablauf mit mehreren Kandidaten pruefen; seit 0.35.0 ist "-camelot"
+    aus const.py gestrichen (live 403), die Aktion bleibt allgemein."""
+    monkeypatch.setattr(probe, "candidates", lambda: ["-forever", "-camelot"])
+
+
+def test_real_candidates() -> None:
+    """Echte Kandidaten seit 0.35.0: nur "-forever"."""
+    assert REAL_CANDIDATES() == ["-forever"]
+
+
 def _url(region: str, path: str) -> str:
     return f"{REGIONS[region]['api']}{path}"
 
@@ -98,7 +114,6 @@ async def test_without_character(hass: HomeAssistant, aioclient_mock) -> None:
 
     response = await _probe(hass)
 
-    assert probe.candidates() == ["-forever", "-camelot"]
     assert response["candidates"] == ["-forever", "-camelot"]
     assert response["requests"] == 16
     assert len(_paths(aioclient_mock)) == 16

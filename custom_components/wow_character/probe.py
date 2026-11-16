@@ -40,7 +40,7 @@ MAX_TEXT = 80
 
 
 def candidates() -> list[str]:
-    """Namespace-Kandidaten fuer Forever, z. B. ["-forever", "-camelot"]."""
+    """Namespace-Kandidaten fuer Forever; seit 0.35.0 nur ["-forever"]."""
     return list(GAME_VERSIONS["forever"]["namespaces"])
 
 

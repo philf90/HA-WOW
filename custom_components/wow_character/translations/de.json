@@ -93,7 +93,7 @@
         },
         "manual": {
           "title": "Region und Spielversion",
-          "description": "Danach wird die Realm-Liste dieser Region und Spielversion geladen.",
+          "description": "Danach wird die Realm-Liste dieser Region und Spielversion geladen. WoW Forever hat keine Realms: Es folgt nur der Name.",
           "data": {
             "region": "Region",
             "game_version": "Spielversion"
@@ -118,6 +118,13 @@
             "character": "Charakter"
           }
         },
+        "character_no_realm": {
+          "title": "WoW-Forever-Charakter wählen",
+          "description": "Vor- und Nachnamen eingeben (z. B. Vorname Nachname) oder die Kennung aus der Armory-Adresse (vorname-nachname). WoW Forever hat keine Realms; im Titel steht stattdessen der Regelsatz.",
+          "data": {
+            "character": "Charakter"
+          }
+        },
         "reconfigure": {
           "title": "Charakter ändern",
           "description": "Nach Umbenennung oder Realm-Transfer den neuen Realm und Namen eintragen. Gerät, Entitäts-IDs und Verlauf bleiben erhalten.",
@@ -125,12 +132,20 @@
             "realm": "Realm",
             "character": "Charakter"
           }
+        },
+        "reconfigure_no_realm": {
+          "title": "WoW-Forever-Charakter ändern",
+          "description": "Nach einer Umbenennung den neuen Vor- und Nachnamen oder die Kennung aus der Armory-Adresse eintragen. Gerät, Entitäts-IDs und Verlauf bleiben erhalten.",
+          "data": {
+            "character": "Charakter"
+          }
         }
       },
       "error": {
-        "realms_not_found": "Keine Realm-Liste für diese Region und Spielversion gefunden. Bei WoW Forever ist der API-Namespace eventuell noch nicht bekannt.",
-        "character_not_found": "Charakter auf diesem Realm nicht gefunden. Namen prüfen; der Charakter muss sich einmal ausgeloggt haben.",
-        "cannot_connect": "Battle.net API nicht erreichbar."
+        "realms_not_found": "Keine Realm-Liste für diese Region und Spielversion gefunden.",
+        "character_not_found": "Charakter nicht gefunden. Realm und Namen prüfen (WoW Forever: Vor- und Nachname); der Charakter muss sich einmal ausgeloggt haben.",
+        "cannot_connect": "Battle.net API nicht erreichbar.",
+        "invalid_character": "Bitte einen Namen ohne Schrägstrich eingeben."
       },
       "abort": {
         "already_configured": "Dieser Charakter ist bereits eingerichtet.",
@@ -510,15 +525,23 @@
               "character": "Charakter"
             }
           },
+          "character_no_realm": {
+            "title": "Neuer Name",
+            "description": "Trag Vor- und Nachnamen von {character} oder die Kennung aus der Armory-Adresse (vorname-nachname) ein. Gerät, Entitäts-IDs und Verlauf bleiben erhalten. Derselbe Name übernimmt den aktuellen Charakter.",
+            "data": {
+              "character": "Charakter"
+            }
+          },
           "remove": {
             "title": "Charakter entfernen",
             "description": "{character} wird mit Gerät und Entitäten entfernt."
           }
         },
         "error": {
-          "character_not_found": "Charakter auf diesem Realm nicht gefunden. Namen prüfen; der Charakter muss sich einmal ausgeloggt haben.",
+          "character_not_found": "Charakter nicht gefunden. Realm und Namen prüfen (WoW Forever: Vor- und Nachname); der Charakter muss sich einmal ausgeloggt haben.",
           "cannot_connect": "Battle.net API nicht erreichbar.",
-          "already_configured": "Dieser Charakter ist bereits eingerichtet."
+          "already_configured": "Dieser Charakter ist bereits eingerichtet.",
+          "invalid_character": "Bitte einen Namen ohne Schrägstrich eingeben."
         },
         "abort": {
           "character_removed": "Dieser Charakter ist nicht mehr eingerichtet.",
@@ -547,15 +570,23 @@
               "character": "Charakter"
             }
           },
+          "character_no_realm": {
+            "title": "Neuer Name",
+            "description": "Trag Vor- und Nachnamen von {character} oder die Kennung aus der Armory-Adresse (vorname-nachname) ein. Gerät, Entitäts-IDs und Verlauf bleiben erhalten. Derselbe Name übernimmt den aktuellen Charakter.",
+            "data": {
+              "character": "Charakter"
+            }
+          },
           "remove": {
             "title": "Charakter entfernen",
             "description": "{character} wird mit Gerät und Entitäten entfernt."
           }
         },
         "error": {
-          "character_not_found": "Charakter auf diesem Realm nicht gefunden. Namen prüfen; der Charakter muss sich einmal ausgeloggt haben.",
+          "character_not_found": "Charakter nicht gefunden. Realm und Namen prüfen (WoW Forever: Vor- und Nachname); der Charakter muss sich einmal ausgeloggt haben.",
           "cannot_connect": "Battle.net API nicht erreichbar.",
-          "already_configured": "Dieser Charakter ist bereits eingerichtet."
+          "already_configured": "Dieser Charakter ist bereits eingerichtet.",
+          "invalid_character": "Bitte einen Namen ohne Schrägstrich eingeben."
         },
         "abort": {
           "character_removed": "Dieser Charakter ist nicht mehr eingerichtet.",
@@ -584,15 +615,23 @@
               "character": "Charakter"
             }
           },
+          "character_no_realm": {
+            "title": "Neuer Name",
+            "description": "Trag Vor- und Nachnamen von {character} oder die Kennung aus der Armory-Adresse (vorname-nachname) ein. Gerät, Entitäts-IDs und Verlauf bleiben erhalten. Derselbe Name übernimmt den aktuellen Charakter.",
+            "data": {
+              "character": "Charakter"
+            }
+          },
           "remove": {
             "title": "Charakter entfernen",
             "description": "{character} wird mit Gerät und Entitäten entfernt."
           }
         },
         "error": {
-          "character_not_found": "Charakter auf diesem Realm nicht gefunden. Namen prüfen; der Charakter muss sich einmal ausgeloggt haben.",
+          "character_not_found": "Charakter nicht gefunden. Realm und Namen prüfen (WoW Forever: Vor- und Nachname); der Charakter muss sich einmal ausgeloggt haben.",
           "cannot_connect": "Battle.net API nicht erreichbar.",
-          "already_configured": "Dieser Charakter ist bereits eingerichtet."
+          "already_configured": "Dieser Charakter ist bereits eingerichtet.",
+          "invalid_character": "Bitte einen Namen ohne Schrägstrich eingeben."
         },
         "abort": {
           "character_removed": "Dieser Charakter ist nicht mehr eingerichtet.",
@@ -644,6 +683,12 @@
     },
     "lookup_not_found": {
       "message": "Charakter {character} nicht gefunden."
+    },
+    "realm_required": {
+      "message": "Bitte einen Realm angeben; nur WoW Forever hat keinen."
+    },
+    "invalid_character": {
+      "message": "Bitte einen Namen ohne Schrägstrich eingeben."
     }
   },
   "services": {
@@ -675,11 +720,11 @@
         },
         "realm": {
           "name": "Realm",
-          "description": "Name oder Slug des Realms, z. B. Die Aldor oder die-aldor."
+          "description": "Name oder Slug des Realms, z. B. Die Aldor oder die-aldor. Für WoW Forever nicht nötig."
         },
         "character": {
           "name": "Charakter",
-          "description": "Name des Charakters."
+          "description": "Name des Charakters; WoW Forever: Vor- und Nachname oder die Kennung aus der Armory-Adresse (vorname-nachname)."
         }
       }
     },

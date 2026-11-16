@@ -54,6 +54,7 @@ from homeassistant.helpers.selector import (
     TextSelectorType,
 )
 
+from . import parsers as p
 from .api import (
     BattleNetAuthError,
     BattleNetClient,
@@ -62,6 +63,7 @@ from .api import (
     BattleNetLoginError,
     BattleNetNotFound,
     api_language,
+    character_key,
 )
 from .const import (
     AUTHORIZE_URL,
@@ -581,8 +583,8 @@ async def _discover(
 ) -> tuple[list[dict[str, Any]], int]:
     """Charaktere des Kontos in allen Regionen und Spielversionen.
 
-    Je Region und Spielversion eine Abfrage, bei mehreren Namespace-Kandidaten
-    (Forever) der erste mit Konto. Gibt die Funde und die Zahl der
+    Je Region und Spielversion mit Realms eine Abfrage, bei mehreren
+    Namespace-Kandidaten der erste mit Konto. Gibt die Funde und die Zahl der
     fehlgeschlagenen Abfragen zurueck. HTTP 404 heisst "kein Konto", HTTP 403
     "Namespace unbekannt" (Forever-Kandidaten, Live-Test 29.10.2026); beides
     zaehlt nicht als Fehler.
@@ -614,8 +616,16 @@ async def _discover(
             return found, failed
         return [], failed
 
+    # Ohne Forever (seit 0.35.0): Die Anmeldung listete Forever-Charaktere
+    # live nicht (05.11. und 12.11.2026), und wie sie einen ohne Realm
+    # beschreiben wuerde, ist unbelegt. Forever kommt nur von Hand dazu.
     results = await asyncio.gather(
-        *(one(region, version) for region in REGIONS for version in GAME_VERSIONS)
+        *(
+            one(region, version)
+            for region in REGIONS
+            for version in GAME_VERSIONS
+            if has_realms(version)
+        )
     )
     return (
         [item for found, _ in results for item in found],
@@ -714,9 +724,17 @@ def _unique_id(
     Ein umbenannter Charakter behaelt seine alte unique_id; ein neuer
     Charakter mit dem alten Namen bekommt dann eine eigene.
     """
-    unique_id = (
-        f"{region}-{BattleNetClient.namespace('profile', suffix, region)}-"
-        f"{realm}-{character.lower()}"
+    # Ohne Realm (Forever) ohne Realm-Teil, z. B.
+    # "eu-profile-forever-eu-vorname-nachname".
+    unique_id = "-".join(
+        part
+        for part in (
+            region,
+            BattleNetClient.namespace("profile", suffix, region),
+            realm,
+            character.lower(),
+        )
+        if part
     )
     if unique_id in taken:
         unique_id = f"{unique_id}-{character_id or len(taken)}"
@@ -824,6 +842,12 @@ class CharacterSubentryFlow(_LoginSteps, ConfigSubentryFlow):
         self, user_input: dict[str, Any] | None = None
     ) -> SubentryFlowResult:
         errors: dict[str, str] = {}
+        if user_input is not None and not has_realms(user_input[CONF_GAME_VERSION]):
+            # Forever: keine Realm-Liste, gleich weiter zum Namen.
+            self._base = user_input
+            self._suffix = GAME_VERSIONS[user_input[CONF_GAME_VERSION]]["namespaces"][0]
+            self._realms = {}
+            return await self.async_step_character()
         if user_input is not None:
             try:
                 suffix, realms = await self._load_realms(
@@ -851,11 +875,14 @@ class CharacterSubentryFlow(_LoginSteps, ConfigSubentryFlow):
     ) -> SubentryFlowResult:
         errors: dict[str, str] = {}
         region = self._base[CONF_REGION]
+        with_realms = has_realms(self._base[CONF_GAME_VERSION])
         if user_input is not None:
-            realm = user_input[CONF_REALM]
-            character = user_input[CONF_CHARACTER].strip()
-            if self._configured(region, self._suffix, realm, character):
+            realm, character = character_input(with_realms, user_input)
+            if not valid_character(character):
+                errors["base"] = "invalid_character"
+            elif self._configured(region, self._suffix, realm, character):
                 return self.async_abort(reason="already_configured")
+        if user_input is not None and not errors:
             taken = {sub.unique_id for sub in self._get_entry().subentries.values()}
             try:
                 profile = await self._client.get_profile(
@@ -870,7 +897,9 @@ class CharacterSubentryFlow(_LoginSteps, ConfigSubentryFlow):
                     region, self._suffix, realm, character, profile.get("id"), taken
                 )
                 return self.async_create_entry(
-                    title=f"{profile.get('name', character)} – {self._realms[realm]}",
+                    title=p.character_title(
+                        profile, character, self._realms.get(realm)
+                    ),
                     data={
                         **self._base,
                         CONF_REALM: realm,
@@ -882,12 +911,18 @@ class CharacterSubentryFlow(_LoginSteps, ConfigSubentryFlow):
                 )
 
         return self.async_show_form(
-            step_id="character",
+            step_id="character" if with_realms else "character_no_realm",
             data_schema=self.add_suggested_values_to_schema(
-                self._character_schema(), user_input
+                character_schema(self._realms if with_realms else None), user_input
             ),
             errors=errors,
         )
+
+    async def async_step_character_no_realm(
+        self, user_input: dict[str, Any] | None = None
+    ) -> SubentryFlowResult:
+        """Name ohne Realm (Forever); Ablauf wie async_step_character."""
+        return await self.async_step_character(user_input)
 
     async def async_step_reconfigure(
         self, user_input: dict[str, Any] | None = None
@@ -898,20 +933,23 @@ class CharacterSubentryFlow(_LoginSteps, ConfigSubentryFlow):
         subentry = self._get_reconfigure_subentry()
         data = subentry.data
         region, suffix = data[CONF_REGION], data[CONF_NAMESPACE_SUFFIX]
+        with_realms = has_realms(data[CONF_GAME_VERSION])
         errors: dict[str, str] = {}
-        if not self._realms:
+        if with_realms and not self._realms:
             try:
                 realms = await self._client.get_realms(region, suffix)
             except BattleNetError:
                 return self.async_abort(reason="cannot_connect")
             self._realms = {r["slug"]: r["name"] for r in realms}
         if user_input is not None:
-            realm = user_input[CONF_REALM]
-            character = user_input[CONF_CHARACTER].strip()
-            if self._configured(
+            realm, character = character_input(with_realms, user_input)
+            if not valid_character(character):
+                errors["base"] = "invalid_character"
+            elif self._configured(
                 region, suffix, realm, character, skip=subentry.subentry_id
             ):
                 return self.async_abort(reason="already_configured")
+        if user_input is not None and not errors:
             try:
                 profile = await self._client.get_profile(
                     region, realm, character, suffix
@@ -924,24 +962,25 @@ class CharacterSubentryFlow(_LoginSteps, ConfigSubentryFlow):
                 return self.async_update_and_abort(
                     self._get_entry(),
                     subentry,
-                    title=(
-                        f"{profile.get('name', character)} – "
-                        f"{self._realms.get(realm, realm)}"
+                    title=p.character_title(
+                        profile, character, self._realms.get(realm, realm)
                     ),
                     data=character_data(subentry, realm, character, profile),
                 )
         return self.async_show_form(
-            step_id="reconfigure",
+            step_id="reconfigure" if with_realms else "reconfigure_no_realm",
             data_schema=self.add_suggested_values_to_schema(
-                self._character_schema(),
-                user_input
-                or {CONF_REALM: data[CONF_REALM], CONF_CHARACTER: data[CONF_CHARACTER]},
+                character_schema(self._realms if with_realms else None),
+                user_input or suggested_character(data),
             ),
             errors=errors,
         )
 
-    def _character_schema(self) -> vol.Schema:
-        return character_schema(self._realms)
+    async def async_step_reconfigure_no_realm(
+        self, user_input: dict[str, Any] | None = None
+    ) -> SubentryFlowResult:
+        """Name ohne Realm (Forever); Ablauf wie async_step_reconfigure."""
+        return await self.async_step_reconfigure(user_input)
 
     def _configured(
         self,
@@ -968,11 +1007,39 @@ class CharacterSubentryFlow(_LoginSteps, ConfigSubentryFlow):
         raise BattleNetNotFound("kein Namespace-Kandidat liefert eine Realm-Liste")
 
 
-def character_schema(realms: dict[str, str]) -> vol.Schema:
-    """Realm (Auswahl nach Anzeigename) und Name eines Charakters.
+def has_realms(game_version: str) -> bool:
+    """Liegen Charaktere dieser Spielversion auf Realms (nicht Forever)?"""
+    return GAME_VERSIONS[game_version]["realms"]
+
+
+def character_input(with_realms: bool, user_input: dict[str, Any]) -> tuple[str, str]:
+    """(Realm, Name) aus einem Formular; ohne Realms ("", Kennung)."""
+    if with_realms:
+        return user_input[CONF_REALM], user_input[CONF_CHARACTER].strip()
+    return "", character_key(user_input[CONF_CHARACTER])
+
+
+def valid_character(character: str) -> bool:
+    """Name bzw. Kennung nicht leer und ohne Schraegstrich (sonst wandert der
+    Pfad der Abfrage)."""
+    return bool(character) and "/" not in character
+
+
+def suggested_character(data: Mapping[str, Any]) -> dict[str, Any]:
+    """Vorbelegung fuer Neu konfigurieren und Reparatur."""
+    if not data.get(CONF_REALM):
+        return {CONF_CHARACTER: data[CONF_CHARACTER]}
+    return {CONF_REALM: data[CONF_REALM], CONF_CHARACTER: data[CONF_CHARACTER]}
+
+
+def character_schema(realms: dict[str, str] | None) -> vol.Schema:
+    """Realm (Auswahl nach Anzeigename) und Name eines Charakters; ohne
+    Realms (None, Forever) nur der Name.
 
     Auch fuer den Reparaturdialog (repairs.py).
     """
+    if realms is None:
+        return vol.Schema({vol.Required(CONF_CHARACTER): str})
     options = [
         SelectOptionDict(value=slug, label=name)
         for slug, name in sorted(realms.items(), key=lambda item: item[1].casefold())

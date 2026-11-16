@@ -11,8 +11,8 @@ Home-Assistant-Integration für World-of-Warcraft-Charaktere: Level, Itemlevel,
 Ausrüstung, Raid- und Mythic+-Fortschritt, Berufe, Ruf, Erfolge und mehr als
 Sensoren, dazu WoW-Marke, wöchentlicher Reset und Serverstatus. Die Daten kommen
 aus der offiziellen Battle.net API. Unterstützt Retail, WoW Classic (Era,
-Progression, Anniversary); WoW Forever ist angelegt, aber ungetestet (siehe
-[WoW Forever](#wow-forever)). Version 0.34.1.
+Progression, Anniversary) und seit 0.35.0 WoW Forever (Vor- und Nachname statt
+Realm, siehe [WoW Forever](#wow-forever)). Version 0.35.0.
 
 Dreizehn Dashboard-Karten liefert die Integration selbst mit: „WoW Arsenal“
 (`custom:wow-arsenal-card`), „WoW Berufe“ (`custom:wow-professions-card`),
@@ -99,7 +99,8 @@ Spielwelt-Karte die Spielwelt.
      per Battle.net-Anmeldung oder **Von Hand eingeben**: zuerst Region und
      Spielversion (Retail, Classic Era, Classic Progression, Classic
      Anniversary oder Forever), dann Realm aus der Liste wählen und
-     Charakternamen eingeben. Von Hand geht auch für Charaktere anderer Konten.
+     Charakternamen eingeben; bei Forever ohne Realm nur Vor- und Nachnamen.
+     Von Hand geht auch für Charaktere anderer Konten.
 
 Danach ist jeder Charakter ein eigenes Gerät mit seinen Sensoren; die Werte für
 Region und Realm stehen im Gerät „WoW-Spielwelt EU“ (bzw. US, KR, TW).
@@ -186,6 +187,16 @@ Wer von Hand aktualisiert, ersetzt den ganzen Ordner
 `custom_components/wow_character` samt `translations/`; sonst fehlen neue Texte,
 z. B. die Einträge im Menü „Charakter hinzufügen“. Was sich je Version ändert, steht in den
 [Release-Notes](https://github.com/philf90/HA-WOW/releases).
+
+**Update auf 0.35.0:** keine Migration. WoW-Forever-Charaktere lassen sich
+jetzt einrichten: **Charakter hinzufügen → Von Hand eingeben**, Spielversion
+Forever, dann Vor- und Nachnamen (siehe [WoW Forever](#wow-forever)). Der
+Level-Sensor hat die neuen Attribute `ruleset` und `surname` (bei Retail und
+Classic `null`); die Aktion `get_character` braucht für Forever keinen Realm und
+nennt `surname` und `ruleset`. Retail- und Classic-Charaktere, ihre Entitäten und
+Spielwelten ändern sich nicht. Nach dem Update einmal die Seite im Browser neu
+laden (Karten „WoW Arsenal“ und „WoW Charaktere“ zeigen bei Forever den
+Regelsatz statt des Realms).
 
 **Update auf 0.34.1:** keine Migration. Findet die Aktion
 `wow_character.probe_namespaces` ein Profil, fragt sie auch dessen verlinkte
@@ -442,11 +453,13 @@ nicht behält (siehe unten). Nach einem neuen Charakter im Spiel: einmal auslogg
   `<Adresse von Home Assistant>/auth/external/callback`, laut Blizzard-Doku nur
   mit HTTPS. Der Anmeldeschritt zeigt die benutzte Adresse an.
 - **Was Blizzard liefert:** Scope `wow.profile`, Endpunkt `/profile/user/wow`
-  („Account Profile Summary“) je Region und Spielversion: 4 Regionen × 6
-  Namespaces (Forever mit zwei Kandidaten) = höchstens 24 Abfragen je Suche,
-  parallel. HTTP 404 heißt „kein Konto dort“; HTTP 403 kam im Live-Test für
-  die Forever-Kandidaten, die Blizzard noch nicht kennt, und zählt ebenfalls
-  nicht als Fehlabfrage (seit 0.17.1). Je Charakter nutzt die
+  („Account Profile Summary“) je Region und Spielversion: 4 Regionen × 4
+  Namespaces = höchstens 16 Abfragen je Suche, parallel. WoW Forever fragt die
+  Suche seit 0.35.0 nicht ab: Die Anmeldung listete Forever-Charaktere live nicht
+  (05.11. und 12.11.2026), und wie sie einen ohne Realm beschreiben würde, ist
+  unbelegt; Forever-Charaktere kommen von Hand dazu. HTTP 404 heißt „kein Konto
+  dort“; HTTP 403 („Namespace unbekannt“) zählt ebenfalls nicht als
+  Fehlabfrage (seit 0.17.1). Je Charakter nutzt die
   Integration Name, ID, Level, Klasse und Realm (Name und Slug).
 - **Was gespeichert wird:** nur die Untereinträge der gewählten Charaktere, mit
   denselben Daten und Entitäts-IDs wie von Hand angelegt. Das Login-Token nicht:
@@ -511,7 +524,7 @@ Die Takte in den Tabellen sind die Vorgaben; seit 0.20.0 lassen sie sich
 | Wert | Typ | Takt | Quelle (Endpunkt, Feld) |
 |---|---|---|---|
 | **Profil** | | | |
-| Level (Klasse mit Klassen-ID `class_id`, Spezialisierung, Volk, Fraktion, Gilde, Realm, Titel als Attribute) | Sensor | 15 min | Profil, `level` |
+| Level (Klasse mit Klassen-ID `class_id`, Spezialisierung, Volk, Fraktion, Gilde, Realm, Titel als Attribute; seit 0.35.0 `ruleset` und `surname`, nur bei Forever mit Wert) | Sensor | 15 min | Profil, `level` |
 | Geschlecht und Transmog (Attribute am Level-Sensor) | Attribute | 6 h | `appearance` |
 | Itemlevel (angelegt, Durchschnitt) | Sensoren | 15 min | Profil, `equipped_item_level`, `average_item_level` |
 | Erfahrungspunkte | Sensor | 15 min | Profil, `experience` |
@@ -1033,10 +1046,11 @@ Gerät noch Entitäten.
 | `config_entry_id` | nur bei mehreren Einträgen | Eintrag „Battle.net API“, dessen Zugang benutzt wird |
 | `region` | ja | `eu`, `us`, `kr` oder `tw` |
 | `game_version` | nein | `retail` (Vorgabe), `forever`, `classic_era`, `classic_progression`, `classic_anniversary` |
-| `realm` | ja | Name oder Slug, Groß- und Kleinschreibung egal, z. B. `Die Aldor` oder `die-aldor` |
-| `character` | ja | Name des Charakters |
+| `realm` | ja, außer bei Forever | Name oder Slug, Groß- und Kleinschreibung egal, z. B. `Die Aldor` oder `die-aldor`. Bei Forever (keine Realms) nicht nötig und nicht beachtet (seit 0.35.0) |
+| `character` | ja | Name des Charakters; bei Forever Vor- und Nachname (`Vorname Nachname`) oder die Kennung aus der Armory-Adresse (`vorname-nachname`) |
 
-Die Antwort enthält `name`, `id`, `realm`, `realm_slug`, `region`,
+Die Antwort enthält `name`, `surname` (nur Forever), `id`, `realm`,
+`realm_slug` (bei Forever `null`), `ruleset` (nur Forever), `region`,
 `game_version`, `level`, `class`, `spec`, `race`, `faction`, `guild`, `title`,
 `achievement_points`, `equipped_item_level`, `average_item_level`,
 `last_login` (ISO-Zeit), `mythic_rating` (nur Retail; Wert der API ohne
@@ -1045,8 +1059,9 @@ steht `null` da. Texte kommen in der Sprache aus den Optionen (siehe
 [Sprache](#sprache)).
 
 Abfragen: Realm-Liste der Region (einmal je Start von Home Assistant bzw.
-Neuladen), Profil, Mythic+-Profil (nur Retail) und Bilder. Unbekannter Realm
-oder Charakter ergibt eine Fehlermeldung statt einer Antwort.
+Neuladen; nicht bei Forever), Profil, Mythic+-Profil (nur Retail) und Bilder.
+Unbekannter Realm oder Charakter, ein fehlender Realm außerhalb von Forever und
+ein Name mit Schrägstrich ergeben eine Fehlermeldung statt einer Antwort.
 
 ```yaml
 action: wow_character.get_character
@@ -1060,8 +1075,8 @@ response_variable: charakter
 ### Forever-Namespaces prüfen (`wow_character.probe_namespaces`, seit 0.34.0)
 
 Diagnose für [WoW Forever](#wow-forever): Fragt je Region und
-Namespace-Kandidat (`GAME_VERSIONS["forever"]["namespaces"]`, derzeit `-forever`
-und `-camelot`) die Klassenliste im static-Namespace
+Namespace-Kandidat (`GAME_VERSIONS["forever"]["namespaces"]`; seit 0.35.0 nur
+`-forever`, vorher auch `-camelot`) die Klassenliste im static-Namespace
 (`/data/wow/playable-class/index`) und die Realm-Liste im dynamic-Namespace
 (`/data/wow/realm/index`) ab. Mit Charakter prüft sie zusätzlich im
 profile-Namespace die Pfade `/profile/wow/character/{regelsatz}/{charakter}`
@@ -1805,18 +1820,35 @@ bereitgestellt“ stehen und lässt sich löschen.
 
 ## WoW Forever
 
-Blizzard hat den API-Namespace für Forever noch nicht dokumentiert (Start
-04.11.2026). Beim Hinzufügen eines Forever-Charakters probiert die Integration die
-Kandidaten aus `const.py` (`GAME_VERSIONS["forever"]["namespaces"]`) der Reihe nach:
-Der erste, unter dem die API eine Realm-Liste liefert, wird gespeichert. HTTP 404
-und 403 gelten dabei als „Namespace unbekannt“, der nächste Kandidat folgt (403
-seit 0.17.2; vorher brach das Hinzufügen mit „Verbindung fehlgeschlagen“ ab). Die
-Kandidaten sind **unbestätigt**. Sobald Blizzard den Namespace nennt, dort
-eintragen; schlägt das Hinzufügen fehl, ist das die wahrscheinlichste Ursache.
+Seit 0.35.0 lassen sich Forever-Charaktere einrichten. Grundlage ist der
+Live-Befund vom 16.11.2026 (unten); Blizzard dokumentiert Forever nicht.
 
-Für Forever-Charaktere legt die Integration nur Entitäten an, deren Endpunkt
-Daten liefert, und (seit 0.9.0) nur Sensoren, die einen Wert haben, wie bei
-[Classic](#wow-classic); seit 0.18.0 auch später ohne Neuladen.
+- **Hinzufügen:** **Charakter hinzufügen → Von Hand eingeben**, Region und
+  Spielversion Forever, dann der Name: Vor- und Nachname (`Vorname Nachname`)
+  oder die Kennung aus der Armory-Adresse (`vorname-nachname`). Eine Realm-Liste
+  gibt es nicht. Aus dem Namen wird die Kennung: Leerraum wird zum Bindestrich,
+  alles klein; Umlaute und Akzente bleiben, wie Blizzard sie in der Kennung
+  schreibt, ist nicht belegt. Vor dem Speichern prüft die Integration das Profil.
+  Die Battle.net-Anmeldung findet Forever-Charaktere nicht (sie listete sie live
+  nicht).
+- **Abfragen:** Namespace `profile-forever-{region}`, Pfad
+  `/profile/wow/character/{kennung}` ohne Realm, ebenso alle Unterseiten
+  (Ausrüstung, Statistik usw.). Die Integration legt wie bei
+  [Classic](#wow-classic) nur Entitäten an, deren Endpunkt Daten liefert, und nur
+  Sensoren, die einen Wert haben.
+- **Titel und Gerät:** „Vorname Nachname – Regelsatz“, z. B. „Vorname Nachname –
+  Normal“, aus `name`, `surname` und `ruleset` des Profils. Die mitgelieferten
+  Karten zeigen den Teil vor „ – “ als Namen; „WoW Arsenal“ und „WoW Charaktere“
+  zeigen den Regelsatz an der Stelle des Realms.
+- **Entitäts-IDs:** wie bei Retail aus dem Gerätenamen, z. B.
+  `sensor.vorname_nachname_normal_level`. Die unique_id des Untereintrags ist
+  `{region}-profile-forever-{region}-{kennung}`, ohne Realm.
+- **Neu konfigurieren und Reparatur:** nur der Name, ohne Realm-Liste.
+- **Keine Spielwelt:** Ohne Realm-Liste entsteht für Forever kein Gerät
+  „WoW-Spielwelt“ (Realm-Status, WoW-Marke, Reset, Season); ob WoW-Marke und
+  Reset im Namespace `dynamic-forever` antworten, ist nicht geprüft.
+- **Namespace:** nur noch `-forever`; der zweite Kandidat `-camelot` ergab live
+  überall 403 und ist gestrichen.
 
 **Stand 04.11.2026 (Start von Forever):** Laut Drittquellen hat Forever keine
 Realms im bisherigen Sinn, sondern je Region große Server nach Regelsatz
@@ -1872,8 +1904,22 @@ unter `/profile/wow/character/{vorname-nachname}`, also **ohne Realm im Pfad**;
 Links auf Unterseiten (`equipment`, `statistics`, `professions`, `collections`,
 `mythic_keystone_profile` u. a.); `realm`, `guild`, `active_spec` und
 `active_title` fehlten. Die Unterseiten fragt die Aktion seit 0.34.1 mit ab.
-Die Integration kann Forever-Charaktere trotzdem noch nicht einrichten: Sie
-verlangt einen Realm aus der Realm-Liste, die es für Forever nicht gibt.
+
+**Stand 16.11.2026 (Live-Aufruf mit 0.34.1):** Alle 22 verlinkten Unterseiten des
+Forever-Profils antworteten mit HTTP 200, alle Links zeigten auf
+`eu.api.blizzard.com` im Namespace `profile-forever-eu`: `achievements`,
+`achievements/statistics`, `titles`, `pvp-summary`, `encounters` (mit `dungeons`
+und `raids`), `character-media`, `specializations`, `statistics`,
+`mythic-keystone-profile`, `equipment`, `appearance`, `collections` (mit `pets`,
+`mounts`, `heirlooms`, `toys`, `transmogs`), `reputations`, `quests` (mit
+`completed`) und `professions`. Auffällig: `ruleset` nennt `id` und `name`, aber
+keinen `slug`; die Unterseiten nennen den Charakter als `id`, `name` (Vorname)
+und `slug` (`vorname-nachname`). `pvp-summary` hat `honorable_kills` und
+`pvp_rank` wie Classic, `statistics` Widerstände wie Classic und Vielseitigkeit
+wie Retail. `titles` enthielt nur den Charakter, `mythic-keystone-profile` nur
+`current_period`. Bei `achievements` passte `total_quantity` nicht zur Zahl der
+Einträge in der Liste; Quest-Namen kamen englisch, obwohl die übrigen Texte
+deutsch waren. Auf dieser Grundlage richtet 0.35.0 Forever-Charaktere ein.
 
 ### Test-Addon „HA Bridge Probe“
 
@@ -2109,8 +2155,9 @@ Ergebnisdatei.
 - Große Schatzkammer und Affixe der aktuellen Woche liefert die API nicht: Sie
   kennt je Season nur den besten Lauf je Dungeon, und die Woche hat nur Start und
   Ende.
-- WoW Forever lässt sich noch nicht einrichten: Die API liefert Forever-Profile
-  ohne Realm, die Integration verlangt einen (siehe [WoW Forever](#wow-forever)).
+- WoW Forever: keine Spielwelt (Realm-Status, WoW-Marke, Reset, Season), keine
+  Charaktersuche über die Battle.net-Anmeldung; wie Blizzard Umlaute und Akzente
+  in der Kennung schreibt, ist nicht belegt (siehe [WoW Forever](#wow-forever)).
 - WoW Classic ist nur mit einem Classic-Era-Charakter live geprüft, Progression
   und Anniversary nur automatisch (siehe [WoW Classic](#wow-classic)). Raids, Mythic+, Berufe, Ruf, Titel, Quests und
   Sammlungen gibt es für Classic nicht, weil die Classic-API sie nicht anbietet.
@@ -2127,6 +2174,32 @@ Automatische Tests laufen gegen Home Assistant 2026.2.3; live geprüft wurde unt
 Home Assistant 2026.10.4 mit Retail-Charakteren der Region EU, seit 0.11.2 auch
 mit einem Classic-Era-Charakter (siehe [WoW Classic](#wow-classic)).
 
+- **0.35.x:** 457 automatische Tests. 0.35.0: 14 neue Tests für Forever ohne
+  Realm (Kennung aus „Vorname Nachname“ und aus der Armory-Kennung; Pfad ohne
+  Realm; Titel mit Regelsatz; Hinzufügen ohne Realm-Liste mit Daten,
+  unique_id, Gerät, Attributen `ruleset` und `surname` und Abfragen nur unter
+  `profile-forever-eu` ohne Realm; Fehler bei Schrägstrich, 404 und 503;
+  doppelt; Retail und Forever nebeneinander mit Spielwelt nur für Retail; Neu
+  konfigurieren und Reparatur nur mit dem Namen; `get_character` ohne Realm,
+  mit ignoriertem Realm, mit Schrägstrich und 404; Realm außerhalb von Forever
+  Pflicht) und einer für die echte Kandidatenliste. Ersetzt: drei Tests für das
+  Einrichten über die Realm-Liste der Kandidaten `-forever`/`-camelot` und der
+  Anmelde-Test für einen Forever-Fund (die Anmeldung fragt Forever nicht mehr
+  ab); angepasst: Spielwelt ohne Forever, Zahl der Anmelde-Abfragen,
+  Antwortfelder von `get_character`, Probe-Tests mit zwei Kandidaten per
+  Fixture. Gegenprobe mit 17 eingebauten Fehlern (Pfad mit leerem Realm,
+  Leerraum nicht ersetzt, nicht klein geschrieben, Forever mit Realms, Titel
+  ohne Regelsatz, Titel ohne Nachname, unique_id mit leerem Teil, Schrägstrich
+  erlaubt, Anmeldung fragt Forever, Spielwelt für Forever, Realm nicht Pflicht,
+  `get_character` ohne Kennung, `get_character` mit Schrägstrich, Attribut
+  `ruleset` fehlt, Reparatur ohne Prüfung, Reparatur mit falschem Schritt,
+  Vorgabe mit Realm) – 16 Mal schlug ein Test fehl; „Vorgabe mit Realm“ ändert
+  das Verhalten nicht (Home Assistant übergeht Vorgaben für Felder, die das
+  Formular nicht hat). Karten „WoW Arsenal“ und „WoW Charaktere“ in Chromium
+  mit einem erfundenen Forever-Charakter gezeichnet (402 Pixel, Deutsch): Name
+  vor „ – “, Regelsatz an der Stelle des Realms, keine Fehler. 0.35.0 **nicht
+  live geprüft**; die API-Antworten, auf denen es beruht, sind live geprüft
+  (16.11.2026, 0.34.0 und 0.34.1).
 - **0.34.x:** 445 automatische Tests. 0.34.1: 3 neue Tests (verlinkte
   Unterseiten eines gefundenen Profils zwei Ebenen tief in fester Reihenfolge,
   ohne Doppelte, ohne Objekte mit weiteren Schlüsseln, ohne dritte Ebene;
@@ -2828,7 +2901,9 @@ mit einem Classic-Era-Charakter (siehe [WoW Classic](#wow-classic)).
   nur automatisch getestet.
 - **0.1.x:** live geprüft: Realm-Liste, Profil, Mythic+-Profil und die Abfrage
   alle 15 Minuten.
-- **WoW Forever** ist ungetestet.
+- **WoW Forever:** Profil und alle Unterseiten live über die Aktion
+  `probe_namespaces` geprüft (16.11.2026); das Einrichten seit 0.35.0 nur
+  automatisch getestet.
 - **WoW Classic** ist nur automatisch getestet (siehe 0.9.x).
 
 ## Tests

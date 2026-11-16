@@ -27,9 +27,11 @@ from . import parsers as p
 from . import probe
 from .api import (
     BattleNetAuthError,
+    BattleNetClient,
     BattleNetError,
     BattleNetForbidden,
     BattleNetNotFound,
+    character_key,
 )
 from .const import (
     CONF_CHARACTER,
@@ -63,7 +65,8 @@ GET_CHARACTER_SCHEMA = vol.Schema(
         vol.Optional(ATTR_CONFIG_ENTRY_ID): cv.string,
         vol.Required(CONF_REGION): vol.In(list(REGIONS)),
         vol.Optional(CONF_GAME_VERSION, default="retail"): vol.In(list(GAME_VERSIONS)),
-        vol.Required(CONF_REALM): vol.All(cv.string, vol.Strip, vol.Length(min=1)),
+        # Pflicht ausser bei Forever (keine Realms); siehe _async_get_character.
+        vol.Optional(CONF_REALM): vol.All(cv.string, vol.Strip, vol.Length(min=1)),
         vol.Required(CONF_CHARACTER): vol.All(cv.string, vol.Strip, vol.Length(min=1)),
     }
 )
@@ -286,8 +289,23 @@ async def _async_get_character(
     client = entry.runtime_data.client
     region: str = call.data[CONF_REGION]
     version: str = call.data[CONF_GAME_VERSION]
-    realm: str = call.data[CONF_REALM]
     name: str = call.data[CONF_CHARACTER]
+
+    if not GAME_VERSIONS[version]["realms"]:
+        # Forever (seit 0.35.0): ohne Realm, Name als Kennung; ein Realm wird
+        # nicht gebraucht und nicht beachtet.
+        suffix = GAME_VERSIONS[version]["namespaces"][0]
+        name = character_key(name)
+        if "/" in name:
+            raise ServiceValidationError(
+                translation_domain=DOMAIN, translation_key="invalid_character"
+            )
+        return await _lookup(client, region, version, suffix, "", name, None)
+    if CONF_REALM not in call.data:
+        raise ServiceValidationError(
+            translation_domain=DOMAIN, translation_key="realm_required"
+        )
+    realm: str = call.data[CONF_REALM]
 
     # Namespace-Kandidaten der Reihe nach, wie beim Einrichten.
     for suffix in GAME_VERSIONS[version]["namespaces"]:
@@ -309,13 +327,28 @@ async def _async_get_character(
             translation_key="realm_not_found",
             translation_placeholders={"realm": realm},
         )
+    return await _lookup(client, region, version, suffix, slug, name, realm)
+
+
+async def _lookup(
+    client: BattleNetClient,
+    region: str,
+    version: str,
+    suffix: str,
+    slug: str,
+    name: str,
+    realm: str | None,
+) -> dict[str, Any]:
+    """Profil, Mythic+ und Bilder eines Charakters; slug "" ohne Realm."""
     try:
         profile = await client.get_profile(region, slug, name, suffix)
     except BattleNetNotFound as err:
         raise ServiceValidationError(
             translation_domain=DOMAIN,
             translation_key="lookup_not_found",
-            translation_placeholders={"character": f"{name} – {realm}"},
+            translation_placeholders={
+                "character": f"{name} – {realm}" if realm else name
+            },
         ) from err
     except BattleNetError as err:
         raise _api_error(err) from err
@@ -338,9 +371,12 @@ async def _async_get_character(
     last_login = p.timestamp(profile.get("last_login_timestamp"))
     return {
         "name": profile.get("name"),
+        # Nachname und Regelsatz gibt es nur bei Forever (seit 0.35.0)
+        "surname": profile.get("surname"),
         "id": profile.get("id"),
         "realm": p.name_of(profile.get("realm")),
-        "realm_slug": slug,
+        "realm_slug": slug or None,
+        "ruleset": p.name_of(profile.get("ruleset")),
         "region": region,
         "game_version": version,
         "level": profile.get("level"),

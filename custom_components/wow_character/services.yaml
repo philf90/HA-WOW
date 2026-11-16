@@ -35,7 +35,6 @@ get_character:
             - classic_progression
             - classic_anniversary
     realm:
-      required: true
       example: Die Aldor
       selector:
         text:

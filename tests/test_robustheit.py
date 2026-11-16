@@ -12,12 +12,7 @@ from pytest_homeassistant_custom_component.common import async_fire_time_changed
 
 from .conftest import (
     API,
-    BASE_INPUT,
-    CHARACTER_INPUT,
     GAME,
-    PROFILE,
-    REALMS,
-    REALMS_URL,
     TOKEN_URL,
     UID1,
     character_subentry,
@@ -191,58 +186,3 @@ async def test_back_to_earlier_client_id(hass: HomeAssistant, aioclient_mock) ->
         for e in er.async_entries_for_config_entry(ent_reg, entry.entry_id)
         if "-world-" in e.unique_id and e.entity_id.endswith("_2")
     ]
-
-
-async def _forever_flow(hass: HomeAssistant, entry):
-    result = await hass.config_entries.subentries.async_init(
-        (entry.entry_id, "character"),
-        context={"source": config_entries.SOURCE_USER},
-    )
-    result = await hass.config_entries.subentries.async_configure(
-        result["flow_id"], {"next_step_id": "manual"}
-    )
-    return await hass.config_entries.subentries.async_configure(
-        result["flow_id"], {**BASE_INPUT, "game_version": "forever"}
-    )
-
-
-async def test_forever_skips_forbidden_namespace(
-    hass: HomeAssistant, aioclient_mock
-) -> None:
-    """HTTP 403 fuer den ersten Kandidaten: der naechste wird probiert."""
-    mock_token(aioclient_mock)
-    ns = {"locale": "de_DE"}
-    aioclient_mock.get(
-        REALMS_URL, params={**ns, "namespace": "dynamic-forever-eu"}, status=403
-    )
-    aioclient_mock.get(
-        REALMS_URL, params={**ns, "namespace": "dynamic-camelot-eu"}, json=REALMS
-    )
-    aioclient_mock.get(
-        API, params={**ns, "namespace": "profile-camelot-eu"}, json=PROFILE
-    )
-    entry = await _setup(hass)
-
-    result = await _forever_flow(hass, entry)
-    assert result["step_id"] == "character"
-    result = await hass.config_entries.subentries.async_configure(
-        result["flow_id"], CHARACTER_INPUT
-    )
-    assert result["type"] is FlowResultType.CREATE_ENTRY
-    (subentry,) = entry.subentries.values()
-    assert subentry.data["namespace_suffix"] == "-camelot"
-
-
-async def test_forever_all_forbidden(hass: HomeAssistant, aioclient_mock) -> None:
-    """Alle Kandidaten mit 403: Hinweis "keine Realm-Liste" statt Verbindungsfehler."""
-    mock_token(aioclient_mock)
-    ns = {"locale": "de_DE"}
-    for suffix in ("-forever", "-camelot"):
-        aioclient_mock.get(
-            REALMS_URL, params={**ns, "namespace": f"dynamic{suffix}-eu"}, status=403
-        )
-    entry = await _setup(hass)
-
-    result = await _forever_flow(hass, entry)
-    assert result["step_id"] == "manual"
-    assert result["errors"] == {"base": "realms_not_found"}

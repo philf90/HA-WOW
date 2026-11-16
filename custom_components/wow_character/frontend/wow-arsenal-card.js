@@ -286,7 +286,8 @@ class WowArsenalCard extends HTMLElement {
       ilvl === null ? "" : pille(`${wert(Math.round(ilvl))} ${esc(this._t("itemLevel"))}`),
       wertung === null ? "" : pille(`M+ ${wert(Math.round(wertung))}`),
       a.faction ? pille(esc(a.faction)) : "",
-      a.realm ? pille(esc(a.realm)) : "",
+      // Forever (seit 0.35.0): Regelsatz statt Realm
+      a.realm || a.ruleset ? pille(esc(a.realm || a.ruleset)) : "",
       a.guild ? pille(esc(a.guild)) : "",
     ].join("");
     return `
