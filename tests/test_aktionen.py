@@ -381,6 +381,7 @@ def test_services_described_and_translated(path: str) -> None:
     schemas = {
         "refresh": services.REFRESH_SCHEMA,
         "get_character": services.GET_CHARACTER_SCHEMA,
+        "probe_namespaces": services.PROBE_NAMESPACES_SCHEMA,
     }
     assert set(described) == set(schemas) == set(strings["services"])
     for name, schema in schemas.items():

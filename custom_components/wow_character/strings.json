@@ -682,6 +682,28 @@
           "description": "Name of the character."
         }
       }
+    },
+    "probe_namespaces": {
+      "name": "Check WoW Forever namespaces",
+      "description": "Diagnosis: queries the namespace candidates for WoW Forever in the static, dynamic and, with a character, profile namespace and returns HTTP status, keys and a few sample values per query. Reads only.",
+      "fields": {
+        "config_entry_id": {
+          "name": "API client",
+          "description": "Battle.net API entry whose access is used. Needed only with more than one entry."
+        },
+        "regions": {
+          "name": "Regions",
+          "description": "Regions to check. Empty: all four."
+        },
+        "character": {
+          "name": "Character",
+          "description": "Optional: character ID as in the armory address, e.g. firstname-lastname. Also checks profile paths."
+        },
+        "ruleset": {
+          "name": "Ruleset",
+          "description": "Optional, only with a character: ruleset slug as in the armory, e.g. normal. Also checks the path ruleset/character."
+        }
+      }
     }
   }
 }

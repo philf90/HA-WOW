@@ -682,6 +682,28 @@
           "description": "Name des Charakters."
         }
       }
+    },
+    "probe_namespaces": {
+      "name": "WoW-Forever-Namespaces prüfen",
+      "description": "Diagnose: fragt die Namespace-Kandidaten für WoW Forever im static-, dynamic- und mit Charakter im profile-Namespace ab und liefert je Abfrage HTTP-Status, Schlüssel und wenige Beispielwerte. Liest nur.",
+      "fields": {
+        "config_entry_id": {
+          "name": "API-Client",
+          "description": "Eintrag Battle.net API, dessen Zugang benutzt wird. Nur bei mehreren Einträgen nötig."
+        },
+        "regions": {
+          "name": "Regionen",
+          "description": "Zu prüfende Regionen. Leer: alle vier."
+        },
+        "character": {
+          "name": "Charakter",
+          "description": "Optional: Kennung wie in der Armory-Adresse, z. B. vorname-nachname. Prüft zusätzlich Profilpfade."
+        },
+        "ruleset": {
+          "name": "Regelsatz",
+          "description": "Optional, nur mit Charakter: Regelsatz als Slug wie in der Armory, z. B. normal. Prüft zusätzlich den Pfad Regelsatz/Charakter."
+        }
+      }
     }
   }
 }

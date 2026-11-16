@@ -224,6 +224,9 @@
     },
     "get_character": {
       "service": "mdi:account-search"
+    },
+    "probe_namespaces": {
+      "service": "mdi:database-search"
     }
   }
 }
