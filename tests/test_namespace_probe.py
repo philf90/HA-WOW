@@ -1,4 +1,4 @@
-"""Tests fuer 0.34.0: Aktion probe_namespaces (Forever-Namespaces pruefen)."""
+"""Tests fuer 0.34.0 und 0.34.1: Aktion probe_namespaces (Forever-Namespaces)."""
 
 import json
 from pathlib import Path
@@ -281,11 +281,12 @@ def test_sample_shortens() -> None:
         "nested": {"name": "N", "id": 7, "key": {"href": "h"}},
         "plain": {"a": 1, "b": 2},
         "flag": True,
-        **{f"k{i}": i for i in range(20)},
+        **{f"k{i}": i for i in range(60)},
     }
     result = probe.sample(data)
     assert "_links" not in result
-    assert len(result) == probe.MAX_KEYS
+    # 40 Schluessel: genug fuer die 31 des Forever-Profils vom 16.11.2026
+    assert len(result) == probe.MAX_KEYS == 40
     assert result["text"] == "x" * probe.MAX_TEXT
     assert result["nested"] == {"name": "N", "id": 7}
     assert result["plain"] == {"keys": ["a", "b"]}
@@ -303,3 +304,127 @@ def test_regions_selector_matches_schema() -> None:
     assert services.PROBE_NAMESPACES_SCHEMA({})["regions"] == list(REGIONS)
     icons = json.loads((path.parent / "icons.json").read_text())["services"]
     assert icons["probe_namespaces"] == {"service": "mdi:database-search"}
+
+
+# 0.34.1: verlinkte Unterseiten eines gefundenen Profils
+
+EU = "https://eu.api.blizzard.com"
+CHAR = f"/profile/wow/character/{SLUG}"
+PROFILE_NS = "namespace=profile-forever-eu"
+LINKED_PROFILE = {
+    **FOREVER_PROFILE,
+    "_links": {"self": {"href": f"{EU}{CHAR}?{PROFILE_NS}"}},
+    "equipment": {"href": f"{EU}{CHAR}/equipment?{PROFILE_NS}"},
+    "collections": {"href": f"{EU}{CHAR}/collections?{PROFILE_NS}"},
+    "media": {"href": f"{EU}{CHAR}/character-media?{PROFILE_NS}"},
+    # Kein reiner Link (weitere Schluessel): nicht folgen
+    "character_class": {"key": {"href": f"{EU}/data/wow/playable-class/7"}, "id": 7},
+    "mixed": {"href": f"{EU}{CHAR}/mixed?{PROFILE_NS}", "name": "Kein reiner Link"},
+    # Fremder Host: nie abfragen, nur melden
+    "foreign": {"href": "https://example.com/steal?namespace=profile-forever-eu"},
+}
+COLLECTIONS = {
+    "mounts": {"href": f"{EU}{CHAR}/collections/mounts?{PROFILE_NS}"},
+    "pets": {"href": f"{EU}{CHAR}/collections/pets?{PROFILE_NS}"},
+    # Schon abgefragt: nicht doppelt
+    "again": {"href": f"{EU}{CHAR}/equipment?{PROFILE_NS}"},
+}
+MOUNTS = {
+    "mounts": [{"mount": {"id": 6, "name": "Brauner Wolf"}}],
+    # Dritte Ebene: nicht mehr folgen
+    "deeper": {"href": f"{EU}{CHAR}/collections/mounts/deeper?{PROFILE_NS}"},
+}
+
+
+def _mock_profile_links(aioclient_mock, profile: dict) -> None:
+    ns = _ns("profile", "-forever", "eu")
+    aioclient_mock.get(f"{EU}{CHAR}", params=ns, json=profile)
+    aioclient_mock.get(
+        f"{EU}{CHAR}/equipment",
+        params=ns,
+        json={"equipped_items": [{"slot": {"type": "HEAD", "name": "Kopf"}}]},
+    )
+    aioclient_mock.get(f"{EU}{CHAR}/collections", params=ns, json=COLLECTIONS)
+    aioclient_mock.get(f"{EU}{CHAR}/collections/mounts", params=ns, json=MOUNTS)
+    aioclient_mock.get(f"{EU}{CHAR}/collections/pets", params=ns, status=404)
+    aioclient_mock.get(f"{EU}{CHAR}/character-media", params=ns, json={"assets": []})
+    _fallback(aioclient_mock, [STATIC, DYNAMIC, CHAR])
+
+
+async def test_profile_links_followed(hass: HomeAssistant, aioclient_mock) -> None:
+    """Gefundenes Profil: Unterseiten zwei Ebenen tief, nur Region-Host."""
+    await _setup(hass, aioclient_mock)
+    _mock_profile_links(aioclient_mock, LINKED_PROFILE)
+
+    response = await _probe(hass, {"regions": ["eu"], "character": SLUG})
+
+    linked = [(r.get("via"), r["path"], r["status"]) for r in response["results"]]
+    assert linked == [
+        (None, STATIC, 404),
+        (None, DYNAMIC, 404),
+        (None, CHAR, 200),
+        ("equipment", f"{CHAR}/equipment", 200),
+        ("collections", f"{CHAR}/collections", 200),
+        ("media", f"{CHAR}/character-media", 200),
+        ("collections.mounts", f"{CHAR}/collections/mounts", 200),
+        ("collections.pets", f"{CHAR}/collections/pets", 404),
+        # -camelot: kein Profil, also keine Unterseiten
+        (None, STATIC, 404),
+        (None, DYNAMIC, 404),
+        (None, CHAR, 404),
+    ]
+    assert response["requests"] == 11
+    assert response["skipped_links"] == ["foreign: example.com"]
+    assert not any("example.com" in p for p in _paths(aioclient_mock))
+    profile = response["results"][2]
+    # Alle Schluessel sichtbar, Nachname und Regelsatz mit Wert
+    assert profile["sample"]["surname"] == "Nachname"
+    assert profile["sample"]["ruleset"] == {"name": "Normal", "slug": "normal"}
+    mounts = response["results"][6]
+    assert mounts["namespace"] == "profile-forever-eu"
+    assert mounts["sample"]["mounts"] == {
+        "count": 1,
+        "first": [{"keys": ["mount"]}],
+    }
+    assert "via" not in profile
+
+
+async def test_profile_links_capped(hass: HomeAssistant, aioclient_mock) -> None:
+    """Hoechstens MAX_LINKS Unterseiten je gefundenem Profil."""
+    await _setup(hass, aioclient_mock)
+    many = {
+        **FOREVER_PROFILE,
+        **{f"l{i}": {"href": f"{EU}{CHAR}/l{i}?{PROFILE_NS}"} for i in range(50)},
+    }
+    ns = _ns("profile", "-forever", "eu")
+    aioclient_mock.get(f"{EU}{CHAR}", params=ns, json=many)
+    for i in range(50):
+        aioclient_mock.get(f"{EU}{CHAR}/l{i}", status=404)
+    _fallback(aioclient_mock, [STATIC, DYNAMIC, CHAR])
+
+    response = await _probe(hass, {"regions": ["eu"], "character": SLUG})
+
+    vias = [r["via"] for r in response["results"] if "via" in r]
+    assert len(vias) == probe.MAX_LINKS == 40
+    assert vias[-1] == "l39"
+
+
+def test_link_target_rules() -> None:
+    """Nur https zum API-Host der Region, nur API-Pfade; Namespace aus dem Link."""
+    ns = "profile-forever-eu"
+    assert probe._link_target("eu", f"{EU}{CHAR}/equipment?namespace=x-eu", ns) == (
+        f"{CHAR}/equipment",
+        "x-eu",
+    )
+    assert probe._link_target("eu", f"{EU}{CHAR}/titles", ns) == (
+        f"{CHAR}/titles",
+        ns,
+    )
+    for href in (
+        f"https://us.api.blizzard.com{CHAR}",
+        f"http://eu.api.blizzard.com{CHAR}",
+        f"https://eu.api.blizzard.com.example.com{CHAR}",
+        f"{EU}/oauth/token",
+        "kein Link",
+    ):
+        assert probe._link_target("eu", href, ns) is None, href
