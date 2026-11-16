@@ -1784,6 +1784,228 @@ Blizzards Partner-Schnittstelle (`partner-eu.api.blizzard.net`), nicht über die
 öffentliche API. Ob die öffentliche API einen anderen Namespace nutzen wird
 oder Forever nur noch nicht freigeschaltet hat, ist offen.
 
+### Test-Addon „HA Bridge Probe“
+
+Vorarbeit für einen zweiten Weg neben der Battle.net API: ein Spiel-Addon, das
+Charakterdaten im Spiel erfasst. Ein Addon kann keine Verbindung nach außen aufbauen und keine Dateien
+schreiben (Warcraft Wiki, „Lua functions“: „operating system and file I/O
+libraries are not present“); es kann Daten nur in seine SavedVariables-Datei
+legen, die der Client beim Ausloggen, bei `/reload`, beim Trennen und beim
+Beenden schreibt. Bevor die Integration dafür etwas bekommt, klärt das
+Test-Addon im echten Forever-Client, was ein Addon dort lesen kann. Es ändert an
+der Integration nichts, sendet nichts und läuft nur auf dem Spiele-PC.
+
+**Installation**
+
+1. Den Ordner `addon/HABridgeProbe` aus diesem Repository (z. B. über
+   **Code → Download ZIP**) nach `World of Warcraft\_forever_\Interface\AddOns\`
+   kopieren, sodass dort `HABridgeProbe\HABridgeProbe.toc` liegt. Den Ordner
+   `_forever_` nennen bisher nur Fanseiten; die Battle.net-App zeigt ihn über
+   WoW Forever → Zahnrad → **Im Explorer zeigen**.
+2. In der Charakterauswahl unter **AddOns** „HA Bridge Probe“ aktivieren. Steht
+   es dort als veraltet (nach einem Patch passt die Interface-Nummer 16001 nicht
+   mehr), **Veraltete AddOns laden** anhaken.
+3. Einloggen. Nach 5 Sekunden misst das Addon, meldet sich im Chat und öffnet
+   sein Fenster (`/habp` zeigt oder verbirgt es). Seit 0.1.2 hat es einen
+   eigenen Knopf am Rand der Minikarte (Fernglas): Linksklick zeigt oder
+   verbirgt das Fenster, Rechtsklick öffnet die Einstellungen, Ziehen schiebt
+   ihn um die Minikarte. Es läuft auch in Retail (Interface 120105), zum
+   Vergleich.
+
+**Tests im Spiel**, in dieser Reihenfolge:
+
+1. **Einfügen:** diese Prüfzeile kopieren und mit Strg+V in das Feld unten im
+   Fenster einfügen:
+
+   ```text
+   HAB1|http://192.168.0.10:8123|0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+   ```
+
+   Erwartet: „94 Zeichen, Prüftext korrekt, größter Sprung 94“; ein Sprung von
+   94 heißt, der Text kam in einem Rutsch. Kommen mehr Zeichen an (im Spiel
+   z. B. 96, vermutlich durch einen mitkopierten Zeilenumbruch), zeigt das
+   Fenster seit 0.1.1 darunter die Länge ohne Leerraum am Anfang und Ende, ob
+   der Prüftext dann stimmt, und zählt Zeilenumbrüche (CR, LF), Tabulatoren und
+   Leerzeichen. Seit 0.1.3 zählt es auch doppelte Striche und vergleicht ohne
+   diese Maskierung: WoW maskiert einen eingefügten Strich `|` (Spieltest
+   11.11.2026, siehe unten). Gespeichert werden nur Längen, Zähler und
+   Vergleiche, nicht der Text. Für einen neuen Versuch das Feld leeren.
+2. **Minikarten-Knopf und Einstellungsseite:** den Knopf an der Minikarte
+   einmal anklicken und einmal verschieben. Die Einstellungsseite öffnet ein
+   Rechtsklick auf den Knopf, `/habp optionen` oder Esc → **Optionen** →
+   Reiter **Addons** → **HA Bridge Probe**; dort einen der beiden Haken einmal
+   umschalten und zurück. Das AddOn-Menü von Blizzard (in Retail ein Knopf an
+   der Minikarte) war in Forever nicht sichtbar, deshalb der eigene Knopf.
+3. **Chat-Log:** **Chat-Log-Test** klicken. Das schaltet das Chat-Log ein und
+   schreibt eine Marke `HABP-<Zahl>` in den Chat (einmal über `print`, einmal
+   über `AddMessage`). In `World of Warcraft\_forever_\Logs\WoWChatLog.txt` nach
+   der Marke suchen, einmal sofort und einmal nach dem Ausloggen, und die
+   Änderungszeit der Datei notieren. Danach `/habp chatlog aus`. Steht die Marke
+   sofort in der Datei, könnte ein Begleitprogramm Werte schon während des
+   Spielens weitergeben.
+4. **/reload:** **Speichern (/reload)** klicken. Nach dem Neuladen zeigt das
+   Fenster „/reload-Test bestätigt“.
+5. **Absturz:** die Sitzungsnummer im Fenster notieren, WoW im Task-Manager
+   beenden und neu starten. Zeigt das Fenster danach „zuletzt gespeichert:
+   #<notierte Nummer> (sauber beendet: nein)“, schreibt der Client die Datei auch
+   beim Absturz; zeigt es eine kleinere Nummer, gehen die Daten einer
+   abgestürzten Sitzung verloren.
+6. **Ausloggen.** Erst dann steht alles in der Datei.
+
+**Ergebnis:**
+`World of Warcraft\_forever_\WTF\Account\<Konto>\SavedVariables\HABridgeProbe.lua`.
+
+| Abschnitt | Inhalt |
+|---|---|
+| `runs` | die letzten 5 Messläufe mit Rohwerten (Namen, Gilde); bleibt auf dem PC |
+| `report` | der letzte Messlauf zum Teilen: Namen als Buchstabenmuster („Mara Sturmwind“ → „Aaaa Aaaaaaaaa“), GUID gekürzt (`Player-4455-xxxxxxxx`), Realm und Regelsatz lesbar; seit 0.1.2 mit den Sitzungen vom Stand des Logouts |
+| `sessions` | die letzten 10 Sitzungen: Beginn, letztes Lebenszeichen (alle 30 s), sauber beendet ja/nein; seit 0.1.2 auch GUID, wann die Zone bekannt war und die Werte beim Logout (Zone, Unterzone, Karte, Gold, Stufe, Erfahrung); seit 0.1.3 der laufende Stand aus Ereignissen und Abstände über `GetTime` |
+| `tests` | Einfügen, /reload, Chat-Log, Einstellungsseite, AddOn-Menü, Minikarten-Knopf |
+| `eventSupport` | welche Ereignisse der Client kennt |
+
+Zum Auswerten den Abschnitt `["report"]` in ein Issue kopieren und dazu
+schreiben: den Pfad der Datei (Kontoordner unkenntlich), ob und wann die Marke
+im Chat-Log stand und das Ergebnis des Absturztests.
+
+**Was gemessen wird:**
+
+- **Kennung:** `UnitFullName`, `UnitName`, `UnitPVPName`, `GetUnitName`,
+  `GetRealmName`, `GetNormalizedRealmName`, `GetRealmID`, `GetCurrentRegion`,
+  `GetCurrentRegionName`, `UnitGUID`, `GetBuildInfo`, `GetLocale` und alle
+  Konstanten `WOW_PROJECT_*`. Daran entscheidet sich, wie ein Forever-Charakter
+  mit Vor- und Nachnamen eindeutig erkannt wird.
+- **Suche:** globale Namen, `C_`-Namensräume und Blizzards API-Dokumentation im
+  Client (`Blizzard_APIDocumentationGenerated`) nach „surname“, „lastname“,
+  „familyname“, „ruleset“, „forever“, „camelot“ und „skyborne“.
+- **Werte:** Stufe, Klasse, Volk, Fraktion, Gold, Erfahrung, Ruhebonus, Zone,
+  Unterzone, Karte (Koordinaten nur „Wert vorhanden“ ja/nein, nie die Werte),
+  Instanz, Itemlevel, Gilde, Berufe, Haltbarkeit (niedrigster Wert), freie
+  Taschenplätze, Instanz-Sperren, Währungen mit ID, Questlog, Zeit bis zum
+  täglichen und wöchentlichen Reset, Spielzeit (`RequestTimePlayed`). Jede
+  Funktion mit „vorhanden“, „Fehler“ samt Text und „geheim“ (Secret Values).
+- **Bausteine der Brücke:** `C_EncodingUtil.SerializeJSON` mit Rückweg,
+  Settings API, AddOn-Menü (seit 0.1.2 auch, ob das Objekt sichtbar ist und
+  wie viele Addons es kennt), eigener Minikarten-Knopf, `LoggingChat`,
+  `ReloadUI`, Chat- und Addon-Nachrichten (nur ob vorhanden, nichts wird
+  gesendet).
+- **Seit 0.1.2:** die im Spiel gefundenen Funktionen
+  `C_PlayerInfo.ShouldDisplaySurname` (ohne und mit `"player"`) und
+  `C_GameRules.GetForeverExperiencePreset`, die Funktionslisten von
+  `C_GameRules`, `C_NameUtil` und `C_PlayerInfo`, der Zeitpunkt, ab dem die
+  Zone bekannt ist (erstes `ZONE_CHANGED_NEW_AREA`), und die Werte beim Logout.
+  Die Suche überspringt Fenster-Elemente (Objekte mit `GetObjectType`).
+- **Seit 0.1.3:** Spielmodus und Regelsatz über die lesenden Funktionen von
+  `C_GameRules` ohne Parameter (`GetActiveGameMode`,
+  `GetCurrentGameModeRecordID`, `GetCurrentGameModeDisplayInfo`,
+  `GetGameModeDisplayInfoByRecordID`, `IsStandard`, `IsHardcoreActive`,
+  `IsSelfFoundAllowed` und weitere) und `Enum.GameMode`; `Set…`- und
+  `AutoConnect…`-Funktionen ruft die Probe nie auf. Dazu
+  `C_PlayerInfo.IsSelfFoundActive`, `IsPlayerInRPE` und
+  `GetPlayerCharacterData`. Abstände (Zone bekannt, Messung) über `GetTime`.
+  Ein laufender Stand (Gold, Erfahrung, Stufe, Zone, Karte) aus den Ereignissen
+  `PLAYER_MONEY`, `PLAYER_XP_UPDATE`, `PLAYER_LEVEL_UP`, `ZONE_CHANGED` und
+  `ZONE_CHANGED_NEW_AREA`, so wie die Brücke ihn führen soll; leere Zonen und
+  fehlende Karten überschreiben keinen bekannten Wert, beim Logout wird nichts
+  neu gelesen. Lage, Größe, Sichtbarkeit und Ebene des AddOn-Menü-Knopfs.
+
+Befehle: `/habp` (Fenster), `/habp messen`, `/habp reload`, `/habp chatlog`,
+`/habp chatlog aus`, `/habp optionen`, `/habp knopf` (Minikarten-Knopf ein oder
+aus), `/habp reset ja` (alles löschen und neu laden). Im Kampf misst das Addon nicht; die Messung folgt nach dem Kampf.
+
+**Ergebnisse im Spiel** (11.11.2026, Version 0.1.0, Forever EU, deDE; Quelle:
+Fenster des Addons, Screenshots des Spielers):
+
+- Client 1.60.1, Build 70888, Interface 16001. `WOW_PROJECT_ID` ist 18 =
+  `WOW_PROJECT_CAMELOT`; `WOW_PROJECT_FOREVER` gibt es nicht.
+- `GetCurrentRegion()` 3, `GetCurrentRegionName()` „EU“.
+- `UnitFullName("player")` liefert Vor- und Nachnamen: Der zweite Wert, in
+  Retail der Realm, ist in Forever der Nachname. `UnitPVPName` und
+  `GetUnitName("player", true)` liefern „Vorname Nachname“. Ein Charakter ist
+  damit über Region und vollen Namen erkennbar, wie Blizzard ihn als je Region
+  eindeutig beschreibt.
+- `GetRealmName()` liefert einen internen Servernamen („CAMWOW EU5 Realm 7
+  PvE“), `GetRealmID()` 6949; die GUID beginnt mit `Player-6949-`, ist lesbar
+  und nicht geheim. Den Regelsatz als Wort („Normal“) liefert keine der
+  gemessenen Funktionen.
+- 61 von 63 Funktionen vorhanden, keine mit Fehler, keine mit geheimen Werten.
+  Es fehlen `GetNumSkillLines` und `GetNumQuestLogEntries`; `GetProfessions`
+  und `C_QuestLog` sind da. Gold, Stufe, Spielzeit, Zone, Unterzone, Karte,
+  Haltbarkeit, Taschenplätze und Instanz-Sperren kamen an.
+- `C_EncodingUtil.SerializeJSON` funktioniert, auch zurück. Fenstervorlagen,
+  Knöpfe, Eingabefeld und Einstellungsseite (Settings API) funktionieren.
+- `/reload` schreibt die Datei; `PLAYER_LOGOUT` kam in derselben Sekunde wie
+  der Klick.
+- Strg+V im Eingabefeld funktioniert: 96 Zeichen in einem Rutsch, 2 mehr als
+  die Prüfzeile (Ursache nicht gemessen, daher seit 0.1.1 die Zähler).
+- Chat-Log: eingeschaltet, Marke im Chat, `Logs\WoWChatLog.txt` blieb während
+  des Spielens leer. Über das Chat-Log lassen sich während einer Sitzung keine
+  Daten weitergeben.
+- In 0.1.0 erschien der Pfeil „→“ als Kästchen, und das Einfügefeld meldete
+  schon vor dem ersten Einfügen „0 Zeichen“; beides behebt 0.1.1, im Spiel
+  bestätigt (Pfeil als „->“, früheres Einfüge-Ergebnis blieb erhalten).
+
+**Aus der Datei** (vier Sitzungen am 11.11.2026, Versionen 0.1.0 und 0.1.1;
+Datei vom Spieler):
+
+- Zone und Unterzone waren 5 Sekunden nach dem **Einloggen** leer und die Karte
+  war der Kontinent (1415, „Östliche Königreiche“), bei beiden Logins; nach
+  `/reload` waren sie gefüllt. Der Ort ist kurz nach dem Login also noch nicht
+  bekannt; die Brücke nimmt ihn beim Logout oder nach einem Zonenwechsel.
+- Die GUID war in allen vier Sitzungen gleich (über rund eine Stunde).
+- Taschen: einmal alle Plätze belegt, später 9 frei im Rucksack; die Funktion
+  liefert also echte Werte. Währungsliste und Instanz-Sperren waren leer
+  (Stufe 9 und 10). `GetProfessions` liefert Indizes.
+- `AddonCompartmentFrame` existiert, einen Knopf dafür sah der Spieler nicht.
+  Ein anderes Addon zeigte einen eigenen Minikarten-Knopf (über LibDBIcon).
+- Die Einstellungsseite steht unter Esc → Optionen → Reiter **Addons**.
+- Von 184 globalen Treffern der Suche waren 157 Fenster-Elemente anderer
+  Addons. Neu gefunden: `C_PlayerInfo.ShouldDisplaySurname`,
+  `C_NameUtil.ReplaceSurnameSeparatorWithLinkSeparator`,
+  `C_GameRules.GetForeverExperiencePreset` und
+  `C_GameRules.SetForeverExperiencePresetPreLogin`/`PostLogin`; in Blizzards
+  API-Dokumentation nur `C_ChatInfo.GetChannelRuleset` und
+  `GetChannelRulesetForChannelID` (Chat-Kanäle).
+- Fehler in 0.1.1: Der Abschnitt `report` hielt die Sitzungen vom Zeitpunkt
+  der Messung fest, eine sauber beendete Sitzung stand dort als nicht beendet.
+  0.1.2 erneuert ihn beim Logout.
+
+**Aus der zweiten Datei** (Sitzungen 5 und 6 am 11.11.2026, Version 0.1.2,
+dazu Screenshots; Datei vom Spieler):
+
+- **Werte beim Logout:** Bei `PLAYER_LOGOUT` waren Zone und Stufe noch
+  richtig, Gold und Erfahrung aber 0, die Karte nil und die Unterzone leer;
+  beim nächsten Login stand das Gold wieder da. Die Brücke darf ihren Stand
+  deshalb nicht erst beim Logout lesen, sondern muss ihn während des Spielens
+  über Ereignisse führen.
+- **Einfügen:** 96 Zeichen, kein Zeilenumbruch, kein Tabulator, kein
+  Leerzeichen, erste Abweichung an Stelle 6. Die Prüfzeile hat genau zwei
+  Striche `|`; das Warcraft Wiki („UI escape sequences“) schreibt: „If you are
+  using the chat window or an in-game text editor, then `|` will be escaped“,
+  maskiert als `||`. Dass genau `||` entsteht, ist aus der Messung geschlossen;
+  0.1.3 prüft es direkt. Ein Kopplungstext sollte daher nicht mit `|` trennen.
+- **Minikarten-Knopf:** angelegt, sichtbar, angeklickt, auf 125 Grad
+  verschoben, Winkel gespeichert.
+- **Einstellungsseite:** `Settings.SetOnValueChangedCallback` ist vorhanden,
+  das Umschalten des Hakens wurde gemeldet.
+- **AddOn-Menü:** `AddonCompartmentFrame` ist laut Client angezeigt und
+  sichtbar, hängt an `UIParent` und kennt 9 Addons; einen Knopf sah der
+  Spieler trotzdem nicht.
+- **Ort beim Login:** Die Messung lag laut `GetServerTime` 2 s nach
+  `PLAYER_ENTERING_WORLD`, obwohl der Timer 5 s lief; das erste
+  `ZONE_CHANGED_NEW_AREA` mit Zone kam laut Serverzeit 4 s danach. Kurz nach
+  dem Login taugt die Serverzeit nicht für Abstände; 0.1.3 misst über
+  `GetTime`.
+- `C_PlayerInfo.ShouldDisplaySurname()` liefert `true`,
+  `C_GameRules.GetForeverExperiencePreset()` liefert `1`; der Spieler hat beim
+  ersten Login „Erweitert“ gewählt. Welcher Wert für „Klassisch“ steht, ist
+  nicht gemessen.
+- Der Bericht enthielt die Sitzungen mit dem Stand vom Logout; die Korrektur
+  aus 0.1.2 wirkt.
+
+Noch nicht im Spiel geprüft: Version 0.1.3 (Spielmodus, laufender Stand,
+`GetTime`, Lage des AddOn-Menü-Knopfs, doppelte Striche), Absturz, Pfad der
+Ergebnisdatei.
+
 ## Grenzen
 
 - Profildaten aktualisiert Blizzard erst, wenn sich der Charakter ausloggt.
@@ -1814,7 +2036,46 @@ Automatische Tests laufen gegen Home Assistant 2026.2.3; live geprüft wurde unt
 Home Assistant 2026.10.4 mit Retail-Charakteren der Region EU, seit 0.11.2 auch
 mit einem Classic-Era-Charakter (siehe [WoW Classic](#wow-classic)).
 
-- **0.33.x:** 409 automatische Tests. 0.33.10: 3 Tests für den Reset (vorbei:
+- **0.33.x:** 431 automatische Tests. Test-Addon 0.1.3 (ohne neue Version der
+  Integration): 4 Tests (Spielmodus nur über lesende Funktionen, nie über
+  `Set…` oder `AutoConnect…`, mit `Enum.GameMode` und Voreinstellung
+  „Erweitert“; Abstände über `GetTime`; laufender Stand aus Ereignissen bleibt
+  richtig, wenn der Client beim Logout Gold und Erfahrung als 0 liefert, und
+  leere Zonen überschreiben ihn nicht; Prüfzeile mit maskierten Strichen ist
+  ohne Maskierung korrekt, Lage des AddOn-Menü-Knopfs gemessen). Gegenprobe:
+  `Set…`-Funktion aufgerufen, laufender Stand beim Logout neu gelesen, leere
+  Zone überschreibt, Serverzeit statt `GetTime`, Maskierung nicht
+  zurückgenommen, Lage nicht gemessen – jedes Mal schlug ein Test fehl. 0.1.3
+  **nicht live geprüft**; 0.1.2 **live geprüft** (11.11.2026: Knopf, Haken,
+  Werte beim Logout, Bericht). Test-Addon 0.1.2: 4 Tests (eigener Minikarten-Knopf: an der Minikarte auf der
+  Kreisbahn, Linksklick, Rechtsklick öffnet die Einstellungen, Ziehen speichert
+  den Winkel, Ausblenden über `/habp knopf` und den Haken; ohne Minikarte nur
+  ein Vermerk; Werte beim Logout und Sitzungen im Bericht mit dem Stand vom
+  Logout; Suche ohne Fenster-Elemente, neue Forever-Funktionen aufgerufen,
+  Diagnose des AddOn-Menüs). Gegenprobe: Knopf nicht an der Minikarte, Winkel
+  nicht gespeichert, Rechtsklick ohne Einstellungen, kein Schutz bei fehlender
+  Minikarte, Bericht beim Logout nicht erneuert, kein Stand beim Logout,
+  Fenster-Elemente nicht ausgefiltert – jedes Mal schlug ein Test fehl. 0.1.1
+  **live geprüft** (11.11.2026: Pfeil als „->“,
+  früheres Einfüge-Ergebnis bleibt beim Anzeigen erhalten). Test-Addon 0.1.1:
+  3 Tests (Einfügen mit mitkopiertem Zeilenumbruch: 96 Zeichen,
+  ohne Rand-Leerraum 94 und korrekt, CR und LF gezählt, neuer Versuch nach dem
+  Leeren; leeres Feld beim Anzeigen ist kein Ergebnis und überschreibt keins;
+  nur Sonderzeichen, die im Spiel nachweislich erscheinen). Gegenprobe: leeres
+  Feld nicht ignoriert, Pfeil wieder im Text, ohne Trimmen, größter Sprung
+  nicht je Versuch, LF nicht gezählt, eingefügter Text gespeichert – jedes Mal
+  schlug ein Test fehl. 0.1.0 **live geprüft**
+  (11.11.2026, Forever EU, siehe Ergebnisse im Abschnitt
+  [„HA Bridge Probe“](#test-addon-ha-bridge-probe)). Test-Addon 0.1.0: 11 Tests, 5 für TOC und Lua-Dateien (Forever-Interface 16001,
+  alle Dateien aufgeführt, Funktionen des AddOn-Menüs vorhanden, keine
+  Datei- und Betriebssystem-Bibliotheken, Prüfzeile im README) und 6 Läufe unter
+  Lua 5.1 gegen einen Nachbau der WoW-API (Messung und Bericht ohne Namen, Tests
+  im Fenster, /reload und Absturz über zwei bzw. drei Sitzungen, fehlende
+  Funktionen und Vorlagen, geheime Werte und Kampf, keine fremden globalen
+  Namen). Gegenprobe: Bericht ohne Unkenntlichmachung, Ereignisse ohne Schutz
+  angemeldet, kein `cleanExit` beim Logout, eingefügter Text gespeichert,
+  globale Variable, Koordinaten gespeichert, Messung im Kampf – jedes Mal schlug
+  ein Test fehl. 0.33.10: 3 Tests für den Reset (vorbei:
   der nächste Lauf fragt neu, auch wenn die API noch den alten Zeitraum meldet,
   und springt mit dem neuen um; noch nicht erreicht: höchstens stündlich;
   erneute Abfrage scheitert: alter Wert bleibt, Spielwelt läuft). Gegenprobe:
@@ -2455,7 +2716,7 @@ mit einem Classic-Era-Charakter (siehe [WoW Classic](#wow-classic)).
 ## Tests
 
 ```bash
-pip install pytest-homeassistant-custom-component==0.13.316 ruff==0.16.9
+pip install pytest-homeassistant-custom-component==0.13.316 ruff==0.16.9 lupa==2.8
 ruff check . && ruff format --check .
 pytest tests   # pytest.ini setzt asyncio_mode = auto
 ```
@@ -2467,6 +2728,10 @@ Dieselben Schritte laufen bei jedem Push und Pull Request im Workflow
 oben im Teststand), Versionshinweise, Übersetzungen und Endpunkte zusammenpassen.
 Die Testzahl im README stimmt nur, wenn jede Änderung an den Tests sie mit
 nachzieht.
+
+`tests/test_testaddon.py` lässt das Test-Addon `addon/HABridgeProbe` mit
+[lupa](https://pypi.org/project/lupa/) unter Lua 5.1 (wie im WoW-Client) gegen
+einen Nachbau der WoW-API laufen (`tests/wow_api_stub.lua`).
 
 **Pull Requests** folgen der Vorlage `.github/pull_request_template.md`. Der
 Workflow „PR-Vorlage“ prüft bei jedem neuen Stand und jeder Änderung der
