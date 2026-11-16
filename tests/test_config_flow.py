@@ -190,30 +190,6 @@ async def test_character_retail(hass: HomeAssistant, aioclient_mock) -> None:
     assert hass.states.get("sensor.testchar_die_aldor_mythic_rating").state == "2512.3"
 
 
-async def test_character_forever_probes_namespaces(
-    hass: HomeAssistant, aioclient_mock
-) -> None:
-    mock_token(aioclient_mock)
-    aioclient_mock.get(REALMS_URL, params=_ns("dynamic-forever-eu"), status=404)
-    aioclient_mock.get(REALMS_URL, params=_ns("dynamic-camelot-eu"), json=REALMS)
-    aioclient_mock.get(API, params=_ns("profile-camelot-eu"), json=PROFILE)
-    entry = await _loaded_entry(hass)
-
-    result = await _start_character(
-        hass, entry, {**BASE_INPUT, "game_version": "forever"}
-    )
-    result = await hass.config_entries.subentries.async_configure(
-        result["flow_id"], CHARACTER_INPUT
-    )
-    assert result["type"] is FlowResultType.CREATE_ENTRY
-    await hass.async_block_till_done()
-    (subentry,) = entry.subentries.values()
-    assert subentry.data["namespace_suffix"] == "-camelot"
-    # Kein Mythic+ bei Forever: Sensor wird gar nicht angelegt, kein Abruf.
-    assert hass.states.get("sensor.testchar_die_aldor_mythic_rating") is None
-    assert not any("mythic" in str(call[1]) for call in aioclient_mock.mock_calls)
-
-
 async def test_character_errors(hass: HomeAssistant, aioclient_mock) -> None:
     mock_token(aioclient_mock)
     entry = await _loaded_entry(hass)

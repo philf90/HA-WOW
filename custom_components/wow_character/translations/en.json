@@ -93,7 +93,7 @@
         },
         "manual": {
           "title": "Region and game version",
-          "description": "The realm list for this region and game version is loaded next.",
+          "description": "The realm list for this region and game version is loaded next. WoW Forever has no realms: only the name follows.",
           "data": {
             "region": "Region",
             "game_version": "Game version"
@@ -118,6 +118,13 @@
             "character": "Character"
           }
         },
+        "character_no_realm": {
+          "title": "Choose WoW Forever character",
+          "description": "Enter first and last name (e.g. Firstname Lastname) or the ID from the armory address (firstname-lastname). WoW Forever has no realms; the title shows the ruleset instead.",
+          "data": {
+            "character": "Character"
+          }
+        },
         "reconfigure": {
           "title": "Change character",
           "description": "After a rename or realm transfer, enter the new realm and name. Device, entity IDs and history stay.",
@@ -125,12 +132,20 @@
             "realm": "Realm",
             "character": "Character"
           }
+        },
+        "reconfigure_no_realm": {
+          "title": "Change WoW Forever character",
+          "description": "After a rename, enter the new first and last name or the ID from the armory address. Device, entity IDs and history stay.",
+          "data": {
+            "character": "Character"
+          }
         }
       },
       "error": {
-        "realms_not_found": "No realm list found for this region and game version. For WoW Forever the API namespace may not be known yet.",
-        "character_not_found": "Character not found on this realm. Check the name; a character must have logged out once.",
-        "cannot_connect": "Battle.net API is not reachable."
+        "realms_not_found": "No realm list found for this region and game version.",
+        "character_not_found": "Character not found. Check realm and name (WoW Forever: first and last name); a character must have logged out once.",
+        "cannot_connect": "Battle.net API is not reachable.",
+        "invalid_character": "Enter a name without a slash."
       },
       "abort": {
         "already_configured": "This character is already configured.",
@@ -510,15 +525,23 @@
               "character": "Character"
             }
           },
+          "character_no_realm": {
+            "title": "New name",
+            "description": "Enter the first and last name of {character} or the ID from the armory address (firstname-lastname). Device, entity IDs and history are kept. Keeping the same name accepts the current character.",
+            "data": {
+              "character": "Character"
+            }
+          },
           "remove": {
             "title": "Remove character",
             "description": "{character} is removed together with its device and entities."
           }
         },
         "error": {
-          "character_not_found": "Character not found on this realm. Check the name; a character must have logged out once.",
+          "character_not_found": "Character not found. Check realm and name (WoW Forever: first and last name); a character must have logged out once.",
           "cannot_connect": "Battle.net API is not reachable.",
-          "already_configured": "This character is already configured."
+          "already_configured": "This character is already configured.",
+          "invalid_character": "Enter a name without a slash."
         },
         "abort": {
           "character_removed": "This character is no longer set up.",
@@ -547,15 +570,23 @@
               "character": "Character"
             }
           },
+          "character_no_realm": {
+            "title": "New name",
+            "description": "Enter the first and last name of {character} or the ID from the armory address (firstname-lastname). Device, entity IDs and history are kept. Keeping the same name accepts the current character.",
+            "data": {
+              "character": "Character"
+            }
+          },
           "remove": {
             "title": "Remove character",
             "description": "{character} is removed together with its device and entities."
           }
         },
         "error": {
-          "character_not_found": "Character not found on this realm. Check the name; a character must have logged out once.",
+          "character_not_found": "Character not found. Check realm and name (WoW Forever: first and last name); a character must have logged out once.",
           "cannot_connect": "Battle.net API is not reachable.",
-          "already_configured": "This character is already configured."
+          "already_configured": "This character is already configured.",
+          "invalid_character": "Enter a name without a slash."
         },
         "abort": {
           "character_removed": "This character is no longer set up.",
@@ -584,15 +615,23 @@
               "character": "Character"
             }
           },
+          "character_no_realm": {
+            "title": "New name",
+            "description": "Enter the first and last name of {character} or the ID from the armory address (firstname-lastname). Device, entity IDs and history are kept. Keeping the same name accepts the current character.",
+            "data": {
+              "character": "Character"
+            }
+          },
           "remove": {
             "title": "Remove character",
             "description": "{character} is removed together with its device and entities."
           }
         },
         "error": {
-          "character_not_found": "Character not found on this realm. Check the name; a character must have logged out once.",
+          "character_not_found": "Character not found. Check realm and name (WoW Forever: first and last name); a character must have logged out once.",
           "cannot_connect": "Battle.net API is not reachable.",
-          "already_configured": "This character is already configured."
+          "already_configured": "This character is already configured.",
+          "invalid_character": "Enter a name without a slash."
         },
         "abort": {
           "character_removed": "This character is no longer set up.",
@@ -644,6 +683,12 @@
     },
     "lookup_not_found": {
       "message": "Character {character} not found."
+    },
+    "realm_required": {
+      "message": "Enter a realm; only WoW Forever has none."
+    },
+    "invalid_character": {
+      "message": "Enter a name without a slash."
     }
   },
   "services": {
@@ -675,11 +720,11 @@
         },
         "realm": {
           "name": "Realm",
-          "description": "Name or slug of the realm, e.g. Die Aldor or die-aldor."
+          "description": "Name or slug of the realm, e.g. Die Aldor or die-aldor. Not needed for WoW Forever."
         },
         "character": {
           "name": "Character",
-          "description": "Name of the character."
+          "description": "Name of the character; WoW Forever: first and last name or the ID from the armory address (firstname-lastname)."
         }
       }
     },

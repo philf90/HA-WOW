@@ -330,7 +330,7 @@ class WowCharactersCard extends HTMLElement {
       auf?.attributes?.level && !Number.isNaN(aufZeit.getTime()) && Date.now() - aufZeit.getTime() < 7 * TAG
         ? this._t("levelUp")(auf.attributes.level, this._vor(auf.state))
         : null;
-    const info = [leer(lvl) ? null : `${this._t("level")} ${lvl.state}`, [a.spec, a.class].filter(Boolean).join(" "), a.realm]
+    const info = [leer(lvl) ? null : `${this._t("level")} ${lvl.state}`, [a.spec, a.class].filter(Boolean).join(" "), a.realm || a.ruleset]
       .filter(Boolean)
       .map(esc)
       .join(" · ");

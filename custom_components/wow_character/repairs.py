@@ -15,9 +15,18 @@ from homeassistant.config_entries import ConfigEntryState, ConfigSubentry
 from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResult
 
+from . import parsers as p
 from .api import BattleNetError, BattleNetNotFound
-from .config_flow import character_configured, character_data, character_schema
-from .const import CONF_CHARACTER, CONF_NAMESPACE_SUFFIX, CONF_REALM, CONF_REGION
+from .config_flow import (
+    character_configured,
+    character_data,
+    character_input,
+    character_schema,
+    has_realms,
+    suggested_character,
+    valid_character,
+)
+from .const import CONF_GAME_VERSION, CONF_NAMESPACE_SUFFIX, CONF_REGION
 from .coordinator import WowConfigEntry
 
 
@@ -59,7 +68,8 @@ class CharacterRepairFlow(RepairsFlow):
         client = entry.runtime_data.client
         data = subentry.data
         region, suffix = data[CONF_REGION], data[CONF_NAMESPACE_SUFFIX]
-        if not self._realms:
+        with_realms = has_realms(data[CONF_GAME_VERSION])
+        if with_realms and not self._realms:
             try:
                 realms = await client.get_realms(region, suffix)
             except BattleNetError:
@@ -67,9 +77,10 @@ class CharacterRepairFlow(RepairsFlow):
             self._realms = {r["slug"]: r["name"] for r in realms}
         errors: dict[str, str] = {}
         if user_input is not None:
-            realm = user_input[CONF_REALM]
-            character = user_input[CONF_CHARACTER].strip()
-            if character_configured(
+            realm, character = character_input(with_realms, user_input)
+            if not valid_character(character):
+                errors["base"] = "invalid_character"
+            elif character_configured(
                 entry, region, suffix, realm, character, skip=subentry.subentry_id
             ):
                 errors["base"] = "already_configured"
@@ -86,23 +97,27 @@ class CharacterRepairFlow(RepairsFlow):
                     self.hass.config_entries.async_update_subentry(
                         entry,
                         subentry,
-                        title=(
-                            f"{profile.get('name', character)} – "
-                            f"{self._realms.get(realm, realm)}"
+                        title=p.character_title(
+                            profile, character, self._realms.get(realm, realm)
                         ),
                         data=character_data(subentry, realm, character, profile),
                     )
                     return self.async_create_entry(data={})
         return self.async_show_form(
-            step_id="character",
+            step_id="character" if with_realms else "character_no_realm",
             data_schema=self.add_suggested_values_to_schema(
-                character_schema(self._realms),
-                user_input
-                or {CONF_REALM: data[CONF_REALM], CONF_CHARACTER: data[CONF_CHARACTER]},
+                character_schema(self._realms if with_realms else None),
+                user_input or suggested_character(data),
             ),
             errors=errors,
             description_placeholders={"character": subentry.title},
         )
+
+    async def async_step_character_no_realm(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Name ohne Realm (Forever); Ablauf wie async_step_character."""
+        return await self.async_step_character(user_input)
 
     async def async_step_remove(
         self, user_input: dict[str, Any] | None = None

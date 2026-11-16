@@ -222,7 +222,7 @@ async def test_forever_creates_only_available(
         "game_version": "forever",
         "namespace_suffix": "-forever",
     }
-    # Forever-Namespace: nur Profil und PvP antworten, Spielwelt kennt nur den Realm.
+    # Forever-Namespace: nur Profil und PvP antworten.
     not_found = {
         f"{API}/{path}": 404
         for path in (
@@ -255,10 +255,11 @@ async def test_forever_creates_only_available(
         ("sensor", "reputation"),
     ):
         assert _eid(hass, platform, f"{UID1}-{key}") is None, key
+    # Seit 0.35.0 keine Spielwelt fuer Forever (keine Realm-Liste)
     world = "id-world-eu-forever"
     assert _eid(hass, "sensor", f"{world}-token") is None
     assert _eid(hass, "sensor", f"{world}-weekly_reset") is None
-    assert _eid(hass, "binary_sensor", f"{world}-realm-die-aldor-status")
+    assert _eid(hass, "binary_sensor", f"{world}-realm-die-aldor-status") is None
 
 
 async def test_shared_realm_has_one_status(hass: HomeAssistant, aioclient_mock) -> None:

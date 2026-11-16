@@ -25,6 +25,27 @@ def name_of(obj: Any) -> str | None:
     return obj.get("name") if isinstance(obj, dict) else None
 
 
+def character_title(
+    profile: dict[str, Any], character: str, realm_name: str | None
+) -> str:
+    """Titel eines Charakters: "Name – Realm".
+
+    Ohne Realm (Forever, seit 0.35.0): Vor- und Nachname aus name und surname
+    und der Regelsatz statt des Realms, z. B. "Vorname Nachname – Normal".
+    Die mitgelieferten Karten zeigen den Teil vor " – " als Namen.
+    """
+    if realm_name:
+        return f"{profile.get('name') or character} – {realm_name}"
+    full = " ".join(
+        part
+        for part in (profile.get("name"), profile.get("surname"))
+        if isinstance(part, str) and part
+    )
+    full = full or str(profile.get("name_search") or character)
+    ruleset = name_of(profile.get("ruleset"))
+    return f"{full} – {ruleset}" if ruleset else full
+
+
 def timestamp(ms: Any) -> datetime | None:
     """Millisekunden seit 1970 in eine Zeit umwandeln."""
     return datetime.fromtimestamp(ms / 1000, tz=UTC) if isinstance(ms, int) else None

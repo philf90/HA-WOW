@@ -262,8 +262,11 @@ CLASSIC_STATIC = ("media/playable-class", "media/item", "playable-class", "item"
 # "profile{suffix}-{region}" fuer Charaktere, z. B. "profile-eu".
 # Bei mehreren Kandidaten wird beim Einrichten der Reihe nach probiert, welcher
 # eine Realm-Liste liefert; der erste Treffer wird gespeichert.
-# label: Zusatz im Namen des Spielwelt-Geraets, z. B. "WoW-Spielwelt EU Forever".
+# label: Zusatz im Namen des Spielwelt-Geraets, z. B. "WoW-Spielwelt EU Classic Era".
 # endpoints/static: was die Version kennt; None heisst ohne Einschraenkung.
+# realms: Charaktere liegen auf Realms aus der Realm-Liste. False (Forever):
+# keine Realm-Liste, Profilpfad /profile/wow/character/{kennung} ohne Realm,
+# keine Spielwelt (seit 0.35.0).
 GAME_VERSIONS = {
     "retail": {
         "namespaces": [""],
@@ -271,16 +274,22 @@ GAME_VERSIONS = {
         "label": "",
         "endpoints": None,
         "static": None,
+        "realms": True,
     },
-    # WoW Forever startet am 04.11.2026. Blizzard hat den Namespace noch nicht
-    # dokumentiert. Die Kandidaten stammen aus homeassistant-wow-blizzard und
-    # sind NICHT bestaetigt; nach dem Start hier eintragen, was Blizzard nennt.
+    # WoW Forever (Start 04.11.2026): Blizzard dokumentiert den Namespace
+    # nicht. Live am 16.11.2026 (Aktion probe_namespaces): static-forever-*
+    # und profile-forever-* liefern Daten, dynamic-forever-* keine Realm-Liste
+    # (404); der zweite Kandidat "-camelot" ergab ueberall 403 und ist seit
+    # 0.35.0 gestrichen. Charaktere tragen Vor- und Nachnamen, Kennung
+    # "vorname-nachname" wie in der Armory-Adresse, und einen Regelsatz statt
+    # eines Realms.
     "forever": {
-        "namespaces": ["-forever", "-camelot"],
+        "namespaces": ["-forever"],
         "mythic_plus": False,
         "label": " Forever",
         "endpoints": None,
         "static": None,
+        "realms": False,
     },
     # Classic: Namespaces laut Blizzard-Doku "World of Warcraft Classic
     # Namespaces" (Stand 28.10.2026). Die Erweiterung hinter Progression und
@@ -291,6 +300,7 @@ GAME_VERSIONS = {
         "label": " Classic Era",
         "endpoints": CLASSIC_ENDPOINTS,
         "static": CLASSIC_STATIC,
+        "realms": True,
     },
     "classic_progression": {
         "namespaces": ["-classic"],
@@ -298,6 +308,7 @@ GAME_VERSIONS = {
         "label": " Classic Progression",
         "endpoints": CLASSIC_ENDPOINTS,
         "static": CLASSIC_STATIC,
+        "realms": True,
     },
     "classic_anniversary": {
         "namespaces": ["-classicann"],
@@ -305,5 +316,6 @@ GAME_VERSIONS = {
         "label": " Classic Anniversary",
         "endpoints": CLASSIC_ENDPOINTS,
         "static": CLASSIC_STATIC,
+        "realms": True,
     },
 }

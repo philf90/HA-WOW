@@ -25,6 +25,16 @@ from .const import (
 _INTERNAL_REALM = re.compile(r"^(?:(?:eu|us|kr|tw)(?:\d|-arena-pass)|rdb-|zzz)")
 
 
+def character_key(text: str) -> str:
+    """Kennung eines Charakters ohne Realm (Forever), z. B. "vorname-nachname".
+
+    Nimmt "Vorname Nachname" oder die Kennung aus der Armory-Adresse an:
+    Leerraum wird zu einem Bindestrich, alles klein. Umlaute und Akzente
+    bleiben; wie Blizzard sie in der Kennung schreibt, ist nicht belegt.
+    """
+    return "-".join(text.split()).lower()
+
+
 def is_internal_realm(slug: str) -> bool:
     return bool(_INTERNAL_REALM.match(slug))
 
@@ -297,7 +307,12 @@ class BattleNetClient:
 
     @staticmethod
     def _character_path(realm: str, character: str) -> str:
-        # realm ist der Slug aus der Realm-Liste, z. B. "die-aldor".
+        # realm ist der Slug aus der Realm-Liste, z. B. "die-aldor". Leer bei
+        # Spielversionen ohne Realms (Forever, seit 0.35.0): Dort ist character
+        # die Kennung "vorname-nachname" und der Pfad hat keinen Realm (live
+        # am 16.11.2026; mit Regelsatz statt Realm kam 404).
+        if not realm:
+            return f"/profile/wow/character/{quote(character.lower())}"
         return f"/profile/wow/character/{realm}/{quote(character.lower())}"
 
     async def get_realms(self, region: str, suffix: str) -> list[dict[str, Any]]:

@@ -244,8 +244,10 @@ async def test_get_character(hass: HomeAssistant, aioclient_mock) -> None:
     assert response == {
         "name": "Freundin",
         "id": 4711,
+        "surname": None,
         "realm": "Kult der Verdammten",
         "realm_slug": "kult-der-verdammten",
+        "ruleset": None,
         "region": "eu",
         "game_version": "retail",
         "level": 80,

@@ -217,9 +217,10 @@ async def test_login_creates_selected_characters(
         "code": "abcd",
         "redirect_uri": MY_AUTH_CALLBACK_PATH,
     }
-    # 4 Regionen, 5 Spielversionen, Forever mit zwei Namespace-Kandidaten.
+    # 4 Regionen, 4 Spielversionen mit Realms.
     calls = _account_calls(aioclient_mock)
-    assert len(calls) == 4 * len(SUFFIXES)
+    # Je Region alle Namespaces ausser Forever (seit 0.35.0 nicht abgefragt)
+    assert len(calls) == 4 * len([s for s in SUFFIXES if s != "-forever"]) == 16
     assert {c[3]["Authorization"] for c in calls} == {"Bearer login-tok"}
 
     keys = [o["value"] for o in _options(result)]
@@ -273,22 +274,19 @@ async def test_login_without_selection(
     assert result["result"].subentries == {}
 
 
-async def test_login_forever_takes_namespace_with_account(
+async def test_login_skips_forever(
     hass: HomeAssistant, aioclient_mock, hass_client_no_auth, callback_view
 ) -> None:
-    """Wie beim Hinzufuegen von Hand gewinnt der Kandidat, der antwortet."""
-    mock_login(aioclient_mock, {("eu", "-camelot"): _account(TESTCHAR)})
+    """Seit 0.35.0 fragt die Anmeldung Forever nicht ab: Sie listete
+    Forever-Charaktere live nicht, und ohne Realm waere der Fund unbelegt."""
+    mock_login(aioclient_mock, {("eu", ""): _account(TESTCHAR)})
     result = await _start_login(hass)
     result = await _return(hass, hass_client_no_auth, result, "code=abcd")
     (option,) = _options(result)
-    assert option["label"] == "Testchar – Die Aldor · EU Forever · Level 90 Magier"
-    result = await hass.config_entries.flow.async_configure(
-        result["flow_id"], {"characters": [option["value"]]}
+    assert "Forever" not in option["label"]
+    assert not any("forever" in str(call[1]) for call in aioclient_mock.mock_calls), (
+        "Forever abgefragt"
     )
-    (subentry,) = result["result"].subentries.values()
-    assert subentry.data["game_version"] == "forever"
-    assert subentry.data["namespace_suffix"] == "-camelot"
-    assert subentry.unique_id == "eu-profile-camelot-eu-die-aldor-testchar"
 
 
 async def test_login_counts_failed_queries(
