@@ -12,7 +12,7 @@ Ausrüstung, Raid- und Mythic+-Fortschritt, Berufe, Ruf, Erfolge und mehr als
 Sensoren, dazu WoW-Marke, wöchentlicher Reset und Serverstatus. Die Daten kommen
 aus der offiziellen Battle.net API. Unterstützt Retail, WoW Classic (Era,
 Progression, Anniversary); WoW Forever ist angelegt, aber ungetestet (siehe
-[WoW Forever](#wow-forever)). Version 0.34.0.
+[WoW Forever](#wow-forever)). Version 0.34.1.
 
 Dreizehn Dashboard-Karten liefert die Integration selbst mit: „WoW Arsenal“
 (`custom:wow-arsenal-card`), „WoW Berufe“ (`custom:wow-professions-card`),
@@ -186,6 +186,11 @@ Wer von Hand aktualisiert, ersetzt den ganzen Ordner
 `custom_components/wow_character` samt `translations/`; sonst fehlen neue Texte,
 z. B. die Einträge im Menü „Charakter hinzufügen“. Was sich je Version ändert, steht in den
 [Release-Notes](https://github.com/philf90/HA-WOW/releases).
+
+**Update auf 0.34.1:** keine Migration. Findet die Aktion
+`wow_character.probe_namespaces` ein Profil, fragt sie auch dessen verlinkte
+Unterseiten ab (Ausrüstung, Sammlungen usw.) und zeigt bis zu 40 statt 12
+Schlüssel je Antwort. Entitäten ändern sich nicht.
 
 **Update auf 0.34.0:** keine Migration. Neue Aktion
 `wow_character.probe_namespaces` (siehe [Forever-Namespaces
@@ -1062,7 +1067,15 @@ und `-camelot`) die Klassenliste im static-Namespace
 profile-Namespace die Pfade `/profile/wow/character/{regelsatz}/{charakter}`
 (nur mit Regelsatz), `/profile/wow/character/{charakter}` und, wenn eine
 Realm-Liste kam, `/profile/wow/character/{realm}/{charakter}` für die ersten 10
-Realms daraus. Die Aktion liest nur; Geräte und Entitäten ändern sich nicht.
+Realms daraus. Liefert ein Profilpfad HTTP 200, folgt sie (seit 0.34.1) den
+verlinkten Unterseiten: Schlüssel, deren Wert nur ein Link ist (`{"href": …}`,
+z. B. `equipment` oder `collections`), und darin wieder die Links (z. B.
+`collections` → `mounts`), höchstens 40 Abfragen je Profil, keine Adresse
+doppelt. Abgefragt werden nur Links zum API-Host der Region
+(`https://eu.api.blizzard.com` usw.) unter `/profile/` oder `/data/wow/`, mit
+dem Namespace aus dem Link; jede Abfrage trägt das Token, andere Links stehen
+nur in `skipped_links`. Die Aktion liest nur; Geräte und Entitäten ändern sich
+nicht.
 
 | Feld | Pflicht | Bedeutung |
 |---|---|---|
@@ -1073,16 +1086,19 @@ Realms daraus. Die Aktion liest nur; Geräte und Entitäten ändern sich nicht.
 
 Die Antwort enthält `candidates` (geprüfte Kandidaten), `requests` (Zahl der
 Abfragen), `status_counts` (Abfragen je HTTP-Status), `found` (Namespace und
-Pfad jeder Abfrage mit HTTP 200) und `results` mit einem Eintrag je Abfrage:
-`region`, `namespace`, `path`, `status` (`null` ohne Antwort), `keys`
-(Schlüssel der Antwort ohne `_links`), `sample` (bis zu 12 Schlüssel; Listen als
+Pfad jeder Abfrage mit HTTP 200), `skipped_links` (nicht abgefragte Links als
+`Schlüssel: Host`) und `results` mit einem Eintrag je Abfrage:
+`region`, `namespace`, `path`, `status` (`null` ohne Antwort), `via` (nur bei
+Unterseiten: Schlüssel des Links, z. B. `collections.mounts`), `keys`
+(Schlüssel der Antwort ohne `_links`), `sample` (bis zu 40 Schlüssel; Listen als
 Anzahl und die ersten drei Einträge mit `id`, `name`, `slug`; Texte auf 80
 Zeichen gekürzt), `body` (Anfang des Antworttexts bei HTTP-Fehlern, bis 300
 Zeichen) und `error` (Zeitüberschreitung oder Verbindungsfehler).
 
 Abfragen: ohne Charakter 4 je Region (2 Kandidaten × static und dynamic), also
 16 für alle Regionen; mit Charakter je Kandidat 1 bis 2 Profilpfade mehr, dazu
-bis zu 10 je gelieferter Realm-Liste. HTTP 401 holt einmal ein neues Token,
+bis zu 10 je gelieferter Realm-Liste und bis zu 40 Unterseiten je gefundenem
+Profil. HTTP 401 holt einmal ein neues Token,
 HTTP 429 wartet einmal eine Sekunde.
 
 ```yaml
@@ -1839,6 +1855,26 @@ static-, dynamic- und profile-Namespace der Kandidaten in allen Regionen und
 meldet je Abfrage den HTTP-Status, ohne dass ein Forever-Charakter eingerichtet
 sein muss.
 
+**Stand 16.11.2026 (Live-Aufruf der Aktion mit 0.34.0):** Die öffentliche API
+liefert Forever unter dem Namespace `-forever`:
+
+| Abfrage | EU | US | KR | TW |
+|---|---|---|---|---|
+| `static-forever-*`, Klassenliste | 200 (9 Klassen) | 200 | 200 | 200 |
+| `dynamic-forever-*`, Realm-Liste | 404 | 404 | 404 | 404 |
+| `static-camelot-*`, `dynamic-camelot-*` | 403 | 403 | 403 | 403 |
+
+Das Profil eines Forever-Charakters (EU) kam im Namespace `profile-forever-eu`
+unter `/profile/wow/character/{vorname-nachname}`, also **ohne Realm im Pfad**;
+`/profile/wow/character/normal/{vorname-nachname}` ergab 404, unter
+`profile-camelot-eu` kam 403. Die Profilantwort hatte 31 Schlüssel, darunter
+`name` (Vorname), `surname`, `name_search`, `ruleset` und `is_remix`, außerdem
+Links auf Unterseiten (`equipment`, `statistics`, `professions`, `collections`,
+`mythic_keystone_profile` u. a.); `realm`, `guild`, `active_spec` und
+`active_title` fehlten. Die Unterseiten fragt die Aktion seit 0.34.1 mit ab.
+Die Integration kann Forever-Charaktere trotzdem noch nicht einrichten: Sie
+verlangt einen Realm aus der Realm-Liste, die es für Forever nicht gibt.
+
 ### Test-Addon „HA Bridge Probe“
 
 Vorarbeit für einen zweiten Weg neben der Battle.net API: ein Spiel-Addon, das
@@ -2073,8 +2109,8 @@ Ergebnisdatei.
 - Große Schatzkammer und Affixe der aktuellen Woche liefert die API nicht: Sie
   kennt je Season nur den besten Lauf je Dungeon, und die Woche hat nur Start und
   Ende.
-- WoW Forever ist ungetestet und nicht auf Vor- und Nachnamen und Regelsätze
-  statt Realms ausgelegt (siehe [WoW Forever](#wow-forever)).
+- WoW Forever lässt sich noch nicht einrichten: Die API liefert Forever-Profile
+  ohne Realm, die Integration verlangt einen (siehe [WoW Forever](#wow-forever)).
 - WoW Classic ist nur mit einem Classic-Era-Charakter live geprüft, Progression
   und Anniversary nur automatisch (siehe [WoW Classic](#wow-classic)). Raids, Mythic+, Berufe, Ruf, Titel, Quests und
   Sammlungen gibt es für Classic nicht, weil die Classic-API sie nicht anbietet.
@@ -2091,7 +2127,19 @@ Automatische Tests laufen gegen Home Assistant 2026.2.3; live geprüft wurde unt
 Home Assistant 2026.10.4 mit Retail-Charakteren der Region EU, seit 0.11.2 auch
 mit einem Classic-Era-Charakter (siehe [WoW Classic](#wow-classic)).
 
-- **0.34.x:** 442 automatische Tests. 0.34.0: 11 neue Tests für
+- **0.34.x:** 445 automatische Tests. 0.34.1: 3 neue Tests (verlinkte
+  Unterseiten eines gefundenen Profils zwei Ebenen tief in fester Reihenfolge,
+  ohne Doppelte, ohne Objekte mit weiteren Schlüsseln, ohne dritte Ebene;
+  fremder Host nie abgefragt, nur gemeldet; Namespace aus dem Link; höchstens 40
+  Unterseiten; Regeln für Host, Schema und Pfad), dazu Kürzen auf 40 Schlüssel
+  im bestehenden Test. Gegenprobe mit 11 eingebauten Fehlern (fremder Host
+  erlaubt, beliebiger Pfad, gemischte Objekte gefolgt, dritte Ebene, nur eine
+  Ebene, doppelte Links, keine Obergrenze, Namespace aus dem Link ignoriert,
+  Links nicht gefolgt, fremde Links nicht gemeldet, alte Grenze von 12
+  Schlüsseln) – jedes Mal schlug ein Test fehl; die 13 Gegenproben aus 0.34.0
+  schlagen weiter an. 0.34.1 **nicht live geprüft**; 0.34.0 **live geprüft**
+  (16.11.2026, Home Assistant mit 0.34.0: beide Aufrufe, Ergebnis im Abschnitt
+  [WoW Forever](#wow-forever)). 0.34.0: 11 neue Tests für
   `probe_namespaces` (16 Abfragen ohne Angaben, je Region und Kandidat static und
   dynamic genau einmal; mit Charakter und Regelsatz Regelsatz-Pfad, Pfad ohne
   Realm und Realms aus der Liste in fester Reihenfolge, höchstens 10 Realms;
