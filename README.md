@@ -1820,8 +1820,9 @@ bereitgestellt“ stehen und lässt sich löschen.
 
 ## WoW Forever
 
-Seit 0.35.0 lassen sich Forever-Charaktere einrichten. Grundlage ist der
-Live-Befund vom 16.11.2026 (unten); Blizzard dokumentiert Forever nicht.
+Seit 0.35.0 lassen sich Forever-Charaktere einrichten (live geprüft am
+16.11.2026 mit einem Charakter in EU, siehe [Teststand](#teststand)). Grundlage
+ist der Live-Befund vom 16.11.2026 (unten); Blizzard dokumentiert Forever nicht.
 
 - **Hinzufügen:** **Charakter hinzufügen → Von Hand eingeben**, Region und
   Spielversion Forever, dann der Name: Vor- und Nachname (`Vorname Nachname`)
@@ -2197,9 +2198,19 @@ mit einem Classic-Era-Charakter (siehe [WoW Classic](#wow-classic)).
   das Verhalten nicht (Home Assistant übergeht Vorgaben für Felder, die das
   Formular nicht hat). Karten „WoW Arsenal“ und „WoW Charaktere“ in Chromium
   mit einem erfundenen Forever-Charakter gezeichnet (402 Pixel, Deutsch): Name
-  vor „ – “, Regelsatz an der Stelle des Realms, keine Fehler. 0.35.0 **nicht
-  live geprüft**; die API-Antworten, auf denen es beruht, sind live geprüft
-  (16.11.2026, 0.34.0 und 0.34.1).
+  vor „ – “, Regelsatz an der Stelle des Realms, keine Fehler. 0.35.0 **live
+  geprüft** (16.11.2026, Home Assistant mit 0.35.0): Forever-Charakter (EU,
+  Regelsatz Normal) über „Von Hand eingeben“ mit Vor- und Nachnamen angelegt;
+  Titel „Vorname Nachname – Normal“, unique_id ohne Realm, 49 Entitäten, keine
+  Spielwelt für Forever, keine Meldungen im Log; die drei Retail-Charaktere und
+  ihre Spielwelt liefen unverändert weiter. Level, Erfahrung, Itemlevel
+  (angelegt und Durchschnitt), letzter Login, Erfolge und Erfolgspunkte,
+  abgeschlossene Quests, Ruf, Haustiere, Reittiere, Spielzeuge, Erbstücke,
+  ehrenhafte Siege, Berufe, Titel und die Level-Attribute (`ruleset`,
+  `surname`, `realm` `null`) stimmten mit einer direkten Abfrage über
+  `probe_namespaces` überein. Nicht gegengeprüft: Transmog-Vorlagen, Talente,
+  leere Sockel, Verzauberungen; vier Ausrüstungsplätze ohne Gegenstand stehen
+  auf „unbekannt“ (Ursache nicht geprüft).
 - **0.34.x:** 445 automatische Tests. 0.34.1: 3 neue Tests (verlinkte
   Unterseiten eines gefundenen Profils zwei Ebenen tief in fester Reihenfolge,
   ohne Doppelte, ohne Objekte mit weiteren Schlüsseln, ohne dritte Ebene;
@@ -2902,8 +2913,8 @@ mit einem Classic-Era-Charakter (siehe [WoW Classic](#wow-classic)).
 - **0.1.x:** live geprüft: Realm-Liste, Profil, Mythic+-Profil und die Abfrage
   alle 15 Minuten.
 - **WoW Forever:** Profil und alle Unterseiten live über die Aktion
-  `probe_namespaces` geprüft (16.11.2026); das Einrichten seit 0.35.0 nur
-  automatisch getestet.
+  `probe_namespaces` geprüft, das Einrichten mit 0.35.0 live geprüft (beides
+  16.11.2026, ein Charakter in EU; siehe 0.35.x).
 - **WoW Classic** ist nur automatisch getestet (siehe 0.9.x).
 
 ## Tests
