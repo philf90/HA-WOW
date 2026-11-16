@@ -1,5 +1,6 @@
 """Tests fuer 0.34.0: Aktion probe_namespaces (Forever-Namespaces pruefen)."""
 
+import json
 from pathlib import Path
 
 import pytest
@@ -300,3 +301,5 @@ def test_regions_selector_matches_schema() -> None:
     assert regions["selector"]["select"]["multiple"] is True
     assert regions["default"] == list(REGIONS)
     assert services.PROBE_NAMESPACES_SCHEMA({})["regions"] == list(REGIONS)
+    icons = json.loads((path.parent / "icons.json").read_text())["services"]
+    assert icons["probe_namespaces"] == {"service": "mdi:database-search"}
